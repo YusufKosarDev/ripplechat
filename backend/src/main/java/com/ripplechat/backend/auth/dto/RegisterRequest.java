@@ -1,12 +1,10 @@
-package com.ripplechat.backend.user.dto;
+package com.ripplechat.backend.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-/**
- * Payload for creating a user. Kept minimal — no password yet (auth step).
- */
-public record CreateUserRequest(
+public record RegisterRequest(
 
         @NotBlank(message = "username is required")
         String username,
@@ -15,6 +13,10 @@ public record CreateUserRequest(
         @Email(message = "email must be valid")
         String email,
 
-        String displayName
+        String displayName,
+
+        @NotBlank(message = "password is required")
+        @Size(min = 8, message = "password must be at least 8 characters")
+        String password
 ) {
 }

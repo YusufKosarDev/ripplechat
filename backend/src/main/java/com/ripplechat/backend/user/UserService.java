@@ -2,7 +2,6 @@ package com.ripplechat.backend.user;
 
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
-import com.ripplechat.backend.user.dto.CreateUserRequest;
 import com.ripplechat.backend.user.dto.UpdateUserRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,25 +16,6 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-
-    @Transactional
-    public UserResponse create(CreateUserRequest request) {
-        if (userRepository.existsByUsername(request.username())) {
-            throw new DuplicateResourceException("username already taken: " + request.username());
-        }
-        if (userRepository.existsByEmail(request.email())) {
-            throw new DuplicateResourceException("email already registered: " + request.email());
-        }
-
-        User user = new User();
-        user.setUsername(request.username());
-        user.setEmail(request.email());
-        user.setDisplayName(request.displayName());
-
-        // saveAndFlush forces the INSERT now so @CreationTimestamp is populated
-        // on the returned entity (otherwise createdAt would be null in the response).
-        return UserResponse.from(userRepository.saveAndFlush(user));
-    }
 
     @Transactional(readOnly = true)
     public List<UserResponse> findAll() {

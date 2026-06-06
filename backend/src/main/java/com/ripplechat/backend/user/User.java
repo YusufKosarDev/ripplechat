@@ -44,6 +44,10 @@ public class User {
     @Column(name = "display_name")
     private String displayName;
 
+    /** BCrypt-hashed password. Never stored or exposed in plain text. */
+    @Column(nullable = false)
+    private String password;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
