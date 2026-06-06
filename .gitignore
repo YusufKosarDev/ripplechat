@@ -1,0 +1,38 @@
+# --- Secrets / local config ---
+.env
+*.env
+!.env.example
+
+# --- Local editor/tool state ---
+.claude/
+
+# --- Java / Maven build output ---
+target/
+build/
+*.jar
+*.war
+*.class
+
+# --- Node / frontend (future) ---
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- IDEs ---
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+# --- Logs ---
+*.log
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
