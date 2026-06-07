@@ -15,6 +15,7 @@ import {
 import { parseCommand } from '../commands/registry'
 import type { Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
+import MessageContent from './MessageContent'
 import CommandHints from './CommandHints'
 import PollCard from './PollCard'
 import ReactionBar from './ReactionBar'
@@ -73,7 +74,7 @@ export default function ChannelPanel() {
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
 
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const stopTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -204,8 +205,7 @@ export default function ChannelPanel() {
     }, TYPING_STOP_DELAY)
   }
 
-  const onSend = (e: FormEvent) => {
-    e.preventDefault()
+  const submit = () => {
     const text = draft.trim()
     if (!text) return
     setCmdError(null)
@@ -233,6 +233,11 @@ export default function ChannelPanel() {
       setDraft('')
     }
     stopTyping()
+  }
+
+  const onSend = (e: FormEvent) => {
+    e.preventDefault()
+    submit()
   }
 
   const onJoin = async () => {
@@ -338,7 +343,7 @@ export default function ChannelPanel() {
                               <span className="text-sm font-medium text-slate-200">{senderName}</span>
                               <span className="text-xs text-slate-600">{formatTime(msg.createdAt)}</span>
                             </div>
-                            <p className="text-sm text-slate-300">{msg.content}</p>
+                            <MessageContent content={msg.content} />
                           </div>
                         </div>
                       )}
@@ -358,13 +363,20 @@ export default function ChannelPanel() {
               <span className="text-xs text-slate-500">{typingText}</span>
             </div>
             {cmdError && <p className="mb-2 text-xs text-red-400">{cmdError}</p>}
-            <form onSubmit={onSend} className="flex gap-3">
-              <input
+            <form onSubmit={onSend} className="flex items-end gap-3">
+              <textarea
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => onDraftChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    submit()
+                  }
+                }}
+                rows={1}
                 placeholder={`#${channel.name} kanalına yaz  ·  /poll, /giphy, /shrug`}
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                className="max-h-40 flex-1 resize-none rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
               />
               <button
                 type="submit"
@@ -373,6 +385,11 @@ export default function ChannelPanel() {
                 Gönder
               </button>
             </form>
+            <p className="mt-1.5 text-[11px] text-slate-600">
+              Markdown destekli · <span className="text-slate-500">**kalın**</span>{' '}
+              <span className="text-slate-500">*italik*</span>{' '}
+              <span className="text-slate-500">`kod`</span> · ``` ile kod bloğu · Enter gönderir, Shift+Enter yeni satır
+            </p>
           </div>
         </>
       )}
