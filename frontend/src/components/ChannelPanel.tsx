@@ -5,19 +5,36 @@ import { joinChannel } from '../features/channels/channelsSlice'
 import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
 import { sendChatMessage, sendTyping, watchChannel } from '../realtime/chatSocket'
 import type { TypingEvent } from '../api/types'
-import PresenceDot from './PresenceDot'
+import Avatar from './Avatar'
 
 const TYPING_TTL = 4000
 const TYPING_STOP_DELAY = 2000
+const GROUP_WINDOW_MS = 5 * 60 * 1000
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+}
+
+function sameDay(a: string, b: string): boolean {
+  return startOfDay(new Date(a)) === startOfDay(new Date(b))
+}
+
+function dateLabel(iso: string): string {
+  const today = startOfDay(new Date())
+  const that = startOfDay(new Date(iso))
+  if (that === today) return 'Bugün'
+  if (that === today - 86_400_000) return 'Dün'
+  return new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function ChannelPanel() {
   const dispatch = useAppDispatch()
   const { items, selectedId } = useAppSelector((state) => state.channels)
-  const { byChannel, loadError } = useAppSelector((state) => state.messages)
+  const { byChannel, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const currentUser = useAppSelector((state) => state.auth.user)
 
@@ -34,11 +51,10 @@ export default function ChannelPanel() {
   const channel = items.find((c) => c.id === selectedId) ?? null
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden
+  const loadingMessages = messagesStatus === 'loading' && messages.length === 0
 
-  // Incoming typing events for the active channel (kept in a ref so the
-  // subscription handler never goes stale).
   const handleTyping = (event: TypingEvent) => {
-    if (event.userId === currentUserIdRef.current) return // never show our own
+    if (event.userId === currentUserIdRef.current) return
     const name = event.displayName ?? event.username
     if (event.typing) {
       setTypingUsers((prev) => ({ ...prev, [event.userId]: name }))
@@ -64,7 +80,6 @@ export default function ChannelPanel() {
   const handleTypingRef = useRef(handleTyping)
   handleTypingRef.current = handleTyping
 
-  // On channel change: load history, (re)subscribe to messages + typing.
   useEffect(() => {
     if (!selectedId) return
     dispatch(fetchMessages(selectedId))
@@ -95,8 +110,12 @@ export default function ChannelPanel() {
 
   if (!selectedId || !channel) {
     return (
-      <section className="flex flex-1 items-center justify-center text-slate-600">
-        Soldan bir kanal seç ya da yeni bir kanal oluştur.
+      <section className="flex flex-1 flex-col items-center justify-center text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800/60 text-2xl">
+          💬
+        </div>
+        <p className="mt-4 text-slate-400">Bir kanal seç veya yeni bir kanal oluştur.</p>
+        <p className="mt-1 text-sm text-slate-600">Sohbet burada başlayacak.</p>
       </section>
     )
   }
@@ -160,29 +179,63 @@ export default function ChannelPanel() {
           <p className="text-slate-400">Bu kanalın üyesi değilsin.</p>
           <button
             onClick={onJoin}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
           >
             Kanala katıl
           </button>
         </div>
       ) : (
         <>
-          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
-            {messages.length === 0 && (
-              <p className="text-sm text-slate-600">Henüz mesaj yok. İlk mesajı sen yaz.</p>
-            )}
-            {messages.map((msg) => (
-              <div key={msg.id} className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <PresenceDot online={onlineUserIds.includes(msg.sender.id)} />
-                  <span className="text-sm font-medium text-slate-200">
-                    {msg.sender.displayName ?? msg.sender.username}
-                  </span>
-                  <span className="text-xs text-slate-600">{formatTime(msg.createdAt)}</span>
-                </div>
-                <p className="ml-4 text-sm text-slate-300">{msg.content}</p>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {loadingMessages && <MessageSkeleton />}
+
+            {!loadingMessages && messages.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <p className="text-slate-400">Burada henüz mesaj yok.</p>
+                <p className="mt-1 text-sm text-slate-600">İlk mesajı sen gönder.</p>
               </div>
-            ))}
+            )}
+
+            {!loadingMessages &&
+              messages.map((msg, index) => {
+                const prev = index > 0 ? messages[index - 1] : null
+                const showDate = !prev || !sameDay(prev.createdAt, msg.createdAt)
+                const grouped =
+                  !showDate &&
+                  prev !== null &&
+                  prev.sender.id === msg.sender.id &&
+                  new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS
+                const senderName = msg.sender.displayName ?? msg.sender.username
+
+                return (
+                  <div key={msg.id}>
+                    {showDate && (
+                      <div className="my-3 flex items-center gap-3 text-xs text-slate-500">
+                        <div className="h-px flex-1 bg-slate-800" />
+                        <span>{dateLabel(msg.createdAt)}</span>
+                        <div className="h-px flex-1 bg-slate-800" />
+                      </div>
+                    )}
+
+                    {grouped ? (
+                      <div className="group flex gap-3 pl-12">
+                        <p className="text-sm text-slate-300">{msg.content}</p>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex gap-3">
+                        <Avatar name={senderName} online={onlineUserIds.includes(msg.sender.id)} />
+                        <div className="min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-medium text-slate-200">{senderName}</span>
+                            <span className="text-xs text-slate-600">{formatTime(msg.createdAt)}</span>
+                          </div>
+                          <p className="text-sm text-slate-300">{msg.content}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             <div ref={bottomRef} />
           </div>
 
@@ -193,11 +246,11 @@ export default function ChannelPanel() {
                 value={draft}
                 onChange={(e) => onDraftChange(e.target.value)}
                 placeholder={`#${channel.name} kanalına yaz`}
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
               />
               <button
                 type="submit"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
               >
                 Gönder
               </button>
@@ -206,5 +259,21 @@ export default function ChannelPanel() {
         </>
       )}
     </section>
+  )
+}
+
+function MessageSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="flex gap-3">
+          <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-800" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-32 animate-pulse rounded bg-slate-800" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-slate-800/70" />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
