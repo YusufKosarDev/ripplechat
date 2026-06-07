@@ -32,12 +32,13 @@ public class ChannelController {
     }
 
     @GetMapping
-    public List<ChannelResponse> findAll() {
-        return channelService.findAll();
+    public List<ChannelResponse> findAll(@AuthenticationPrincipal String username) {
+        return channelService.findAll(username);
     }
 
     @GetMapping("/{id}")
-    public ChannelResponse findById(@PathVariable UUID id) {
-        return channelService.findById(id);
+    public ChannelResponse findById(@PathVariable UUID id,
+                                    @AuthenticationPrincipal String username) {
+        return channelService.findById(id, username);
     }
 }
