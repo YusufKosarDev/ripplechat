@@ -33,3 +33,35 @@ export interface ApiError {
   path: string
   fieldErrors?: { field: string; message: string }[]
 }
+
+export interface UserSummary {
+  id: string
+  username: string
+  displayName: string | null
+}
+
+export interface Channel {
+  id: string
+  name: string
+  description: string | null
+  isPrivate: boolean
+  createdBy: UserSummary
+  createdAt: string
+}
+
+export interface Message {
+  id: string
+  content: string
+  channelId: string
+  sender: UserSummary
+  createdAt: string
+}
+
+export interface PageResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  last: boolean
+}

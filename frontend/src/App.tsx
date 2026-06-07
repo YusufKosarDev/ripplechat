@@ -2,9 +2,8 @@ import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './app/hooks'
 import { fetchCurrentUser } from './features/auth/authSlice'
-import Layout from './components/Layout'
 import PrivateRoute from './components/PrivateRoute'
-import HomePage from './pages/HomePage'
+import ChatPage from './pages/ChatPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 
@@ -25,9 +24,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<PrivateRoute />}>
-        <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
-        </Route>
+        <Route path="/" element={<ChatPage />} />
       </Route>
     </Routes>
   )
