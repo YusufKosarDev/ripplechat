@@ -3,11 +3,18 @@ import type { StompSubscription } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { config } from '../config'
 import { getToken } from '../api/token'
+import type { ConnectionStatus } from '../features/connection/connectionSlice'
 import type { Message, PresenceEvent, TypingEvent } from '../api/types'
 
 type MessageHandler = (message: Message) => void
 type TypingHandler = (event: TypingEvent) => void
 type PresenceHandler = (event: PresenceEvent) => void
+
+interface ChatHandlers {
+  onStatus?: (status: ConnectionStatus) => void
+  onReconnect?: () => void
+  onAuthError?: () => void
+}
 
 let client: Client | null = null
 let messageSub: StompSubscription | null = null
@@ -16,6 +23,8 @@ let presenceSub: StompSubscription | null = null
 
 let desired: { channelId: string; onMessage: MessageHandler; onTyping: TypingHandler } | null = null
 let presenceHandler: PresenceHandler | null = null
+let handlers: ChatHandlers = {}
+let hasConnectedBefore = false
 
 function resolveChannelSubs() {
   if (!client?.connected || !desired) {
@@ -41,15 +50,20 @@ function resolvePresence() {
   })
 }
 
-export function connectChat() {
+export function connectChat(chatHandlers: ChatHandlers = {}) {
   if (client) {
     return
   }
+  handlers = chatHandlers
+  hasConnectedBefore = false
   const url = window.location.origin + config.wsUrl
   client = new Client({
     webSocketFactory: () => new SockJS(url),
     connectHeaders: { Authorization: `Bearer ${getToken() ?? ''}` },
-    reconnectDelay: 5000,
+    reconnectDelay: 3000,
+    beforeConnect: () => {
+      handlers.onStatus?.('connecting')
+    },
     onConnect: () => {
       // Subscriptions are dropped on (re)connect; recreate them fresh.
       messageSub = null
@@ -57,6 +71,22 @@ export function connectChat() {
       presenceSub = null
       resolvePresence()
       resolveChannelSubs()
+      handlers.onStatus?.('connected')
+      if (hasConnectedBefore) {
+        handlers.onReconnect?.()
+      }
+      hasConnectedBefore = true
+    },
+    onWebSocketClose: () => {
+      handlers.onStatus?.('disconnected')
+    },
+    onWebSocketError: () => {
+      handlers.onStatus?.('disconnected')
+    },
+    // A STOMP ERROR on a live socket means the server rejected us (e.g. the
+    // JWT is invalid/expired) — treat it as an auth failure, not a retry.
+    onStompError: () => {
+      handlers.onAuthError?.()
     },
   })
   client.activate()
@@ -96,6 +126,8 @@ export function disconnectChat() {
   presenceSub = null
   desired = null
   presenceHandler = null
+  handlers = {}
+  hasConnectedBefore = false
   void client?.deactivate()
   client = null
 }
