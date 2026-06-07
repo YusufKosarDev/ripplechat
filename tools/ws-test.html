@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>RippleChat — WebSocket Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 12px; }
+    input, button { font-size: 14px; padding: 6px; margin: 2px 0; }
+    input[type=text] { width: 100%; box-sizing: border-box; }
+    #log { border: 1px solid #ccc; height: 260px; overflow-y: auto; padding: 8px; margin-top: 12px;
+           background: #fafafa; font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+    .row { display: flex; gap: 8px; }
+    .row input { flex: 1; }
+    .status { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>RippleChat WebSocket Test</h2>
+  <p>To test realtime: open this page in two tabs, connect both to the same channel,
+     send from one and watch it appear instantly in the other.</p>
+
+  <label>Base URL</label>
+  <input id="base" type="text" value="http://localhost:8081">
+  <label>JWT access token (from POST /api/auth/login)</label>
+  <input id="token" type="text" placeholder="paste token here">
+  <label>Channel ID</label>
+  <input id="channel" type="text" placeholder="channel uuid">
+  <button id="connect">Connect</button>
+  <span class="status" id="status">disconnected</span>
+
+  <div class="row" style="margin-top: 12px;">
+    <input id="msg" type="text" placeholder="message..." disabled>
+    <button id="send" disabled>Send</button>
+  </div>
+
+  <div id="log"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let client = null;
+
+    function log(line) {
+      const el = $('log');
+      el.textContent += line + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    $('connect').onclick = () => {
+      const base = $('base').value.trim();
+      const token = $('token').value.trim();
+      const channel = $('channel').value.trim();
+      if (!token || !channel) { log('token and channel are required'); return; }
+
+      client = new StompJs.Client({
+        webSocketFactory: () => new SockJS(base + '/ws'),
+        connectHeaders: { Authorization: 'Bearer ' + token },
+        onConnect: () => {
+          $('status').textContent = 'connected';
+          $('msg').disabled = false;
+          $('send').disabled = false;
+          log('connected, subscribing to /topic/channels/' + channel);
+          client.subscribe('/topic/channels/' + channel, (frame) => {
+            const m = JSON.parse(frame.body);
+            log(m.sender.displayName + ' (' + m.sender.username + '): ' + m.content);
+          });
+        },
+        onStompError: (frame) => log('STOMP ERROR: ' + frame.headers['message']),
+        onWebSocketClose: () => { $('status').textContent = 'disconnected'; },
+      });
+      client.activate();
+    };
+
+    $('send').onclick = () => {
+      const channel = $('channel').value.trim();
+      const content = $('msg').value;
+      if (!content) return;
+      client.publish({
+        destination: '/app/channels/' + channel + '/send',
+        body: JSON.stringify({ content }),
+      });
+      $('msg').value = '';
+    };
+  </script>
+</body>
+</html>
