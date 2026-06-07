@@ -16,3 +16,38 @@ body {
   color: #e2e8f0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* Flying emoji reactions: float up, sway side to side, grow and fade out. */
+@keyframes ripple-float {
+  0% {
+    transform: translate(0, 0) scale(0.8);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  25% {
+    transform: translate(calc(var(--drift) * 0.6), -22vh) scale(1.1);
+  }
+  50% {
+    transform: translate(calc(var(--drift) * -0.6), -44vh) scale(1.25);
+  }
+  75% {
+    transform: translate(calc(var(--drift) * 0.6), -66vh) scale(1.35);
+  }
+  100% {
+    transform: translate(0, -85vh) scale(1.45);
+    opacity: 0;
+  }
+}
+
+.ripple-emoji {
+  position: absolute;
+  bottom: 0;
+  animation-name: ripple-float;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+  user-select: none;
+}

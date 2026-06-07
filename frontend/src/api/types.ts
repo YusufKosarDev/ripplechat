@@ -79,3 +79,9 @@ export interface TypingEvent {
   displayName: string | null
   typing: boolean
 }
+
+export interface ReactionEvent {
+  userId: string
+  username: string
+  emoji: string
+}

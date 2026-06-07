@@ -4,10 +4,11 @@ import SockJS from 'sockjs-client'
 import { config } from '../config'
 import { getToken } from '../api/token'
 import type { ConnectionStatus } from '../features/connection/connectionSlice'
-import type { Message, PresenceEvent, TypingEvent } from '../api/types'
+import type { Message, PresenceEvent, ReactionEvent, TypingEvent } from '../api/types'
 
 type MessageHandler = (message: Message) => void
 type TypingHandler = (event: TypingEvent) => void
+type ReactionHandler = (event: ReactionEvent) => void
 type PresenceHandler = (event: PresenceEvent) => void
 
 interface ChatHandlers {
@@ -16,12 +17,19 @@ interface ChatHandlers {
   onAuthError?: () => void
 }
 
+interface ChannelHandlers {
+  onMessage: MessageHandler
+  onTyping: TypingHandler
+  onReaction: ReactionHandler
+}
+
 let client: Client | null = null
 let messageSub: StompSubscription | null = null
 let typingSub: StompSubscription | null = null
+let reactionSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
 
-let desired: { channelId: string; onMessage: MessageHandler; onTyping: TypingHandler } | null = null
+let desired: ({ channelId: string } & ChannelHandlers) | null = null
 let presenceHandler: PresenceHandler | null = null
 let handlers: ChatHandlers = {}
 let hasConnectedBefore = false
@@ -32,12 +40,16 @@ function resolveChannelSubs() {
   }
   messageSub?.unsubscribe()
   typingSub?.unsubscribe()
-  const { channelId, onMessage, onTyping } = desired
+  reactionSub?.unsubscribe()
+  const { channelId, onMessage, onTyping, onReaction } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
     onMessage(JSON.parse(frame.body) as Message)
   })
   typingSub = client.subscribe(`/topic/channels/${channelId}/typing`, (frame) => {
     onTyping(JSON.parse(frame.body) as TypingEvent)
+  })
+  reactionSub = client.subscribe(`/topic/channels/${channelId}/reactions`, (frame) => {
+    onReaction(JSON.parse(frame.body) as ReactionEvent)
   })
 }
 
@@ -68,6 +80,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       // Subscriptions are dropped on (re)connect; recreate them fresh.
       messageSub = null
       typingSub = null
+      reactionSub = null
       presenceSub = null
       resolvePresence()
       resolveChannelSubs()
@@ -97,9 +110,9 @@ export function setPresenceHandler(handler: PresenceHandler) {
   resolvePresence()
 }
 
-// Switches the active channel's message + typing subscriptions together.
-export function watchChannel(channelId: string, onMessage: MessageHandler, onTyping: TypingHandler) {
-  desired = { channelId, onMessage, onTyping }
+// Switches the active channel's message + typing + reaction subscriptions.
+export function watchChannel(channelId: string, channelHandlers: ChannelHandlers) {
+  desired = { channelId, ...channelHandlers }
   resolveChannelSubs()
 }
 
@@ -117,12 +130,21 @@ export function sendTyping(channelId: string, typing: boolean) {
   })
 }
 
+export function sendReaction(channelId: string, emoji: string) {
+  client?.publish({
+    destination: `/app/channels/${channelId}/reaction`,
+    body: JSON.stringify({ emoji }),
+  })
+}
+
 export function disconnectChat() {
   messageSub?.unsubscribe()
   typingSub?.unsubscribe()
+  reactionSub?.unsubscribe()
   presenceSub?.unsubscribe()
   messageSub = null
   typingSub = null
+  reactionSub = null
   presenceSub = null
   desired = null
   presenceHandler = null

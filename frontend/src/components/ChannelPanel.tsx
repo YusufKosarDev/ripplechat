@@ -3,13 +3,17 @@ import type { FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { joinChannel } from '../features/channels/channelsSlice'
 import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
-import { sendChatMessage, sendTyping, watchChannel } from '../realtime/chatSocket'
-import type { TypingEvent } from '../api/types'
+import { sendChatMessage, sendReaction, sendTyping, watchChannel } from '../realtime/chatSocket'
+import type { ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
+import ReactionBar from './ReactionBar'
+import ReactionOverlay from './ReactionOverlay'
+import type { FlyingEmoji } from './ReactionOverlay'
 
 const TYPING_TTL = 4000
 const TYPING_STOP_DELAY = 2000
 const GROUP_WINDOW_MS = 5 * 60 * 1000
+const MAX_FLYING = 40
 
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
@@ -31,6 +35,18 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function makeFlyingEmoji(emoji: string): FlyingEmoji {
+  const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Math.random())
+  return {
+    id,
+    emoji,
+    left: 15 + Math.random() * 70,
+    drift: (20 + Math.random() * 60) * (Math.random() < 0.5 ? -1 : 1),
+    duration: 2.6 + Math.random() * 1.2,
+    size: 1.6 + Math.random() * 0.8,
+  }
+}
+
 export default function ChannelPanel() {
   const dispatch = useAppDispatch()
   const { items, selectedId } = useAppSelector((state) => state.channels)
@@ -40,9 +56,11 @@ export default function ChannelPanel() {
 
   const [draft, setDraft] = useState('')
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
+  const [flying, setFlying] = useState<FlyingEmoji[]>([])
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const stopTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isTypingRef = useRef(false)
   const currentUserIdRef = useRef<string | undefined>(undefined)
@@ -80,16 +98,34 @@ export default function ChannelPanel() {
   const handleTypingRef = useRef(handleTyping)
   handleTypingRef.current = handleTyping
 
+  const handleReaction = (event: ReactionEvent) => {
+    const item = makeFlyingEmoji(event.emoji)
+    setFlying((prev) => (prev.length >= MAX_FLYING ? [...prev.slice(1), item] : [...prev, item]))
+    const timer = setTimeout(() => {
+      setFlying((prev) => prev.filter((f) => f.id !== item.id))
+      reactionTimers.current.delete(timer)
+    }, item.duration * 1000 + 300)
+    reactionTimers.current.add(timer)
+  }
+  const handleReactionRef = useRef(handleReaction)
+  handleReactionRef.current = handleReaction
+
+  const subscribe = (channelId: string) => {
+    watchChannel(channelId, {
+      onMessage: (msg) => dispatch(messageReceived(msg)),
+      onTyping: (event) => handleTypingRef.current(event),
+      onReaction: (event) => handleReactionRef.current(event),
+    })
+  }
+
   useEffect(() => {
     if (!selectedId) return
     dispatch(fetchMessages(selectedId))
-    watchChannel(
-      selectedId,
-      (msg) => dispatch(messageReceived(msg)),
-      (event) => handleTypingRef.current(event),
-    )
+    subscribe(selectedId)
     setTypingUsers({})
-    const timers = typingTimers.current
+    setFlying([])
+    const typing = typingTimers.current
+    const reactions = reactionTimers.current
     return () => {
       if (isTypingRef.current) {
         sendTyping(selectedId, false)
@@ -99,9 +135,12 @@ export default function ChannelPanel() {
         clearTimeout(stopTypingTimer.current)
         stopTypingTimer.current = null
       }
-      Object.values(timers).forEach(clearTimeout)
+      Object.values(typing).forEach(clearTimeout)
       typingTimers.current = {}
+      reactions.forEach(clearTimeout)
+      reactions.clear()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, dispatch])
 
   useEffect(() => {
@@ -152,11 +191,7 @@ export default function ChannelPanel() {
   const onJoin = async () => {
     await dispatch(joinChannel(channel.id))
     dispatch(fetchMessages(channel.id))
-    watchChannel(
-      channel.id,
-      (msg) => dispatch(messageReceived(msg)),
-      (event) => handleTypingRef.current(event),
-    )
+    subscribe(channel.id)
   }
 
   const typingNames = Object.values(typingUsers)
@@ -186,61 +221,68 @@ export default function ChannelPanel() {
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            {loadingMessages && <MessageSkeleton />}
+          <div className="relative flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto px-6 py-4">
+              {loadingMessages && <MessageSkeleton />}
 
-            {!loadingMessages && messages.length === 0 && (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <p className="text-slate-400">Burada henüz mesaj yok.</p>
-                <p className="mt-1 text-sm text-slate-600">İlk mesajı sen gönder.</p>
-              </div>
-            )}
+              {!loadingMessages && messages.length === 0 && (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <p className="text-slate-400">Burada henüz mesaj yok.</p>
+                  <p className="mt-1 text-sm text-slate-600">İlk mesajı sen gönder.</p>
+                </div>
+              )}
 
-            {!loadingMessages &&
-              messages.map((msg, index) => {
-                const prev = index > 0 ? messages[index - 1] : null
-                const showDate = !prev || !sameDay(prev.createdAt, msg.createdAt)
-                const grouped =
-                  !showDate &&
-                  prev !== null &&
-                  prev.sender.id === msg.sender.id &&
-                  new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS
-                const senderName = msg.sender.displayName ?? msg.sender.username
+              {!loadingMessages &&
+                messages.map((msg, index) => {
+                  const prev = index > 0 ? messages[index - 1] : null
+                  const showDate = !prev || !sameDay(prev.createdAt, msg.createdAt)
+                  const grouped =
+                    !showDate &&
+                    prev !== null &&
+                    prev.sender.id === msg.sender.id &&
+                    new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS
+                  const senderName = msg.sender.displayName ?? msg.sender.username
 
-                return (
-                  <div key={msg.id}>
-                    {showDate && (
-                      <div className="my-3 flex items-center gap-3 text-xs text-slate-500">
-                        <div className="h-px flex-1 bg-slate-800" />
-                        <span>{dateLabel(msg.createdAt)}</span>
-                        <div className="h-px flex-1 bg-slate-800" />
-                      </div>
-                    )}
+                  return (
+                    <div key={msg.id}>
+                      {showDate && (
+                        <div className="my-3 flex items-center gap-3 text-xs text-slate-500">
+                          <div className="h-px flex-1 bg-slate-800" />
+                          <span>{dateLabel(msg.createdAt)}</span>
+                          <div className="h-px flex-1 bg-slate-800" />
+                        </div>
+                      )}
 
-                    {grouped ? (
-                      <div className="group flex gap-3 pl-12">
-                        <p className="text-sm text-slate-300">{msg.content}</p>
-                      </div>
-                    ) : (
-                      <div className="mt-3 flex gap-3">
-                        <Avatar name={senderName} online={onlineUserIds.includes(msg.sender.id)} />
-                        <div className="min-w-0">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-sm font-medium text-slate-200">{senderName}</span>
-                            <span className="text-xs text-slate-600">{formatTime(msg.createdAt)}</span>
-                          </div>
+                      {grouped ? (
+                        <div className="pl-12">
                           <p className="text-sm text-slate-300">{msg.content}</p>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            <div ref={bottomRef} />
+                      ) : (
+                        <div className="mt-3 flex gap-3">
+                          <Avatar name={senderName} online={onlineUserIds.includes(msg.sender.id)} />
+                          <div className="min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-sm font-medium text-slate-200">{senderName}</span>
+                              <span className="text-xs text-slate-600">{formatTime(msg.createdAt)}</span>
+                            </div>
+                            <p className="text-sm text-slate-300">{msg.content}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              <div ref={bottomRef} />
+            </div>
+
+            <ReactionOverlay items={flying} />
           </div>
 
           <div className="border-t border-slate-800 px-6 pb-4 pt-3">
-            <div className="h-5 text-xs text-slate-500">{typingText}</div>
+            <div className="mb-2 flex items-center justify-between">
+              <ReactionBar onReact={(emoji) => sendReaction(channel.id, emoji)} />
+              <span className="text-xs text-slate-500">{typingText}</span>
+            </div>
             <form onSubmit={onSend} className="flex gap-3">
               <input
                 value={draft}
