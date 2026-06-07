@@ -65,3 +65,17 @@ export interface PageResponse<T> {
   totalPages: number
   last: boolean
 }
+
+export interface PresenceEvent {
+  userId: string
+  username: string
+  displayName: string | null
+  status: 'ONLINE' | 'OFFLINE'
+}
+
+export interface TypingEvent {
+  userId: string
+  username: string
+  displayName: string | null
+  typing: boolean
+}

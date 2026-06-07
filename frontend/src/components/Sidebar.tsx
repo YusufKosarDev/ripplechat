@@ -4,12 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
 import { createChannel, joinChannel, selectChannel } from '../features/channels/channelsSlice'
+import PresenceDot from './PresenceDot'
 
 export default function Sidebar() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { items, selectedId } = useAppSelector((state) => state.channels)
   const user = useAppSelector((state) => state.auth.user)
+  const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
+  const selfOnline = user ? onlineUserIds.includes(user.id) : false
 
   const [newName, setNewName] = useState('')
   const [joinId, setJoinId] = useState('')
@@ -42,7 +45,8 @@ export default function Sidebar() {
           Ripple<span className="text-indigo-400">Chat</span>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="truncate text-sm text-slate-400">
+          <span className="flex items-center gap-2 truncate text-sm text-slate-400">
+            <PresenceDot online={selfOnline} />
             {user?.displayName ?? user?.username}
           </span>
           <button onClick={onLogout} className="text-xs text-slate-500 hover:text-slate-300">
