@@ -5,6 +5,7 @@ import com.ripplechat.backend.user.dto.UserResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +28,11 @@ public class UserController {
     @GetMapping
     public List<UserResponse> findAll() {
         return userService.findAll();
+    }
+
+    @GetMapping("/me")
+    public UserResponse me(@AuthenticationPrincipal String username) {
+        return userService.findByUsername(username);
     }
 
     @GetMapping("/{id}")

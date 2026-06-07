@@ -29,6 +29,13 @@ public class UserService {
         return UserResponse.from(getOrThrow(id));
     }
 
+    @Transactional(readOnly = true)
+    public UserResponse findByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .map(UserResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+    }
+
     @Transactional
     public UserResponse update(UUID id, UpdateUserRequest request) {
         User user = getOrThrow(id);
