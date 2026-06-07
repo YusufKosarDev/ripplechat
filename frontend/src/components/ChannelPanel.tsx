@@ -3,9 +3,20 @@ import type { FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { joinChannel } from '../features/channels/channelsSlice'
 import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
-import { sendChatMessage, sendReaction, sendTyping, watchChannel } from '../realtime/chatSocket'
-import type { ReactionEvent, TypingEvent } from '../api/types'
+import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
+import {
+  sendChatMessage,
+  sendPoll,
+  sendPollVote,
+  sendReaction,
+  sendTyping,
+  watchChannel,
+} from '../realtime/chatSocket'
+import { parseCommand } from '../commands/registry'
+import type { Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
+import CommandHints from './CommandHints'
+import PollCard from './PollCard'
 import ReactionBar from './ReactionBar'
 import ReactionOverlay from './ReactionOverlay'
 import type { FlyingEmoji } from './ReactionOverlay'
@@ -51,14 +62,18 @@ export default function ChannelPanel() {
   const dispatch = useAppDispatch()
   const { items, selectedId } = useAppSelector((state) => state.channels)
   const { byChannel, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
+  const pollsByChannel = useAppSelector((state) => state.polls.byChannel)
+  const myVotes = useAppSelector((state) => state.polls.myVotes)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const currentUser = useAppSelector((state) => state.auth.user)
 
   const [draft, setDraft] = useState('')
+  const [cmdError, setCmdError] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
 
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const stopTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -68,6 +83,7 @@ export default function ChannelPanel() {
 
   const channel = items.find((c) => c.id === selectedId) ?? null
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
+  const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden
   const loadingMessages = messagesStatus === 'loading' && messages.length === 0
 
@@ -115,15 +131,18 @@ export default function ChannelPanel() {
       onMessage: (msg) => dispatch(messageReceived(msg)),
       onTyping: (event) => handleTypingRef.current(event),
       onReaction: (event) => handleReactionRef.current(event),
+      onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
     })
   }
 
   useEffect(() => {
     if (!selectedId) return
     dispatch(fetchMessages(selectedId))
+    dispatch(fetchPolls(selectedId))
     subscribe(selectedId)
     setTypingUsers({})
     setFlying([])
+    setCmdError(null)
     const typing = typingTimers.current
     const reactions = reactionTimers.current
     return () => {
@@ -159,8 +178,21 @@ export default function ChannelPanel() {
     )
   }
 
+  const stopTyping = () => {
+    if (isTypingRef.current) {
+      sendTyping(channel.id, false)
+      isTypingRef.current = false
+    }
+    if (stopTypingTimer.current) {
+      clearTimeout(stopTypingTimer.current)
+      stopTypingTimer.current = null
+    }
+  }
+
   const onDraftChange = (value: string) => {
     setDraft(value)
+    setCmdError(null)
+    if (value.startsWith('/')) return // don't broadcast typing while composing a command
     if (!isTypingRef.current) {
       sendTyping(channel.id, true)
       isTypingRef.current = true
@@ -174,24 +206,50 @@ export default function ChannelPanel() {
 
   const onSend = (e: FormEvent) => {
     e.preventDefault()
-    const content = draft.trim()
-    if (!content) return
-    sendChatMessage(channel.id, content)
-    setDraft('')
-    if (isTypingRef.current) {
-      sendTyping(channel.id, false)
-      isTypingRef.current = false
+    const text = draft.trim()
+    if (!text) return
+    setCmdError(null)
+
+    if (text.startsWith('/')) {
+      const parsed = parseCommand(text)!
+      if (!parsed.command) {
+        setCmdError(`Bilinmeyen komut: /${parsed.name}`)
+        return
+      }
+      let hadError = false
+      parsed.command.run({
+        channelId: channel.id,
+        args: parsed.args,
+        sendMessage: (content) => sendChatMessage(channel.id, content),
+        createPoll: (question, options) => sendPoll(channel.id, question, options),
+        showError: (message) => {
+          hadError = true
+          setCmdError(message)
+        },
+      })
+      if (!hadError) setDraft('')
+    } else {
+      sendChatMessage(channel.id, text)
+      setDraft('')
     }
-    if (stopTypingTimer.current) {
-      clearTimeout(stopTypingTimer.current)
-      stopTypingTimer.current = null
-    }
+    stopTyping()
   }
 
   const onJoin = async () => {
     await dispatch(joinChannel(channel.id))
     dispatch(fetchMessages(channel.id))
+    dispatch(fetchPolls(channel.id))
     subscribe(channel.id)
+  }
+
+  const onVote = (poll: Poll, optionId: string) => {
+    dispatch(setMyVote({ pollId: poll.id, optionId }))
+    sendPollVote(channel.id, poll.id, optionId)
+  }
+
+  const onPickCommand = (name: string) => {
+    setDraft(`/${name} `)
+    inputRef.current?.focus()
   }
 
   const typingNames = Object.values(typingUsers)
@@ -199,6 +257,8 @@ export default function ChannelPanel() {
   if (typingNames.length === 1) typingText = `${typingNames[0]} yazıyor...`
   else if (typingNames.length === 2) typingText = `${typingNames[0]} ve ${typingNames[1]} yazıyor...`
   else if (typingNames.length > 2) typingText = 'Birkaç kişi yazıyor...'
+
+  const showHints = draft.startsWith('/') && !draft.includes(' ')
 
   return (
     <section className="flex flex-1 flex-col">
@@ -223,9 +283,22 @@ export default function ChannelPanel() {
         <>
           <div className="relative flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto px-6 py-4">
+              {polls.length > 0 && (
+                <div className="mb-4 space-y-3">
+                  {polls.map((poll) => (
+                    <PollCard
+                      key={poll.id}
+                      poll={poll}
+                      myVote={myVotes[poll.id]}
+                      onVote={(optionId) => onVote(poll, optionId)}
+                    />
+                  ))}
+                </div>
+              )}
+
               {loadingMessages && <MessageSkeleton />}
 
-              {!loadingMessages && messages.length === 0 && (
+              {!loadingMessages && messages.length === 0 && polls.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <p className="text-slate-400">Burada henüz mesaj yok.</p>
                   <p className="mt-1 text-sm text-slate-600">İlk mesajı sen gönder.</p>
@@ -279,15 +352,18 @@ export default function ChannelPanel() {
           </div>
 
           <div className="border-t border-slate-800 px-6 pb-4 pt-3">
+            {showHints && <CommandHints prefix={draft.slice(1)} onPick={onPickCommand} />}
             <div className="mb-2 flex items-center justify-between">
               <ReactionBar onReact={(emoji) => sendReaction(channel.id, emoji)} />
               <span className="text-xs text-slate-500">{typingText}</span>
             </div>
+            {cmdError && <p className="mb-2 text-xs text-red-400">{cmdError}</p>}
             <form onSubmit={onSend} className="flex gap-3">
               <input
+                ref={inputRef}
                 value={draft}
                 onChange={(e) => onDraftChange(e.target.value)}
-                placeholder={`#${channel.name} kanalına yaz`}
+                placeholder={`#${channel.name} kanalına yaz  ·  /poll, /giphy, /shrug`}
                 className="flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
               />
               <button

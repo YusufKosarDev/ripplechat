@@ -85,3 +85,19 @@ export interface ReactionEvent {
   username: string
   emoji: string
 }
+
+export interface PollOption {
+  id: string
+  text: string
+  votes: number
+}
+
+export interface Poll {
+  id: string
+  channelId: string
+  question: string
+  options: PollOption[]
+  createdBy: string
+  createdAt: string
+  totalVotes: number
+}
