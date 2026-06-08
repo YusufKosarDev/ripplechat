@@ -20,6 +20,7 @@ type ReactionHandler = (event: ReactionEvent) => void
 type MessageReactionHandler = (update: MessageReactionUpdate) => void
 type MessageUpdateHandler = (message: Message) => void
 type ThreadUpdateHandler = (update: ThreadUpdate) => void
+type ChannelDeletedHandler = () => void
 type ReplyHandler = (reply: Message) => void
 type PollHandler = (poll: Poll) => void
 type PresenceHandler = (event: PresenceEvent) => void
@@ -37,6 +38,7 @@ interface ChannelHandlers {
   onMessageReaction: MessageReactionHandler
   onMessageUpdate: MessageUpdateHandler
   onThreadUpdate: ThreadUpdateHandler
+  onChannelDeleted: ChannelDeletedHandler
   onPoll: PollHandler
 }
 
@@ -47,6 +49,7 @@ let reactionSub: StompSubscription | null = null
 let messageReactionSub: StompSubscription | null = null
 let messageUpdateSub: StompSubscription | null = null
 let threadUpdateSub: StompSubscription | null = null
+let channelDeletedSub: StompSubscription | null = null
 let pollSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
 
@@ -69,6 +72,7 @@ function resolveChannelSubs() {
   messageReactionSub?.unsubscribe()
   messageUpdateSub?.unsubscribe()
   threadUpdateSub?.unsubscribe()
+  channelDeletedSub?.unsubscribe()
   pollSub?.unsubscribe()
   const {
     channelId,
@@ -78,6 +82,7 @@ function resolveChannelSubs() {
     onMessageReaction,
     onMessageUpdate,
     onThreadUpdate,
+    onChannelDeleted,
     onPoll,
   } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
@@ -94,6 +99,9 @@ function resolveChannelSubs() {
   })
   messageUpdateSub = client.subscribe(`/topic/channels/${channelId}/message-updates`, (frame) => {
     onMessageUpdate(JSON.parse(frame.body) as Message)
+  })
+  channelDeletedSub = client.subscribe(`/topic/channels/${channelId}/deleted`, () => {
+    onChannelDeleted()
   })
   threadUpdateSub = client.subscribe(`/topic/channels/${channelId}/thread-updates`, (frame) => {
     onThreadUpdate(JSON.parse(frame.body) as ThreadUpdate)
@@ -145,6 +153,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       messageReactionSub = null
       messageUpdateSub = null
       threadUpdateSub = null
+      channelDeletedSub = null
       pollSub = null
       presenceSub = null
       threadSub = null
@@ -258,6 +267,7 @@ export function disconnectChat() {
   messageReactionSub?.unsubscribe()
   messageUpdateSub?.unsubscribe()
   threadUpdateSub?.unsubscribe()
+  channelDeletedSub?.unsubscribe()
   pollSub?.unsubscribe()
   presenceSub?.unsubscribe()
   threadSub?.unsubscribe()
@@ -267,6 +277,7 @@ export function disconnectChat() {
   messageReactionSub = null
   messageUpdateSub = null
   threadUpdateSub = null
+  channelDeletedSub = null
   pollSub = null
   presenceSub = null
   threadSub = null

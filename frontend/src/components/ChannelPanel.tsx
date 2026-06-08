@@ -9,8 +9,10 @@ import {
   messageUpdated,
   threadSummaryUpdated,
 } from '../features/messages/messagesSlice'
+import { channelRemoved, fetchMembers } from '../features/channels/channelsSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
+import ChannelMembersModal from './ChannelMembersModal'
 import {
   sendChatMessage,
   sendDeleteMessage,
@@ -77,9 +79,11 @@ export default function ChannelPanel() {
   const pollsByChannel = useAppSelector((state) => state.polls.byChannel)
   const myVotes = useAppSelector((state) => state.polls.myVotes)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
+  const membersByChannel = useAppSelector((state) => state.channels.membersByChannel)
   const currentUser = useAppSelector((state) => state.auth.user)
 
   const [draft, setDraft] = useState('')
+  const [showMembers, setShowMembers] = useState(false)
   const [cmdError, setCmdError] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
@@ -100,6 +104,9 @@ export default function ChannelPanel() {
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden
   const loadingMessages = messagesStatus === 'loading' && messages.length === 0
+  const members = selectedId ? (membersByChannel[selectedId] ?? []) : []
+  const myRole = members.find((m) => m.user.id === currentUser?.id)?.role
+  const canModerate = myRole === 'OWNER' || myRole === 'MODERATOR'
 
   const handleTyping = (event: TypingEvent) => {
     if (event.userId === currentUserIdRef.current) return
@@ -168,6 +175,10 @@ export default function ChannelPanel() {
             thread: update.thread,
           }),
         ),
+      onChannelDeleted: () => {
+        dispatch(closeThread())
+        dispatch(channelRemoved(channelId))
+      },
       onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
     })
   }
@@ -176,8 +187,10 @@ export default function ChannelPanel() {
     if (!selectedId) return
     dispatch(fetchMessages(selectedId))
     dispatch(fetchPolls(selectedId))
+    dispatch(fetchMembers(selectedId))
     subscribe(selectedId)
     dispatch(closeThread())
+    setShowMembers(false)
     setTypingUsers({})
     setFlying([])
     setCmdError(null)
@@ -347,18 +360,23 @@ export default function ChannelPanel() {
       )
     }
     const mine = msg.sender.id === currentUser?.id
+    const canDelete = mine || canModerate
     return (
       <div>
         <MessageContent content={msg.content} />
         {msg.editedAt && <span className="text-[11px] text-slate-600">(düzenlendi)</span>}
-        {mine && (
+        {(mine || canDelete) && (
           <span className="ml-2 hidden gap-2 text-xs text-slate-500 group-hover:inline-flex">
-            <button onClick={() => startEdit(msg)} className="hover:text-slate-300">
-              Düzenle
-            </button>
-            <button onClick={() => onDelete(msg)} className="hover:text-red-400">
-              Sil
-            </button>
+            {mine && (
+              <button onClick={() => startEdit(msg)} className="hover:text-slate-300">
+                Düzenle
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={() => onDelete(msg)} className="hover:text-red-400">
+                Sil
+              </button>
+            )}
           </span>
         )}
       </div>
@@ -375,12 +393,30 @@ export default function ChannelPanel() {
 
   return (
     <section className="flex flex-1 flex-col">
-      <header className="border-b border-slate-800 px-6 py-4">
-        <h2 className="font-semibold">
-          <span className="text-slate-500">#</span> {channel.name}
-        </h2>
-        {channel.description && <p className="text-sm text-slate-500">{channel.description}</p>}
+      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+        <div className="min-w-0">
+          <h2 className="font-semibold">
+            <span className="text-slate-500">#</span> {channel.name}
+          </h2>
+          {channel.description && <p className="truncate text-sm text-slate-500">{channel.description}</p>}
+        </div>
+        <button
+          onClick={() => setShowMembers(true)}
+          className="shrink-0 rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-300 transition hover:border-slate-500"
+        >
+          Üyeler ({members.length})
+        </button>
       </header>
+
+      {showMembers && (
+        <ChannelMembersModal
+          channelId={channel.id}
+          members={members}
+          myRole={myRole}
+          currentUserId={currentUser?.id}
+          onClose={() => setShowMembers(false)}
+        />
+      )}
 
       {forbidden ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">

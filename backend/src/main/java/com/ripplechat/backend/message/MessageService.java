@@ -2,7 +2,9 @@ package com.ripplechat.backend.message;
 
 import com.ripplechat.backend.channel.Channel;
 import com.ripplechat.backend.channel.ChannelRepository;
+import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
+import com.ripplechat.backend.channel.membership.MembershipRole;
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -51,6 +53,9 @@ public class MessageService {
     public MessageResponse send(UUID channelId, CreateMessageRequest request, String username) {
         Channel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new ResourceNotFoundException("channel not found: " + channelId));
+        if (channel.isDeleted()) {
+            throw new ResourceNotFoundException("channel not found: " + channelId);
+        }
         requireMember(channelId, username);
 
         User sender = userRepository.findByUsername(username)
@@ -133,7 +138,22 @@ public class MessageService {
 
     @Transactional
     public void deleteMessage(UUID channelId, UUID messageId, String username) {
-        Message message = requireOwnMessage(channelId, messageId, username);
+        requireMember(channelId, username);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
+        if (!message.getChannel().getId().equals(channelId)) {
+            throw new ResourceNotFoundException("message not found in channel: " + messageId);
+        }
+        // Owner of the message OR a channel moderator/owner may delete it.
+        boolean isSender = message.getSender().getUsername().equals(username);
+        if (!isSender) {
+            MembershipRole role = membershipRepository.findByChannelIdAndUser_Username(channelId, username)
+                    .map(ChannelMembership::getRole)
+                    .orElse(null);
+            if (role == null || !role.canModerate()) {
+                throw new ForbiddenException("you can only delete your own messages");
+            }
+        }
         if (message.isDeleted()) {
             return;
         }

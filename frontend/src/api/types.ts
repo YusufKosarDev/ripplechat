@@ -40,6 +40,14 @@ export interface UserSummary {
   displayName: string | null
 }
 
+export type MembershipRole = 'OWNER' | 'MODERATOR' | 'MEMBER'
+
+export interface MemberResponse {
+  user: UserSummary
+  role: MembershipRole
+  joinedAt: string
+}
+
 export interface Channel {
   id: string
   name: string

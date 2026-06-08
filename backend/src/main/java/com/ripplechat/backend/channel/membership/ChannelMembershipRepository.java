@@ -12,6 +12,8 @@ public interface ChannelMembershipRepository extends JpaRepository<ChannelMember
 
     Optional<ChannelMembership> findByChannelIdAndUser_Username(UUID channelId, String username);
 
+    Optional<ChannelMembership> findByChannelIdAndUser_Id(UUID channelId, UUID userId);
+
     List<ChannelMembership> findByChannelId(UUID channelId);
 
     List<ChannelMembership> findByUser_Username(String username);

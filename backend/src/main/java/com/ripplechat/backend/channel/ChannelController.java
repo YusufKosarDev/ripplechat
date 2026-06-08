@@ -2,13 +2,16 @@ package com.ripplechat.backend.channel;
 
 import com.ripplechat.backend.channel.dto.ChannelResponse;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
+import com.ripplechat.backend.channel.dto.UpdateChannelRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,5 +43,19 @@ public class ChannelController {
     public ChannelResponse findById(@PathVariable UUID id,
                                     @AuthenticationPrincipal String username) {
         return channelService.findById(id, username);
+    }
+
+    @PutMapping("/{id}")
+    public ChannelResponse update(@PathVariable UUID id,
+                                  @Valid @RequestBody UpdateChannelRequest request,
+                                  @AuthenticationPrincipal String username) {
+        return channelService.update(id, username, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id,
+                       @AuthenticationPrincipal String username) {
+        channelService.delete(id, username);
     }
 }

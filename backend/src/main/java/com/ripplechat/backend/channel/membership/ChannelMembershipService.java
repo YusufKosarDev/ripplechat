@@ -74,6 +74,56 @@ public class ChannelMembershipService {
         return membershipRepository.existsByChannelIdAndUser_Username(channelId, username);
     }
 
+    @Transactional(readOnly = true)
+    public MembershipRole roleOf(UUID channelId, String username) {
+        return membershipRepository.findByChannelIdAndUser_Username(channelId, username)
+                .map(ChannelMembership::getRole)
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canModerate(UUID channelId, String username) {
+        MembershipRole role = roleOf(channelId, username);
+        return role != null && role.canModerate();
+    }
+
+    /** OWNER kicks a member. Cannot kick yourself or the owner. */
+    @Transactional
+    public void kick(UUID channelId, String actorUsername, UUID targetUserId) {
+        requireOwner(channelId, actorUsername);
+        ChannelMembership target = membershipRepository.findByChannelIdAndUser_Id(channelId, targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("member not found"));
+        if (target.getUser().getUsername().equals(actorUsername)) {
+            throw new ForbiddenException("use leave to remove yourself");
+        }
+        if (target.getRole() == MembershipRole.OWNER) {
+            throw new ForbiddenException("cannot remove the owner");
+        }
+        membershipRepository.delete(target);
+    }
+
+    /** OWNER promotes/demotes a member between MODERATOR and MEMBER. */
+    @Transactional
+    public MemberResponse setRole(UUID channelId, String actorUsername, UUID targetUserId, MembershipRole role) {
+        requireOwner(channelId, actorUsername);
+        if (role != MembershipRole.MODERATOR && role != MembershipRole.MEMBER) {
+            throw new ForbiddenException("role can only be set to MODERATOR or MEMBER");
+        }
+        ChannelMembership target = membershipRepository.findByChannelIdAndUser_Id(channelId, targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("member not found"));
+        if (target.getRole() == MembershipRole.OWNER) {
+            throw new ForbiddenException("cannot change the owner's role");
+        }
+        target.setRole(role);
+        return MemberResponse.from(membershipRepository.saveAndFlush(target));
+    }
+
+    private void requireOwner(UUID channelId, String username) {
+        if (roleOf(channelId, username) != MembershipRole.OWNER) {
+            throw new ForbiddenException("only the channel owner can do this");
+        }
+    }
+
     private void requireChannelExists(UUID channelId) {
         if (!channelRepository.existsById(channelId)) {
             throw new ResourceNotFoundException("channel not found: " + channelId);
