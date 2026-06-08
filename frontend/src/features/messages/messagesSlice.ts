@@ -55,6 +55,14 @@ const messagesSlice = createSlice({
         msg.reactions = reactions
       }
     },
+    // Replaces a top-level message in place (edit/delete broadcast).
+    messageUpdated(state, action: PayloadAction<Message>) {
+      const updated = action.payload
+      const list = state.byChannel[updated.channelId]
+      if (!list) return
+      const idx = list.findIndex((m) => m.id === updated.id)
+      if (idx >= 0) list[idx] = updated
+    },
     // Updates a top-level message's thread summary (from the WebSocket broadcast).
     threadSummaryUpdated(
       state,
@@ -87,5 +95,6 @@ const messagesSlice = createSlice({
   },
 })
 
-export const { messageReceived, messageReactionsUpdated, threadSummaryUpdated } = messagesSlice.actions
+export const { messageReceived, messageUpdated, messageReactionsUpdated, threadSummaryUpdated } =
+  messagesSlice.actions
 export default messagesSlice.reducer

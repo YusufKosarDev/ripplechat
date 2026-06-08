@@ -18,6 +18,7 @@ type MessageHandler = (message: Message) => void
 type TypingHandler = (event: TypingEvent) => void
 type ReactionHandler = (event: ReactionEvent) => void
 type MessageReactionHandler = (update: MessageReactionUpdate) => void
+type MessageUpdateHandler = (message: Message) => void
 type ThreadUpdateHandler = (update: ThreadUpdate) => void
 type ReplyHandler = (reply: Message) => void
 type PollHandler = (poll: Poll) => void
@@ -34,6 +35,7 @@ interface ChannelHandlers {
   onTyping: TypingHandler
   onReaction: ReactionHandler
   onMessageReaction: MessageReactionHandler
+  onMessageUpdate: MessageUpdateHandler
   onThreadUpdate: ThreadUpdateHandler
   onPoll: PollHandler
 }
@@ -43,6 +45,7 @@ let messageSub: StompSubscription | null = null
 let typingSub: StompSubscription | null = null
 let reactionSub: StompSubscription | null = null
 let messageReactionSub: StompSubscription | null = null
+let messageUpdateSub: StompSubscription | null = null
 let threadUpdateSub: StompSubscription | null = null
 let pollSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
@@ -64,9 +67,19 @@ function resolveChannelSubs() {
   typingSub?.unsubscribe()
   reactionSub?.unsubscribe()
   messageReactionSub?.unsubscribe()
+  messageUpdateSub?.unsubscribe()
   threadUpdateSub?.unsubscribe()
   pollSub?.unsubscribe()
-  const { channelId, onMessage, onTyping, onReaction, onMessageReaction, onThreadUpdate, onPoll } = desired
+  const {
+    channelId,
+    onMessage,
+    onTyping,
+    onReaction,
+    onMessageReaction,
+    onMessageUpdate,
+    onThreadUpdate,
+    onPoll,
+  } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
     onMessage(JSON.parse(frame.body) as Message)
   })
@@ -78,6 +91,9 @@ function resolveChannelSubs() {
   })
   messageReactionSub = client.subscribe(`/topic/channels/${channelId}/message-reactions`, (frame) => {
     onMessageReaction(JSON.parse(frame.body) as MessageReactionUpdate)
+  })
+  messageUpdateSub = client.subscribe(`/topic/channels/${channelId}/message-updates`, (frame) => {
+    onMessageUpdate(JSON.parse(frame.body) as Message)
   })
   threadUpdateSub = client.subscribe(`/topic/channels/${channelId}/thread-updates`, (frame) => {
     onThreadUpdate(JSON.parse(frame.body) as ThreadUpdate)
@@ -127,6 +143,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       typingSub = null
       reactionSub = null
       messageReactionSub = null
+      messageUpdateSub = null
       threadUpdateSub = null
       pollSub = null
       presenceSub = null
@@ -170,6 +187,20 @@ export function sendChatMessage(channelId: string, content: string, parentMessag
   client?.publish({
     destination: `/app/channels/${channelId}/send`,
     body: JSON.stringify({ content, parentMessageId }),
+  })
+}
+
+export function sendEditMessage(channelId: string, messageId: string, content: string) {
+  client?.publish({
+    destination: `/app/channels/${channelId}/messages/${messageId}/edit`,
+    body: JSON.stringify({ content }),
+  })
+}
+
+export function sendDeleteMessage(channelId: string, messageId: string) {
+  client?.publish({
+    destination: `/app/channels/${channelId}/messages/${messageId}/delete`,
+    body: JSON.stringify({}),
   })
 }
 
@@ -225,6 +256,7 @@ export function disconnectChat() {
   typingSub?.unsubscribe()
   reactionSub?.unsubscribe()
   messageReactionSub?.unsubscribe()
+  messageUpdateSub?.unsubscribe()
   threadUpdateSub?.unsubscribe()
   pollSub?.unsubscribe()
   presenceSub?.unsubscribe()
@@ -233,6 +265,7 @@ export function disconnectChat() {
   typingSub = null
   reactionSub = null
   messageReactionSub = null
+  messageUpdateSub = null
   threadUpdateSub = null
   pollSub = null
   presenceSub = null

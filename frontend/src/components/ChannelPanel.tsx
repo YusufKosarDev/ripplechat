@@ -6,12 +6,15 @@ import {
   fetchMessages,
   messageReactionsUpdated,
   messageReceived,
+  messageUpdated,
   threadSummaryUpdated,
 } from '../features/messages/messagesSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
-import { closeThread, openThread } from '../features/threads/threadsSlice'
+import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
 import {
   sendChatMessage,
+  sendDeleteMessage,
+  sendEditMessage,
   sendMessageReaction,
   sendPoll,
   sendPollVote,
@@ -20,7 +23,7 @@ import {
   watchChannel,
 } from '../realtime/chatSocket'
 import { parseCommand } from '../commands/registry'
-import type { Poll, ReactionEvent, TypingEvent } from '../api/types'
+import type { Message, Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
 import MessageContent from './MessageContent'
 import MessageReactions from './MessageReactions'
@@ -80,6 +83,8 @@ export default function ChannelPanel() {
   const [cmdError, setCmdError] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -148,6 +153,13 @@ export default function ChannelPanel() {
             reactions: update.reactions,
           }),
         ),
+      onMessageUpdate: (updated) => {
+        if (updated.parentMessageId) {
+          dispatch(threadReplyUpdated(updated))
+        } else {
+          dispatch(messageUpdated(updated))
+        }
+      },
       onThreadUpdate: (update) =>
         dispatch(
           threadSummaryUpdated({
@@ -282,6 +294,77 @@ export default function ChannelPanel() {
     inputRef.current?.focus()
   }
 
+  const startEdit = (msg: Message) => {
+    setEditingId(msg.id)
+    setEditDraft(msg.content)
+  }
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditDraft('')
+  }
+  const saveEdit = (msg: Message) => {
+    const content = editDraft.trim()
+    if (content) sendEditMessage(channel.id, msg.id, content)
+    setEditingId(null)
+    setEditDraft('')
+  }
+  const onDelete = (msg: Message) => {
+    if (window.confirm('Bu mesajı silmek istediğine emin misin?')) {
+      sendDeleteMessage(channel.id, msg.id)
+    }
+  }
+
+  const renderBody = (msg: Message) => {
+    if (msg.deleted) {
+      return <p className="text-sm italic text-slate-600">Bu mesaj silindi</p>
+    }
+    if (editingId === msg.id) {
+      return (
+        <div className="mt-1">
+          <textarea
+            value={editDraft}
+            onChange={(e) => setEditDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                saveEdit(msg)
+              }
+              if (e.key === 'Escape') cancelEdit()
+            }}
+            rows={2}
+            autoFocus
+            className="w-full resize-none rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          />
+          <div className="mt-1 flex gap-2 text-xs">
+            <button onClick={() => saveEdit(msg)} className="rounded bg-indigo-600 px-2 py-1 text-white hover:bg-indigo-500">
+              Kaydet
+            </button>
+            <button onClick={cancelEdit} className="rounded border border-slate-700 px-2 py-1 text-slate-300 hover:border-slate-500">
+              İptal
+            </button>
+          </div>
+        </div>
+      )
+    }
+    const mine = msg.sender.id === currentUser?.id
+    return (
+      <div>
+        <MessageContent content={msg.content} />
+        {msg.editedAt && <span className="text-[11px] text-slate-600">(düzenlendi)</span>}
+        {mine && (
+          <span className="ml-2 hidden gap-2 text-xs text-slate-500 group-hover:inline-flex">
+            <button onClick={() => startEdit(msg)} className="hover:text-slate-300">
+              Düzenle
+            </button>
+            <button onClick={() => onDelete(msg)} className="hover:text-red-400">
+              Sil
+            </button>
+          </span>
+        )}
+      </div>
+    )
+  }
+
   const typingNames = Object.values(typingUsers)
   let typingText = ''
   if (typingNames.length === 1) typingText = `${typingNames[0]} yazıyor...`
@@ -357,9 +440,7 @@ export default function ChannelPanel() {
                       )}
 
                       {grouped ? (
-                        <div className="pl-12">
-                          <MessageContent content={msg.content} />
-                        </div>
+                        <div className="pl-12">{renderBody(msg)}</div>
                       ) : (
                         <div className="mt-3 flex gap-3">
                           <Avatar name={senderName} online={onlineUserIds.includes(msg.sender.id)} />
@@ -368,7 +449,7 @@ export default function ChannelPanel() {
                               <span className="text-sm font-medium text-slate-200">{senderName}</span>
                               <span className="text-xs text-slate-600">{formatTime(msg.createdAt)}</span>
                             </div>
-                            <MessageContent content={msg.content} />
+                            {renderBody(msg)}
                           </div>
                         </div>
                       )}
@@ -386,20 +467,24 @@ export default function ChannelPanel() {
                             💬 {msg.thread.replyCount} yanıt
                           </button>
                         )}
-                        <button
-                          onClick={() => dispatch(openThread(msg.id))}
-                          className="mt-1 hidden text-xs text-slate-500 transition hover:text-slate-300 group-hover:inline"
-                        >
-                          Yanıtla
-                        </button>
+                        {!msg.deleted && (
+                          <button
+                            onClick={() => dispatch(openThread(msg.id))}
+                            className="mt-1 hidden text-xs text-slate-500 transition hover:text-slate-300 group-hover:inline"
+                          >
+                            Yanıtla
+                          </button>
+                        )}
                       </div>
-                      <div className="pl-12">
-                        <MessageReactions
-                          reactions={msg.reactions}
-                          currentUsername={currentUser?.username ?? ''}
-                          onToggle={(emoji) => sendMessageReaction(channel.id, msg.id, emoji)}
-                        />
-                      </div>
+                      {!msg.deleted && (
+                        <div className="pl-12">
+                          <MessageReactions
+                            reactions={msg.reactions}
+                            currentUsername={currentUser?.username ?? ''}
+                            onToggle={(emoji) => sendMessageReaction(channel.id, msg.id, emoji)}
+                          />
+                        </div>
+                      )}
                     </div>
                   )
                 })}

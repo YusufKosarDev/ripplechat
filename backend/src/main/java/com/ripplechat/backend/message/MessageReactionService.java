@@ -68,6 +68,12 @@ public class MessageReactionService {
         reactionRepository.save(reaction);
     }
 
+    /** Removes all reactions on a message (used when a message is deleted). */
+    @Transactional
+    public void deleteAllForMessage(UUID messageId) {
+        reactionRepository.deleteByMessage_Id(messageId);
+    }
+
     /** Reaction summaries grouped per message, for a page of messages. */
     @Transactional(readOnly = true)
     public Map<UUID, List<ReactionSummary>> summariesByMessage(Collection<UUID> messageIds) {

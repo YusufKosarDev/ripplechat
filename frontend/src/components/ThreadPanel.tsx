@@ -3,11 +3,24 @@ import type { FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { closeThread, fetchThread, threadReplyReceived } from '../features/threads/threadsSlice'
 import { sendChatMessage, unwatchThread, watchThread } from '../realtime/chatSocket'
+import type { Message } from '../api/types'
 import Avatar from './Avatar'
 import MessageContent from './MessageContent'
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function body(m: Message) {
+  if (m.deleted) {
+    return <p className="text-sm italic text-slate-600">Bu mesaj silindi</p>
+  }
+  return (
+    <>
+      <MessageContent content={m.content} />
+      {m.editedAt && <span className="text-[11px] text-slate-600">(düzenlendi)</span>}
+    </>
+  )
 }
 
 export default function ThreadPanel() {
@@ -74,7 +87,7 @@ export default function ThreadPanel() {
                 </span>
                 <span className="text-xs text-slate-600">{formatTime(parent.createdAt)}</span>
               </div>
-              <MessageContent content={parent.content} />
+              {body(parent)}
             </div>
           </div>
         )}
@@ -95,7 +108,7 @@ export default function ThreadPanel() {
                   </span>
                   <span className="text-xs text-slate-600">{formatTime(r.createdAt)}</span>
                 </div>
-                <MessageContent content={r.content} />
+                {body(r)}
               </div>
             </div>
           ))}

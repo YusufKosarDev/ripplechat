@@ -69,6 +69,8 @@ export interface Message {
   reactions: ReactionSummary[]
   parentMessageId: string | null
   thread: ThreadSummary
+  editedAt: string | null
+  deleted: boolean
 }
 
 export interface MessageReactionUpdate {

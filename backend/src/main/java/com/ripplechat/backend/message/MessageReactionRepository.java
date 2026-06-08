@@ -15,4 +15,6 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
     List<MessageReaction> findByMessage_Id(UUID messageId);
 
     List<MessageReaction> findByMessage_IdIn(Collection<UUID> messageIds);
+
+    void deleteByMessage_Id(UUID messageId);
 }

@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -52,4 +53,13 @@ public class Message {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /** Set when the message has been edited; null otherwise. */
+    @Column(name = "edited_at")
+    private Instant editedAt;
+
+    /** Soft delete: the row stays (threads/reactions intact) but content is cleared. */
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean deleted = false;
 }

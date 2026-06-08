@@ -42,6 +42,15 @@ const threadsSlice = createSlice({
         state.repliesByParent[reply.parentMessageId] = [...list, reply]
       }
     },
+    // A reply was edited/deleted — replace it in place.
+    threadReplyUpdated(state, action: PayloadAction<Message>) {
+      const updated = action.payload
+      if (!updated.parentMessageId) return
+      const list = state.repliesByParent[updated.parentMessageId]
+      if (!list) return
+      const idx = list.findIndex((m) => m.id === updated.id)
+      if (idx >= 0) list[idx] = updated
+    },
   },
   extraReducers: (builder) => {
     builder.addCase(fetchThread.fulfilled, (state, action) => {
@@ -50,5 +59,5 @@ const threadsSlice = createSlice({
   },
 })
 
-export const { openThread, closeThread, threadReplyReceived } = threadsSlice.actions
+export const { openThread, closeThread, threadReplyReceived, threadReplyUpdated } = threadsSlice.actions
 export default threadsSlice.reducer

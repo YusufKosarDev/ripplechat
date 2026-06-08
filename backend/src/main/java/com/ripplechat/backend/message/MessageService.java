@@ -20,6 +20,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -116,6 +117,56 @@ public class MessageService {
         return replies.stream()
                 .map(m -> MessageResponse.from(m, reactions.getOrDefault(m.getId(), List.of()), ThreadSummary.empty()))
                 .toList();
+    }
+
+    @Transactional
+    public void editMessage(UUID channelId, UUID messageId, String username, String content) {
+        Message message = requireOwnMessage(channelId, messageId, username);
+        if (message.isDeleted() || content == null || content.isBlank()) {
+            return;
+        }
+        message.setContent(content);
+        message.setEditedAt(Instant.now());
+        messageRepository.saveAndFlush(message);
+        broadcastUpdate(message);
+    }
+
+    @Transactional
+    public void deleteMessage(UUID channelId, UUID messageId, String username) {
+        Message message = requireOwnMessage(channelId, messageId, username);
+        if (message.isDeleted()) {
+            return;
+        }
+        message.setDeleted(true);
+        message.setContent("");
+        messageRepository.saveAndFlush(message);
+        messageReactionService.deleteAllForMessage(messageId);
+        broadcastUpdate(message);
+    }
+
+    private Message requireOwnMessage(UUID channelId, UUID messageId, String username) {
+        requireMember(channelId, username);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
+        if (!message.getChannel().getId().equals(channelId)) {
+            throw new ResourceNotFoundException("message not found in channel: " + messageId);
+        }
+        if (!message.getSender().getUsername().equals(username)) {
+            throw new ForbiddenException("you can only modify your own messages");
+        }
+        return message;
+    }
+
+    private void broadcastUpdate(Message message) {
+        List<ReactionSummary> reactions = messageReactionService
+                .summariesByMessage(List.of(message.getId()))
+                .getOrDefault(message.getId(), List.of());
+        ThreadSummary thread = message.getParent() == null
+                ? threadSummary(message.getId())
+                : ThreadSummary.empty();
+        MessageResponse response = MessageResponse.from(message, reactions, thread);
+        messagingTemplate.convertAndSend(
+                "/topic/channels/" + message.getChannel().getId() + "/message-updates", response);
     }
 
     private Map<UUID, ThreadSummary> threadSummariesByParent(List<UUID> parentIds) {

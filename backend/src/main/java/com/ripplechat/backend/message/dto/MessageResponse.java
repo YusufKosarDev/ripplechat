@@ -15,7 +15,9 @@ public record MessageResponse(
         Instant createdAt,
         List<ReactionSummary> reactions,
         UUID parentMessageId,
-        ThreadSummary thread
+        ThreadSummary thread,
+        Instant editedAt,
+        boolean deleted
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -30,6 +32,8 @@ public record MessageResponse(
                 message.getCreatedAt(),
                 reactions,
                 message.getParent() != null ? message.getParent().getId() : null,
-                thread);
+                thread,
+                message.getEditedAt(),
+                message.isDeleted());
     }
 }
