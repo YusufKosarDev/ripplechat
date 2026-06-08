@@ -72,7 +72,11 @@ function makeFlyingEmoji(emoji: string): FlyingEmoji {
   }
 }
 
-export default function ChannelPanel() {
+interface ChannelPanelProps {
+  onOpenSidebar: () => void
+}
+
+export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const dispatch = useAppDispatch()
   const { items, selectedId } = useAppSelector((state) => state.channels)
   const { byChannel, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
@@ -219,12 +223,22 @@ export default function ChannelPanel() {
 
   if (!selectedId || !channel) {
     return (
-      <section className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800/60 text-2xl">
-          💬
+      <section className="flex flex-1 flex-col">
+        <div className="flex items-center border-b border-slate-800 px-4 py-3 md:hidden">
+          <button
+            onClick={onOpenSidebar}
+            className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-300"
+          >
+            ☰ Kanallar
+          </button>
         </div>
-        <p className="mt-4 text-slate-400">Bir kanal seç veya yeni bir kanal oluştur.</p>
-        <p className="mt-1 text-sm text-slate-600">Sohbet burada başlayacak.</p>
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800/60 text-2xl">
+            💬
+          </div>
+          <p className="mt-4 text-slate-400">Bir kanal seç veya yeni bir kanal oluştur.</p>
+          <p className="mt-1 text-sm text-slate-600">Sohbet burada başlayacak.</p>
+        </div>
       </section>
     )
   }
@@ -393,12 +407,21 @@ export default function ChannelPanel() {
 
   return (
     <section className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-        <div className="min-w-0">
-          <h2 className="font-semibold">
-            <span className="text-slate-500">#</span> {channel.name}
-          </h2>
-          {channel.description && <p className="truncate text-sm text-slate-500">{channel.description}</p>}
+      <header className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-4 md:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            onClick={onOpenSidebar}
+            className="shrink-0 rounded-md border border-slate-700 px-2.5 py-1 text-slate-300 transition hover:border-slate-500 md:hidden"
+            title="Kanallar"
+          >
+            ☰
+          </button>
+          <div className="min-w-0">
+            <h2 className="truncate font-semibold">
+              <span className="text-slate-500">#</span> {channel.name}
+            </h2>
+            {channel.description && <p className="truncate text-sm text-slate-500">{channel.description}</p>}
+          </div>
         </div>
         <button
           onClick={() => setShowMembers(true)}
@@ -532,9 +555,9 @@ export default function ChannelPanel() {
 
           <div className="border-t border-slate-800 px-6 pb-4 pt-3">
             {showHints && <CommandHints prefix={draft.slice(1)} onPick={onPickCommand} />}
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <ReactionBar onReact={(emoji) => sendReaction(channel.id, emoji)} />
-              <span className="text-xs text-slate-500">{typingText}</span>
+              <span className="min-w-0 flex-1 truncate text-right text-xs text-slate-500">{typingText}</span>
             </div>
             {cmdError && <p className="mb-2 text-xs text-red-400">{cmdError}</p>}
             <form onSubmit={onSend} className="flex items-end gap-3">

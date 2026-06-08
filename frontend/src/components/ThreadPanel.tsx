@@ -61,7 +61,7 @@ export default function ThreadPanel() {
   }
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col border-l border-slate-800 bg-slate-900/40">
+    <aside className="fixed inset-0 z-30 flex w-full shrink-0 flex-col border-l border-slate-800 bg-slate-900 md:static md:z-auto md:w-96 md:bg-slate-900/40">
       <header className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
         <span className="font-semibold">Thread</span>
         <button

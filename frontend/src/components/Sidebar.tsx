@@ -6,7 +6,12 @@ import { logout } from '../features/auth/authSlice'
 import { createChannel, joinChannel, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
 
-export default function Sidebar() {
+interface SidebarProps {
+  open: boolean
+  onClose: () => void
+}
+
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { items, selectedId, status } = useAppSelector((state) => state.channels)
@@ -42,7 +47,15 @@ export default function Sidebar() {
   const displayName = user?.displayName ?? user?.username ?? ''
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
+    <>
+      {open && (
+        <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={onClose} />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 flex w-64 shrink-0 transform flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:bg-slate-900/40 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
       <div className="border-b border-slate-800 px-4 py-4">
         <div className="text-lg font-semibold tracking-tight">
           Ripple<span className="text-indigo-400">Chat</span>
@@ -76,7 +89,10 @@ export default function Sidebar() {
             {items.map((channel) => (
               <li key={channel.id}>
                 <button
-                  onClick={() => dispatch(selectChannel(channel.id))}
+                  onClick={() => {
+                    dispatch(selectChannel(channel.id))
+                    onClose()
+                  }}
                   className={`w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition ${
                     selectedId === channel.id
                       ? 'bg-indigo-500/20 text-indigo-200'
@@ -122,6 +138,7 @@ export default function Sidebar() {
           </button>
         </form>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }

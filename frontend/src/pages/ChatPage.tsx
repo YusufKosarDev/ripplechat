@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
@@ -16,6 +16,7 @@ export default function ChatPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const selectedId = useAppSelector((state) => state.channels.selectedId)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Keep the latest selected channel available to the reconnect handler.
   const selectedIdRef = useRef(selectedId)
@@ -43,11 +44,11 @@ export default function ChatPage() {
   }, [dispatch, navigate])
 
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
       <ConnectionBanner />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <ChannelPanel />
+      <div className="relative flex flex-1 overflow-hidden">
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <ChannelPanel onOpenSidebar={() => setSidebarOpen(true)} />
         <ThreadPanel />
       </div>
     </div>
