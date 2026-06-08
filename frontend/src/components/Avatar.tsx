@@ -43,8 +43,8 @@ export default function Avatar({ name, online, size = 'md' }: AvatarProps) {
       {online !== undefined && (
         <span
           title={online ? 'çevrimiçi' : 'çevrimdışı'}
-          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-slate-950 ${
-            online ? 'bg-green-500' : 'bg-slate-500'
+          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-950 ${
+            online ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'
           }`}
         />
       )}

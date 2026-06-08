@@ -13,12 +13,12 @@ function formatTime(iso: string): string {
 
 function body(m: Message) {
   if (m.deleted) {
-    return <p className="text-sm italic text-slate-600">Bu mesaj silindi</p>
+    return <p className="text-sm italic text-slate-400 dark:text-slate-500">Bu mesaj silindi</p>
   }
   return (
     <>
       <MessageContent content={m.content} />
-      {m.editedAt && <span className="text-[11px] text-slate-600">(düzenlendi)</span>}
+      {m.editedAt && <span className="text-[11px] text-slate-400 dark:text-slate-600">(düzenlendi)</span>}
     </>
   )
 }
@@ -61,12 +61,12 @@ export default function ThreadPanel() {
   }
 
   return (
-    <aside className="fixed inset-0 z-30 flex w-full shrink-0 flex-col border-l border-slate-800 bg-slate-900 md:static md:z-auto md:w-96 md:bg-slate-900/40">
-      <header className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
+    <aside className="fixed inset-0 z-30 flex w-full shrink-0 flex-col border-l border-slate-200 bg-white md:static md:z-auto md:w-96 md:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 md:dark:bg-slate-900/40">
+      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
         <span className="font-semibold">Thread</span>
         <button
           onClick={() => dispatch(closeThread())}
-          className="text-slate-500 transition hover:text-slate-300"
+          className="text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-300"
           title="Kapat"
         >
           ✕
@@ -75,17 +75,17 @@ export default function ThreadPanel() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {parent && (
-          <div className="flex gap-3 border-b border-slate-800 pb-3">
+          <div className="flex gap-3 border-b border-slate-200 pb-3 dark:border-slate-800">
             <Avatar
               name={parent.sender.displayName ?? parent.sender.username}
               online={onlineUserIds.includes(parent.sender.id)}
             />
             <div className="min-w-0">
               <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-slate-200">
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
                   {parent.sender.displayName ?? parent.sender.username}
                 </span>
-                <span className="text-xs text-slate-600">{formatTime(parent.createdAt)}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-600">{formatTime(parent.createdAt)}</span>
               </div>
               {body(parent)}
             </div>
@@ -103,10 +103,10 @@ export default function ThreadPanel() {
               />
               <div className="min-w-0">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-medium text-slate-200">
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
                     {r.sender.displayName ?? r.sender.username}
                   </span>
-                  <span className="text-xs text-slate-600">{formatTime(r.createdAt)}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-600">{formatTime(r.createdAt)}</span>
                 </div>
                 {body(r)}
               </div>
@@ -116,12 +116,12 @@ export default function ThreadPanel() {
         </div>
       </div>
 
-      <form onSubmit={onSend} className="border-t border-slate-800 p-4">
+      <form onSubmit={onSend} className="border-t border-slate-200 p-4 dark:border-slate-800">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Yanıt yaz..."
-          className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-600"
         />
       </form>
     </aside>

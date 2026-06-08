@@ -4,7 +4,11 @@ import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 import { store } from './app/store'
 import App from './App'
+import { applyTheme, getInitialTheme } from './theme'
 import './index.css'
+
+// Apply the persisted/system theme before first paint to avoid a flash.
+applyTheme(getInitialTheme())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -6,13 +6,16 @@ import Avatar from './Avatar'
 
 function RoleBadge({ role }: { role: MembershipRole }) {
   if (role === 'OWNER') {
-    return <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">OWNER</span>
+    return <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300">OWNER</span>
   }
   if (role === 'MODERATOR') {
-    return <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300">MOD</span>
+    return <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-300">MOD</span>
   }
-  return <span className="rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">üye</span>
+  return <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">üye</span>
 }
+
+const settingsInput =
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-600'
 
 interface ChannelMembersModalProps {
   channelId: string
@@ -51,12 +54,12 @@ export default function ChannelMembersModal({
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Üyeler</h3>
-          <button onClick={onClose} className="text-slate-500 transition hover:text-slate-300">
+          <button onClick={onClose} className="text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-300">
             ✕
           </button>
         </div>
@@ -69,7 +72,9 @@ export default function ChannelMembersModal({
               <li key={m.user.id} className="flex items-center justify-between gap-2 rounded-md px-1 py-1.5">
                 <span className="flex min-w-0 items-center gap-2">
                   <Avatar name={m.user.displayName ?? m.user.username} size="sm" />
-                  <span className="truncate text-sm text-slate-200">{m.user.displayName ?? m.user.username}</span>
+                  <span className="truncate text-sm text-slate-800 dark:text-slate-200">
+                    {m.user.displayName ?? m.user.username}
+                  </span>
                   <RoleBadge role={m.role} />
                 </span>
                 {canManage && (
@@ -77,21 +82,21 @@ export default function ChannelMembersModal({
                     {m.role === 'MEMBER' ? (
                       <button
                         onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MODERATOR' }))}
-                        className="text-indigo-400 transition hover:text-indigo-300"
+                        className="text-indigo-600 transition hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
                       >
                         Mod yap
                       </button>
                     ) : (
                       <button
                         onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MEMBER' }))}
-                        className="text-slate-400 transition hover:text-slate-200"
+                        className="text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-200"
                       >
                         Mod al
                       </button>
                     )}
                     <button
                       onClick={() => dispatch(kickMember({ channelId, userId: m.user.id }))}
-                      className="text-red-400 transition hover:text-red-300"
+                      className="text-red-500 transition hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                     >
                       Çıkar
                     </button>
@@ -103,19 +108,19 @@ export default function ChannelMembersModal({
         </ul>
 
         {isOwner && (
-          <div className="mt-6 border-t border-slate-800 pt-4">
-            <h4 className="mb-2 text-sm font-medium text-slate-300">Kanal ayarları</h4>
+          <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <h4 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Kanal ayarları</h4>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Kanal adı"
-              className="mb-2 w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm outline-none transition focus:border-indigo-500"
+              className={`mb-2 ${settingsInput}`}
             />
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Açıklama"
-              className="mb-3 w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm outline-none transition focus:border-indigo-500"
+              className={`mb-3 ${settingsInput}`}
             />
             <div className="flex justify-between">
               <button
@@ -126,7 +131,7 @@ export default function ChannelMembersModal({
               </button>
               <button
                 onClick={onDeleteChannel}
-                className="rounded-md border border-red-500/50 px-3 py-1.5 text-sm text-red-400 transition hover:bg-red-500/10"
+                className="rounded-md border border-red-500/50 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-500/10 dark:text-red-400"
               >
                 Kanalı sil
               </button>

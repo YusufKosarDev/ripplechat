@@ -1,8 +1,7 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
-}
+/* Class-based dark mode (toggle `.dark` on <html>). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 html,
 body,
@@ -10,11 +9,25 @@ body,
   height: 100%;
 }
 
+:root {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
   background-color: #020617;
   color: #e2e8f0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Flying emoji reactions: float up, sway side to side, grow and fade out. */

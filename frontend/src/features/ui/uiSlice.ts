@@ -1,19 +1,28 @@
 import { createSlice } from '@reduxjs/toolkit'
+import type { PayloadAction } from '@reduxjs/toolkit'
+import { getInitialTheme } from '../../theme'
+import type { Theme } from '../../theme'
 
-// Placeholder slice so the store is valid. Real feature slices (auth, channels,
-// messages, presence) will be added in later steps.
 interface UiState {
-  ready: boolean
+  theme: Theme
 }
 
 const initialState: UiState = {
-  ready: true,
+  theme: getInitialTheme(),
 }
 
 const uiSlice = createSlice({
   name: 'ui',
   initialState,
-  reducers: {},
+  reducers: {
+    setTheme(state, action: PayloadAction<Theme>) {
+      state.theme = action.payload
+    },
+    toggleTheme(state) {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark'
+    },
+  },
 })
 
+export const { setTheme, toggleTheme } = uiSlice.actions
 export default uiSlice.reducer
