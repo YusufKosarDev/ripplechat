@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { client } from '../../api/client'
-import type { Message, PageResponse } from '../../api/types'
+import type { Message, PageResponse, ReactionSummary } from '../../api/types'
 
 interface MessagesState {
   byChannel: Record<string, Message[]>
@@ -44,6 +44,17 @@ const messagesSlice = createSlice({
         state.byChannel[msg.channelId] = [...list, msg]
       }
     },
+    // Updates one message's reaction summary (from the WebSocket broadcast).
+    messageReactionsUpdated(
+      state,
+      action: PayloadAction<{ channelId: string; messageId: string; reactions: ReactionSummary[] }>,
+    ) {
+      const { channelId, messageId, reactions } = action.payload
+      const msg = state.byChannel[channelId]?.find((m) => m.id === messageId)
+      if (msg) {
+        msg.reactions = reactions
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -65,5 +76,5 @@ const messagesSlice = createSlice({
   },
 })
 
-export const { messageReceived } = messagesSlice.actions
+export const { messageReceived, messageReactionsUpdated } = messagesSlice.actions
 export default messagesSlice.reducer

@@ -49,12 +49,24 @@ export interface Channel {
   createdAt: string
 }
 
+export interface ReactionSummary {
+  emoji: string
+  count: number
+  users: string[] // usernames who reacted (lets the client derive "reactedByMe")
+}
+
 export interface Message {
   id: string
   content: string
   channelId: string
   sender: UserSummary
   createdAt: string
+  reactions: ReactionSummary[]
+}
+
+export interface MessageReactionUpdate {
+  messageId: string
+  reactions: ReactionSummary[]
 }
 
 export interface PageResponse<T> {

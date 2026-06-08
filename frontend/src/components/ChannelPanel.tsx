@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { joinChannel } from '../features/channels/channelsSlice'
-import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
+import { fetchMessages, messageReactionsUpdated, messageReceived } from '../features/messages/messagesSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import {
   sendChatMessage,
+  sendMessageReaction,
   sendPoll,
   sendPollVote,
   sendReaction,
@@ -16,6 +17,7 @@ import { parseCommand } from '../commands/registry'
 import type { Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
 import MessageContent from './MessageContent'
+import MessageReactions from './MessageReactions'
 import CommandHints from './CommandHints'
 import PollCard from './PollCard'
 import ReactionBar from './ReactionBar'
@@ -132,6 +134,14 @@ export default function ChannelPanel() {
       onMessage: (msg) => dispatch(messageReceived(msg)),
       onTyping: (event) => handleTypingRef.current(event),
       onReaction: (event) => handleReactionRef.current(event),
+      onMessageReaction: (update) =>
+        dispatch(
+          messageReactionsUpdated({
+            channelId,
+            messageId: update.messageId,
+            reactions: update.reactions,
+          }),
+        ),
       onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
     })
   }
@@ -322,7 +332,7 @@ export default function ChannelPanel() {
                   const senderName = msg.sender.displayName ?? msg.sender.username
 
                   return (
-                    <div key={msg.id}>
+                    <div key={msg.id} className="group">
                       {showDate && (
                         <div className="my-3 flex items-center gap-3 text-xs text-slate-500">
                           <div className="h-px flex-1 bg-slate-800" />
@@ -333,7 +343,7 @@ export default function ChannelPanel() {
 
                       {grouped ? (
                         <div className="pl-12">
-                          <p className="text-sm text-slate-300">{msg.content}</p>
+                          <MessageContent content={msg.content} />
                         </div>
                       ) : (
                         <div className="mt-3 flex gap-3">
@@ -347,6 +357,13 @@ export default function ChannelPanel() {
                           </div>
                         </div>
                       )}
+                      <div className="pl-12">
+                        <MessageReactions
+                          reactions={msg.reactions}
+                          currentUsername={currentUser?.username ?? ''}
+                          onToggle={(emoji) => sendMessageReaction(channel.id, msg.id, emoji)}
+                        />
+                      </div>
                     </div>
                   )
                 })}

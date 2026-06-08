@@ -4,11 +4,19 @@ import SockJS from 'sockjs-client'
 import { config } from '../config'
 import { getToken } from '../api/token'
 import type { ConnectionStatus } from '../features/connection/connectionSlice'
-import type { Message, Poll, PresenceEvent, ReactionEvent, TypingEvent } from '../api/types'
+import type {
+  Message,
+  MessageReactionUpdate,
+  Poll,
+  PresenceEvent,
+  ReactionEvent,
+  TypingEvent,
+} from '../api/types'
 
 type MessageHandler = (message: Message) => void
 type TypingHandler = (event: TypingEvent) => void
 type ReactionHandler = (event: ReactionEvent) => void
+type MessageReactionHandler = (update: MessageReactionUpdate) => void
 type PollHandler = (poll: Poll) => void
 type PresenceHandler = (event: PresenceEvent) => void
 
@@ -22,6 +30,7 @@ interface ChannelHandlers {
   onMessage: MessageHandler
   onTyping: TypingHandler
   onReaction: ReactionHandler
+  onMessageReaction: MessageReactionHandler
   onPoll: PollHandler
 }
 
@@ -29,6 +38,7 @@ let client: Client | null = null
 let messageSub: StompSubscription | null = null
 let typingSub: StompSubscription | null = null
 let reactionSub: StompSubscription | null = null
+let messageReactionSub: StompSubscription | null = null
 let pollSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
 
@@ -44,8 +54,9 @@ function resolveChannelSubs() {
   messageSub?.unsubscribe()
   typingSub?.unsubscribe()
   reactionSub?.unsubscribe()
+  messageReactionSub?.unsubscribe()
   pollSub?.unsubscribe()
-  const { channelId, onMessage, onTyping, onReaction, onPoll } = desired
+  const { channelId, onMessage, onTyping, onReaction, onMessageReaction, onPoll } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
     onMessage(JSON.parse(frame.body) as Message)
   })
@@ -54,6 +65,9 @@ function resolveChannelSubs() {
   })
   reactionSub = client.subscribe(`/topic/channels/${channelId}/reactions`, (frame) => {
     onReaction(JSON.parse(frame.body) as ReactionEvent)
+  })
+  messageReactionSub = client.subscribe(`/topic/channels/${channelId}/message-reactions`, (frame) => {
+    onMessageReaction(JSON.parse(frame.body) as MessageReactionUpdate)
   })
   pollSub = client.subscribe(`/topic/channels/${channelId}/polls`, (frame) => {
     onPoll(JSON.parse(frame.body) as Poll)
@@ -88,6 +102,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       messageSub = null
       typingSub = null
       reactionSub = null
+      messageReactionSub = null
       pollSub = null
       presenceSub = null
       resolvePresence()
@@ -159,15 +174,24 @@ export function sendPollVote(channelId: string, pollId: string, optionId: string
   })
 }
 
+export function sendMessageReaction(channelId: string, messageId: string, emoji: string) {
+  client?.publish({
+    destination: `/app/channels/${channelId}/messages/${messageId}/reaction`,
+    body: JSON.stringify({ emoji }),
+  })
+}
+
 export function disconnectChat() {
   messageSub?.unsubscribe()
   typingSub?.unsubscribe()
   reactionSub?.unsubscribe()
+  messageReactionSub?.unsubscribe()
   pollSub?.unsubscribe()
   presenceSub?.unsubscribe()
   messageSub = null
   typingSub = null
   reactionSub = null
+  messageReactionSub = null
   pollSub = null
   presenceSub = null
   desired = null
