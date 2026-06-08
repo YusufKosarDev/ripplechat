@@ -9,27 +9,43 @@ import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
+import com.ripplechat.backend.message.dto.ThreadSummary;
+import com.ripplechat.backend.message.dto.ThreadUpdate;
 import com.ripplechat.backend.user.User;
+import com.ripplechat.backend.user.dto.UserSummary;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MessageService {
+
+    private static final int MAX_LAST_REPLIERS = 3;
 
     private final MessageRepository messageRepository;
     private final ChannelRepository channelRepository;
     private final UserRepository userRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final MessageReactionService messageReactionService;
+    private final SimpMessagingTemplate messagingTemplate;
 
+    /**
+     * Persists a message and broadcasts it. A top-level message goes to the main
+     * channel feed; a thread reply goes to its thread topic and updates the
+     * parent's thread summary.
+     */
     @Transactional
     public MessageResponse send(UUID channelId, CreateMessageRequest request, String username) {
         Channel channel = channelRepository.findById(channelId)
@@ -44,7 +60,27 @@ public class MessageService {
         message.setChannel(channel);
         message.setSender(sender);
 
-        return MessageResponse.from(messageRepository.saveAndFlush(message));
+        if (request.parentMessageId() != null) {
+            Message parent = messageRepository.findById(request.parentMessageId())
+                    .orElseThrow(() -> new ResourceNotFoundException("parent message not found"));
+            if (!parent.getChannel().getId().equals(channelId) || parent.getParent() != null) {
+                throw new ResourceNotFoundException("invalid parent message");
+            }
+            message.setParent(parent);
+        }
+
+        Message saved = messageRepository.saveAndFlush(message);
+        MessageResponse response = MessageResponse.from(saved);
+
+        if (saved.getParent() == null) {
+            messagingTemplate.convertAndSend("/topic/channels/" + channelId, response);
+        } else {
+            UUID parentId = saved.getParent().getId();
+            messagingTemplate.convertAndSend("/topic/channels/" + channelId + "/thread/" + parentId, response);
+            messagingTemplate.convertAndSend("/topic/channels/" + channelId + "/thread-updates",
+                    new ThreadUpdate(parentId, threadSummary(parentId)));
+        }
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -54,11 +90,59 @@ public class MessageService {
         }
         requireMember(channelId, username);
 
-        var page = messageRepository.findByChannelId(channelId, pageable);
+        var page = messageRepository.findByChannelIdAndParentIsNull(channelId, pageable);
+        List<UUID> ids = page.getContent().stream().map(Message::getId).toList();
+        Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(ids);
+        Map<UUID, ThreadSummary> threads = threadSummariesByParent(ids);
+
+        return PageResponse.from(page.map(m -> MessageResponse.from(
+                m,
+                reactions.getOrDefault(m.getId(), List.of()),
+                threads.getOrDefault(m.getId(), ThreadSummary.empty()))));
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageResponse> listThread(UUID channelId, UUID parentMessageId, String username) {
+        requireMember(channelId, username);
+        Message parent = messageRepository.findById(parentMessageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + parentMessageId));
+        if (!parent.getChannel().getId().equals(channelId)) {
+            throw new ResourceNotFoundException("message not found in channel: " + parentMessageId);
+        }
+
+        List<Message> replies = messageRepository.findByParent_IdOrderByCreatedAtAsc(parentMessageId);
         Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(
-                page.getContent().stream().map(Message::getId).toList());
-        return PageResponse.from(
-                page.map(m -> MessageResponse.from(m, reactions.getOrDefault(m.getId(), List.of()))));
+                replies.stream().map(Message::getId).toList());
+        return replies.stream()
+                .map(m -> MessageResponse.from(m, reactions.getOrDefault(m.getId(), List.of()), ThreadSummary.empty()))
+                .toList();
+    }
+
+    private Map<UUID, ThreadSummary> threadSummariesByParent(List<UUID> parentIds) {
+        if (parentIds.isEmpty()) {
+            return Map.of();
+        }
+        return messageRepository.findByParent_IdInOrderByCreatedAtAsc(parentIds).stream()
+                .collect(Collectors.groupingBy(r -> r.getParent().getId()))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> summarize(e.getValue())));
+    }
+
+    private ThreadSummary threadSummary(UUID parentId) {
+        return summarize(messageRepository.findByParent_IdOrderByCreatedAtAsc(parentId));
+    }
+
+    /** Builds a summary: reply count + the last few distinct repliers (most recent first). */
+    private ThreadSummary summarize(List<Message> replies) {
+        Set<UUID> seen = new LinkedHashSet<>();
+        List<UserSummary> lastRepliers = new ArrayList<>();
+        for (int i = replies.size() - 1; i >= 0 && lastRepliers.size() < MAX_LAST_REPLIERS; i--) {
+            User sender = replies.get(i).getSender();
+            if (seen.add(sender.getId())) {
+                lastRepliers.add(UserSummary.from(sender));
+            }
+        }
+        return new ThreadSummary(replies.size(), lastRepliers);
     }
 
     private void requireMember(UUID channelId, String username) {

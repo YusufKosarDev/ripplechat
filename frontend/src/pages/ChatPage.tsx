@@ -9,6 +9,7 @@ import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice
 import { connectChat, disconnectChat, setPresenceHandler } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
+import ThreadPanel from '../components/ThreadPanel'
 import ConnectionBanner from '../components/ConnectionBanner'
 
 export default function ChatPage() {
@@ -47,6 +48,7 @@ export default function ChatPage() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <ChannelPanel />
+        <ThreadPanel />
       </div>
     </div>
   )

@@ -10,6 +10,7 @@ import type {
   Poll,
   PresenceEvent,
   ReactionEvent,
+  ThreadUpdate,
   TypingEvent,
 } from '../api/types'
 
@@ -17,6 +18,8 @@ type MessageHandler = (message: Message) => void
 type TypingHandler = (event: TypingEvent) => void
 type ReactionHandler = (event: ReactionEvent) => void
 type MessageReactionHandler = (update: MessageReactionUpdate) => void
+type ThreadUpdateHandler = (update: ThreadUpdate) => void
+type ReplyHandler = (reply: Message) => void
 type PollHandler = (poll: Poll) => void
 type PresenceHandler = (event: PresenceEvent) => void
 
@@ -31,6 +34,7 @@ interface ChannelHandlers {
   onTyping: TypingHandler
   onReaction: ReactionHandler
   onMessageReaction: MessageReactionHandler
+  onThreadUpdate: ThreadUpdateHandler
   onPoll: PollHandler
 }
 
@@ -39,8 +43,13 @@ let messageSub: StompSubscription | null = null
 let typingSub: StompSubscription | null = null
 let reactionSub: StompSubscription | null = null
 let messageReactionSub: StompSubscription | null = null
+let threadUpdateSub: StompSubscription | null = null
 let pollSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
+
+// Separate single subscription for the currently open thread's replies.
+let threadSub: StompSubscription | null = null
+let desiredThread: { channelId: string; parentId: string; onReply: ReplyHandler } | null = null
 
 let desired: ({ channelId: string } & ChannelHandlers) | null = null
 let presenceHandler: PresenceHandler | null = null
@@ -55,8 +64,9 @@ function resolveChannelSubs() {
   typingSub?.unsubscribe()
   reactionSub?.unsubscribe()
   messageReactionSub?.unsubscribe()
+  threadUpdateSub?.unsubscribe()
   pollSub?.unsubscribe()
-  const { channelId, onMessage, onTyping, onReaction, onMessageReaction, onPoll } = desired
+  const { channelId, onMessage, onTyping, onReaction, onMessageReaction, onThreadUpdate, onPoll } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
     onMessage(JSON.parse(frame.body) as Message)
   })
@@ -69,8 +79,22 @@ function resolveChannelSubs() {
   messageReactionSub = client.subscribe(`/topic/channels/${channelId}/message-reactions`, (frame) => {
     onMessageReaction(JSON.parse(frame.body) as MessageReactionUpdate)
   })
+  threadUpdateSub = client.subscribe(`/topic/channels/${channelId}/thread-updates`, (frame) => {
+    onThreadUpdate(JSON.parse(frame.body) as ThreadUpdate)
+  })
   pollSub = client.subscribe(`/topic/channels/${channelId}/polls`, (frame) => {
     onPoll(JSON.parse(frame.body) as Poll)
+  })
+}
+
+function resolveThread() {
+  if (!client?.connected || !desiredThread) {
+    return
+  }
+  threadSub?.unsubscribe()
+  const { channelId, parentId, onReply } = desiredThread
+  threadSub = client.subscribe(`/topic/channels/${channelId}/thread/${parentId}`, (frame) => {
+    onReply(JSON.parse(frame.body) as Message)
   })
 }
 
@@ -103,10 +127,13 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       typingSub = null
       reactionSub = null
       messageReactionSub = null
+      threadUpdateSub = null
       pollSub = null
       presenceSub = null
+      threadSub = null
       resolvePresence()
       resolveChannelSubs()
+      resolveThread()
       handlers.onStatus?.('connected')
       if (hasConnectedBefore) {
         handlers.onReconnect?.()
@@ -139,11 +166,23 @@ export function watchChannel(channelId: string, channelHandlers: ChannelHandlers
   resolveChannelSubs()
 }
 
-export function sendChatMessage(channelId: string, content: string) {
+export function sendChatMessage(channelId: string, content: string, parentMessageId?: string) {
   client?.publish({
     destination: `/app/channels/${channelId}/send`,
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, parentMessageId }),
   })
+}
+
+// Subscribes to the replies of one open thread (only one open at a time).
+export function watchThread(channelId: string, parentId: string, onReply: ReplyHandler) {
+  desiredThread = { channelId, parentId, onReply }
+  resolveThread()
+}
+
+export function unwatchThread() {
+  threadSub?.unsubscribe()
+  threadSub = null
+  desiredThread = null
 }
 
 export function sendTyping(channelId: string, typing: boolean) {
@@ -186,15 +225,20 @@ export function disconnectChat() {
   typingSub?.unsubscribe()
   reactionSub?.unsubscribe()
   messageReactionSub?.unsubscribe()
+  threadUpdateSub?.unsubscribe()
   pollSub?.unsubscribe()
   presenceSub?.unsubscribe()
+  threadSub?.unsubscribe()
   messageSub = null
   typingSub = null
   reactionSub = null
   messageReactionSub = null
+  threadUpdateSub = null
   pollSub = null
   presenceSub = null
+  threadSub = null
   desired = null
+  desiredThread = null
   presenceHandler = null
   handlers = {}
   hasConnectedBefore = false

@@ -13,19 +13,23 @@ public record MessageResponse(
         UUID channelId,
         UserSummary sender,
         Instant createdAt,
-        List<ReactionSummary> reactions
+        List<ReactionSummary> reactions,
+        UUID parentMessageId,
+        ThreadSummary thread
 ) {
     public static MessageResponse from(Message message) {
-        return from(message, List.of());
+        return from(message, List.of(), ThreadSummary.empty());
     }
 
-    public static MessageResponse from(Message message, List<ReactionSummary> reactions) {
+    public static MessageResponse from(Message message, List<ReactionSummary> reactions, ThreadSummary thread) {
         return new MessageResponse(
                 message.getId(),
                 message.getContent(),
                 message.getChannel().getId(),
                 UserSummary.from(message.getSender()),
                 message.getCreatedAt(),
-                reactions);
+                reactions,
+                message.getParent() != null ? message.getParent().getId() : null,
+                thread);
     }
 }

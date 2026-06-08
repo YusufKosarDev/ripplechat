@@ -41,6 +41,14 @@ public class Message {
     @JoinColumn(name = "sender_id", nullable = false, updatable = false)
     private User sender;
 
+    /**
+     * The message this is a thread reply to. Null for top-level channel messages.
+     * Threads are one level deep (a reply cannot itself have replies).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_message_id", updatable = false)
+    private Message parent;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

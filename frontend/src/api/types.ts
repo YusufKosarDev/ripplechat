@@ -55,6 +55,11 @@ export interface ReactionSummary {
   users: string[] // usernames who reacted (lets the client derive "reactedByMe")
 }
 
+export interface ThreadSummary {
+  replyCount: number
+  lastRepliers: UserSummary[]
+}
+
 export interface Message {
   id: string
   content: string
@@ -62,11 +67,18 @@ export interface Message {
   sender: UserSummary
   createdAt: string
   reactions: ReactionSummary[]
+  parentMessageId: string | null
+  thread: ThreadSummary
 }
 
 export interface MessageReactionUpdate {
   messageId: string
   reactions: ReactionSummary[]
+}
+
+export interface ThreadUpdate {
+  parentMessageId: string
+  thread: ThreadSummary
 }
 
 export interface PageResponse<T> {

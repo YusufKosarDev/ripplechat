@@ -2,8 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { joinChannel } from '../features/channels/channelsSlice'
-import { fetchMessages, messageReactionsUpdated, messageReceived } from '../features/messages/messagesSlice'
+import {
+  fetchMessages,
+  messageReactionsUpdated,
+  messageReceived,
+  threadSummaryUpdated,
+} from '../features/messages/messagesSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
+import { closeThread, openThread } from '../features/threads/threadsSlice'
 import {
   sendChatMessage,
   sendMessageReaction,
@@ -142,6 +148,14 @@ export default function ChannelPanel() {
             reactions: update.reactions,
           }),
         ),
+      onThreadUpdate: (update) =>
+        dispatch(
+          threadSummaryUpdated({
+            channelId,
+            parentMessageId: update.parentMessageId,
+            thread: update.thread,
+          }),
+        ),
       onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
     })
   }
@@ -151,6 +165,7 @@ export default function ChannelPanel() {
     dispatch(fetchMessages(selectedId))
     dispatch(fetchPolls(selectedId))
     subscribe(selectedId)
+    dispatch(closeThread())
     setTypingUsers({})
     setFlying([])
     setCmdError(null)
@@ -357,6 +372,27 @@ export default function ChannelPanel() {
                           </div>
                         </div>
                       )}
+                      <div className="flex items-center gap-2 pl-12">
+                        {msg.thread.replyCount > 0 && (
+                          <button
+                            onClick={() => dispatch(openThread(msg.id))}
+                            className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/40 px-2 py-1 text-xs text-indigo-300 transition hover:border-slate-500"
+                          >
+                            <span className="flex -space-x-1.5">
+                              {msg.thread.lastRepliers.map((u) => (
+                                <Avatar key={u.id} name={u.displayName ?? u.username} size="sm" />
+                              ))}
+                            </span>
+                            💬 {msg.thread.replyCount} yanıt
+                          </button>
+                        )}
+                        <button
+                          onClick={() => dispatch(openThread(msg.id))}
+                          className="mt-1 hidden text-xs text-slate-500 transition hover:text-slate-300 group-hover:inline"
+                        >
+                          Yanıtla
+                        </button>
+                      </div>
                       <div className="pl-12">
                         <MessageReactions
                           reactions={msg.reactions}
