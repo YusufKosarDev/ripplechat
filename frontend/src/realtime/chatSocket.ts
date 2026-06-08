@@ -57,6 +57,11 @@ let presenceSub: StompSubscription | null = null
 let threadSub: StompSubscription | null = null
 let desiredThread: { channelId: string; parentId: string; onReply: ReplyHandler } | null = null
 
+// Lightweight message subscriptions for ALL of the user's channels (for unread
+// tracking) — only the message topic, not typing/reactions/etc.
+let allChannelSubs: StompSubscription[] = []
+let desiredAll: { channelIds: string[]; onMessage: MessageHandler } | null = null
+
 let desired: ({ channelId: string } & ChannelHandlers) | null = null
 let presenceHandler: PresenceHandler | null = null
 let handlers: ChatHandlers = {}
@@ -122,6 +127,20 @@ function resolveThread() {
   })
 }
 
+function resolveAllChannels() {
+  if (!client?.connected || !desiredAll) {
+    return
+  }
+  allChannelSubs.forEach((s) => s.unsubscribe())
+  allChannelSubs = []
+  const { channelIds, onMessage } = desiredAll
+  for (const id of channelIds) {
+    allChannelSubs.push(
+      client.subscribe(`/topic/channels/${id}`, (frame) => onMessage(JSON.parse(frame.body) as Message)),
+    )
+  }
+}
+
 function resolvePresence() {
   if (!client?.connected || !presenceHandler || presenceSub) {
     return
@@ -157,9 +176,11 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       pollSub = null
       presenceSub = null
       threadSub = null
+      allChannelSubs = []
       resolvePresence()
       resolveChannelSubs()
       resolveThread()
+      resolveAllChannels()
       handlers.onStatus?.('connected')
       if (hasConnectedBefore) {
         handlers.onReconnect?.()
@@ -225,6 +246,12 @@ export function unwatchThread() {
   desiredThread = null
 }
 
+// Subscribes to the message topics of all the user's channels (unread tracking).
+export function watchAllChannels(channelIds: string[], onMessage: MessageHandler) {
+  desiredAll = { channelIds, onMessage }
+  resolveAllChannels()
+}
+
 export function sendTyping(channelId: string, typing: boolean) {
   client?.publish({
     destination: `/app/channels/${channelId}/typing`,
@@ -271,6 +298,7 @@ export function disconnectChat() {
   pollSub?.unsubscribe()
   presenceSub?.unsubscribe()
   threadSub?.unsubscribe()
+  allChannelSubs.forEach((s) => s.unsubscribe())
   messageSub = null
   typingSub = null
   reactionSub = null
@@ -281,8 +309,10 @@ export function disconnectChat() {
   pollSub = null
   presenceSub = null
   threadSub = null
+  allChannelSubs = []
   desired = null
   desiredThread = null
+  desiredAll = null
   presenceHandler = null
   handlers = {}
   hasConnectedBefore = false

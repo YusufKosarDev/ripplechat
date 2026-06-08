@@ -12,6 +12,7 @@ import {
 import { channelRemoved, fetchMembers } from '../features/channels/channelsSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
+import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
 import {
   sendChatMessage,
@@ -197,6 +198,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     dispatch(fetchPolls(selectedId))
     dispatch(fetchMembers(selectedId))
     subscribe(selectedId)
+    dispatch(clearUnread(selectedId))
     dispatch(closeThread())
     setShowMembers(false)
     setTypingUsers({})

@@ -7,6 +7,7 @@ import pollsReducer from '../features/polls/pollsSlice'
 import presenceReducer from '../features/presence/presenceSlice'
 import threadsReducer from '../features/threads/threadsSlice'
 import uiReducer from '../features/ui/uiSlice'
+import unreadReducer from '../features/unread/unreadSlice'
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     presence: presenceReducer,
     threads: threadsReducer,
     ui: uiReducer,
+    unread: unreadReducer,
   },
 })
 

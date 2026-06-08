@@ -21,6 +21,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const { items, selectedId, status } = useAppSelector((state) => state.channels)
   const user = useAppSelector((state) => state.auth.user)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
+  const unreadCounts = useAppSelector((state) => state.unread.counts)
   const selfOnline = user ? onlineUserIds.includes(user.id) : false
 
   const [newName, setNewName] = useState('')
@@ -92,23 +93,35 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
           {!loadingChannels && (
             <ul className="mt-2 space-y-0.5">
-              {items.map((channel) => (
-                <li key={channel.id}>
-                  <button
-                    onClick={() => {
-                      dispatch(selectChannel(channel.id))
-                      onClose()
-                    }}
-                    className={`w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition ${
-                      selectedId === channel.id
-                        ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
-                        : 'text-slate-600 hover:bg-slate-200/70 dark:text-slate-300 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <span className="text-slate-400 dark:text-slate-500">#</span> {channel.name}
-                  </button>
-                </li>
-              ))}
+              {items.map((channel) => {
+                const unread = selectedId === channel.id ? 0 : (unreadCounts[channel.id] ?? 0)
+                return (
+                  <li key={channel.id}>
+                    <button
+                      onClick={() => {
+                        dispatch(selectChannel(channel.id))
+                        onClose()
+                      }}
+                      className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${
+                        selectedId === channel.id
+                          ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
+                          : unread > 0
+                            ? 'font-semibold text-slate-900 hover:bg-slate-200/70 dark:text-white dark:hover:bg-slate-800/60'
+                            : 'text-slate-600 hover:bg-slate-200/70 dark:text-slate-300 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <span className="truncate">
+                        <span className="text-slate-400 dark:text-slate-500">#</span> {channel.name}
+                      </span>
+                      {unread > 0 && (
+                        <span className="shrink-0 rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
               {items.length === 0 && (
                 <li className="px-2 py-3 text-sm text-slate-500">
                   Henüz kanalın yok.

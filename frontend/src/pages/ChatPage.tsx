@@ -4,9 +4,10 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
 import { fetchChannels } from '../features/channels/channelsSlice'
 import { setConnectionStatus } from '../features/connection/connectionSlice'
-import { fetchMessages } from '../features/messages/messagesSlice'
+import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
 import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice'
-import { connectChat, disconnectChat, setPresenceHandler } from '../realtime/chatSocket'
+import { incrementUnread } from '../features/unread/unreadSlice'
+import { connectChat, disconnectChat, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
@@ -16,11 +17,15 @@ export default function ChatPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const selectedId = useAppSelector((state) => state.channels.selectedId)
+  const channelIds = useAppSelector((state) => state.channels.items.map((c) => c.id).join(','))
+  const currentUserId = useAppSelector((state) => state.auth.user?.id)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Keep the latest selected channel available to the reconnect handler.
+  // Keep the latest values available to the (stable) realtime handlers.
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
+  const currentUserIdRef = useRef(currentUserId)
+  currentUserIdRef.current = currentUserId
 
   useEffect(() => {
     connectChat({
@@ -42,6 +47,18 @@ export default function ChatPage() {
     dispatch(fetchChannels())
     return () => disconnectChat()
   }, [dispatch, navigate])
+
+  // Subscribe to every channel's message topic so unread counts stay accurate
+  // even for channels the user isn't currently viewing.
+  useEffect(() => {
+    const ids = channelIds ? channelIds.split(',') : []
+    watchAllChannels(ids, (msg) => {
+      dispatch(messageReceived(msg))
+      if (msg.channelId !== selectedIdRef.current && msg.sender.id !== currentUserIdRef.current) {
+        dispatch(incrementUnread(msg.channelId))
+      }
+    })
+  }, [channelIds, dispatch])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
