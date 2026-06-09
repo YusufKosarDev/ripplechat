@@ -71,7 +71,7 @@ export default function ChannelMembersModal({
             return (
               <li key={m.user.id} className="flex items-center justify-between gap-2 rounded-md px-1 py-1.5">
                 <span className="flex min-w-0 items-center gap-2">
-                  <Avatar name={m.user.displayName ?? m.user.username} size="sm" />
+                  <Avatar name={m.user.displayName ?? m.user.username} color={m.user.avatarColor} size="sm" />
                   <span className="truncate text-sm text-slate-800 dark:text-slate-200">
                     {m.user.displayName ?? m.user.username}
                   </span>

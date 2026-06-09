@@ -1,5 +1,6 @@
 package com.ripplechat.backend.common.error;
 
+import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
@@ -35,6 +36,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)

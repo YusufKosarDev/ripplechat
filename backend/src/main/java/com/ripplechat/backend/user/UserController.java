@@ -1,5 +1,7 @@
 package com.ripplechat.backend.user;
 
+import com.ripplechat.backend.user.dto.ChangePasswordRequest;
+import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import com.ripplechat.backend.user.dto.UpdateUserRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -33,6 +35,19 @@ public class UserController {
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal String username) {
         return userService.findByUsername(username);
+    }
+
+    @PutMapping("/me")
+    public UserResponse updateMe(@RequestBody UpdateMeRequest request,
+                                 @AuthenticationPrincipal String username) {
+        return userService.updateMe(username, request);
+    }
+
+    @PutMapping("/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@RequestBody ChangePasswordRequest request,
+                               @AuthenticationPrincipal String username) {
+        userService.changePassword(username, request);
     }
 
     @GetMapping("/{id}")

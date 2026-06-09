@@ -11,9 +11,10 @@ import java.util.UUID;
 public record UserSummary(
         UUID id,
         String username,
-        String displayName
+        String displayName,
+        String avatarColor
 ) {
     public static UserSummary from(User user) {
-        return new UserSummary(user.getId(), user.getUsername(), user.getDisplayName());
+        return new UserSummary(user.getId(), user.getUsername(), user.getDisplayName(), user.getAvatarColor());
     }
 }

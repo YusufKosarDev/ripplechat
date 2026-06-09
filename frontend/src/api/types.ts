@@ -3,6 +3,7 @@ export interface User {
   username: string
   email: string
   displayName: string | null
+  avatarColor: string | null
   createdAt: string
 }
 
@@ -38,6 +39,7 @@ export interface UserSummary {
   id: string
   username: string
   displayName: string | null
+  avatarColor: string | null
 }
 
 export type MembershipRole = 'OWNER' | 'MODERATOR' | 'MEMBER'

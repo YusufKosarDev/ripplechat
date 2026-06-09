@@ -78,6 +78,7 @@ export default function ThreadPanel() {
           <div className="flex gap-3 border-b border-slate-200 pb-3 dark:border-slate-800">
             <Avatar
               name={parent.sender.displayName ?? parent.sender.username}
+              color={parent.sender.avatarColor}
               online={onlineUserIds.includes(parent.sender.id)}
             />
             <div className="min-w-0">
@@ -98,6 +99,7 @@ export default function ThreadPanel() {
             <div key={r.id} className="flex gap-3">
               <Avatar
                 name={r.sender.displayName ?? r.sender.username}
+                color={r.sender.avatarColor}
                 online={onlineUserIds.includes(r.sender.id)}
                 size="sm"
               />

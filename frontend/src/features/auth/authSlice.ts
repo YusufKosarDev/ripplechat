@@ -68,6 +68,30 @@ export const fetchCurrentUser = createAsyncThunk(
   },
 )
 
+export const updateMe = createAsyncThunk(
+  'auth/updateMe',
+  async (body: { displayName?: string; email?: string; avatarColor?: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await client.put<User>('/api/users/me', body)
+      return data
+    } catch (e) {
+      return rejectWithValue(extractError(e))
+    }
+  },
+)
+
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async (body: { currentPassword: string; newPassword: string }, { rejectWithValue }) => {
+    try {
+      await client.put('/api/users/me/password', body)
+      return true
+    } catch (e) {
+      return rejectWithValue(extractError(e))
+    }
+  },
+)
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -110,6 +134,9 @@ const authSlice = createSlice({
         state.error = action.payload as string
       })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.user = action.payload
+      })
+      .addCase(updateMe.fulfilled, (state, action) => {
         state.user = action.payload
       })
       .addCase(fetchCurrentUser.rejected, (state) => {

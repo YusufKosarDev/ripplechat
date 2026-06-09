@@ -7,6 +7,7 @@ import { createChannel, joinChannel, selectChannel } from '../features/channels/
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
 import SearchModal from './SearchModal'
+import SettingsModal from './SettingsModal'
 
 interface SidebarProps {
   open: boolean
@@ -28,6 +29,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [newName, setNewName] = useState('')
   const [joinId, setJoinId] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault()
@@ -76,10 +78,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <Avatar name={displayName} online={selfOnline} size="sm" />
+            <button
+              onClick={() => setShowSettings(true)}
+              title="Ayarlar"
+              className="flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 transition hover:bg-slate-200/70 dark:hover:bg-slate-800/60"
+            >
+              <Avatar name={displayName} color={user?.avatarColor} online={selfOnline} size="sm" />
               <span className="truncate text-sm text-slate-600 dark:text-slate-300">{displayName}</span>
-            </span>
+            </button>
             <button
               onClick={onLogout}
               className="shrink-0 text-xs text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-300"
@@ -175,6 +181,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           onClose={() => setShowSearch(false)}
         />
       )}
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   )
 }

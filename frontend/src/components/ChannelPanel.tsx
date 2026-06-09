@@ -511,7 +511,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                         <div className="pl-12">{renderBody(msg)}</div>
                       ) : (
                         <div className="mt-3 flex gap-3">
-                          <Avatar name={senderName} online={onlineUserIds.includes(msg.sender.id)} />
+                          <Avatar name={senderName} color={msg.sender.avatarColor} online={onlineUserIds.includes(msg.sender.id)} />
                           <div className="min-w-0">
                             <div className="flex items-baseline gap-2">
                               <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{senderName}</span>
@@ -529,7 +529,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                           >
                             <span className="flex -space-x-1.5">
                               {msg.thread.lastRepliers.map((u) => (
-                                <Avatar key={u.id} name={u.displayName ?? u.username} size="sm" />
+                                <Avatar key={u.id} name={u.displayName ?? u.username} color={u.avatarColor} size="sm" />
                               ))}
                             </span>
                             💬 {msg.thread.replyCount} yanıt

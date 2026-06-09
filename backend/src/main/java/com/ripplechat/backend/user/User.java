@@ -44,6 +44,10 @@ public class User {
     @Column(name = "display_name")
     private String displayName;
 
+    /** Preferred avatar color key (e.g. "indigo"); null → derived from the name. */
+    @Column(name = "avatar_color")
+    private String avatarColor;
+
     /** BCrypt-hashed password. Never stored or exposed in plain text. */
     @Column(nullable = false)
     private String password;

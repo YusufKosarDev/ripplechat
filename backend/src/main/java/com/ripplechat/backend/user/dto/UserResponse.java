@@ -13,6 +13,7 @@ public record UserResponse(
         String username,
         String email,
         String displayName,
+        String avatarColor,
         Instant createdAt
 ) {
     public static UserResponse from(User user) {
@@ -21,6 +22,7 @@ public record UserResponse(
                 user.getUsername(),
                 user.getEmail(),
                 user.getDisplayName(),
+                user.getAvatarColor(),
                 user.getCreatedAt()
         );
     }
