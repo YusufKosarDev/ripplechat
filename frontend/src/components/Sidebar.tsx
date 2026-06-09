@@ -6,6 +6,7 @@ import { logout } from '../features/auth/authSlice'
 import { createChannel, joinChannel, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
+import SearchModal from './SearchModal'
 
 interface SidebarProps {
   open: boolean
@@ -26,6 +27,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   const [newName, setNewName] = useState('')
   const [joinId, setJoinId] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault()
@@ -62,7 +64,16 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               Ripple<span className="text-indigo-500 dark:text-indigo-400">Chat</span>
             </span>
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowSearch(true)}
+                title="Mesajlarda ara"
+                className="rounded-md p-1 text-base leading-none text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-200"
+              >
+                🔍
+              </button>
+              <ThemeToggle />
+            </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
             <span className="flex min-w-0 items-center gap-2">
@@ -153,6 +164,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </form>
         </div>
       </aside>
+
+      {showSearch && (
+        <SearchModal
+          onPick={(channelId) => {
+            dispatch(selectChannel(channelId))
+            setShowSearch(false)
+            onClose()
+          }}
+          onClose={() => setShowSearch(false)}
+        />
+      )}
     </>
   )
 }

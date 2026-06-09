@@ -120,6 +120,15 @@ export interface ReactionEvent {
   emoji: string
 }
 
+export interface SearchResult {
+  id: string
+  content: string
+  channelId: string
+  channelName: string
+  sender: UserSummary
+  createdAt: string
+}
+
 export interface PollOption {
   id: string
   text: string
