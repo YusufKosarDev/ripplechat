@@ -31,7 +31,7 @@ const components: Components = {
       )
     }
     return (
-      <code className="rounded-lg bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em] text-accent">
+      <code className="rounded-lg bg-surface-muted px-2 py-0.5 font-mono text-xs text-accent">
         {children}
       </code>
     )
@@ -67,7 +67,7 @@ interface MessageContentProps {
 
 export default function MessageContent({ content }: MessageContentProps) {
   return (
-    <div className="space-y-1 text-sm text-fg-secondary">
+    <div className="space-y-1 text-sm leading-relaxed text-fg-secondary">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
         {content}
       </ReactMarkdown>

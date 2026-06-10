@@ -14,7 +14,7 @@ export default function AuthShell({ title, children }: AuthShellProps) {
           <span className="text-2xl font-semibold tracking-tight">
             Ripple<span className="text-indigo-500 dark:text-indigo-400">Chat</span>
           </span>
-          <h1 className="mt-4 text-lg font-medium text-fg-secondary">{title}</h1>
+          <h1 className="mt-4 text-lg font-medium tracking-tight text-fg-secondary">{title}</h1>
         </div>
         {children}
       </div>

@@ -119,7 +119,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
                     <span className="text-accent">#{r.channelName}</span>
                     <span className="text-fg-faint">{formatWhen(r.createdAt)}</span>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-fg-secondary">
+                  <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-fg-secondary">
                     <Highlighted text={r.content} query={trimmed} />
                   </p>
                 </div>

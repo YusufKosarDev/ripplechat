@@ -131,7 +131,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                         <span className="text-fg-faint">#</span> {channel.name}
                       </span>
                       {unread > 0 && (
-                        <span className="shrink-0 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
                           {unread > 99 ? '99+' : unread}
                         </span>
                       )}

@@ -68,7 +68,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Ayarlar</h3>
+          <h3 className="text-lg font-semibold tracking-tight">Ayarlar</h3>
           <button onClick={onClose} className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}>
             ✕
           </button>

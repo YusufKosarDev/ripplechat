@@ -381,7 +381,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     return (
       <div>
         <MessageContent content={msg.content} />
-        {msg.editedAt && <span className="text-[11px] text-fg-faint">(düzenlendi)</span>}
+        {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
         {(mine || canDelete) && (
           <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
             {mine && (
@@ -416,7 +416,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             ☰
           </Button>
           <div className="min-w-0">
-            <h2 className="truncate font-semibold">
+            <h2 className="truncate font-semibold tracking-tight">
               <span className="text-fg-faint">#</span> {channel.name}
             </h2>
             {channel.description && <p className="truncate text-sm text-fg-muted">{channel.description}</p>}
@@ -568,7 +568,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               />
               <Button type="submit">Gönder</Button>
             </form>
-            <p className="mt-1.5 text-[11px] text-fg-faint">
+            <p className="mt-2 text-xs text-fg-faint">
               Markdown destekli · <span className="text-fg-muted">**kalın**</span>{' '}
               <span className="text-fg-muted">*italik*</span>{' '}
               <span className="text-fg-muted">`kod`</span> · ``` ile kod bloğu · Enter gönderir, Shift+Enter yeni satır

@@ -20,7 +20,7 @@ function body(m: Message) {
   return (
     <>
       <MessageContent content={m.content} />
-      {m.editedAt && <span className="text-[11px] text-fg-faint">(düzenlendi)</span>}
+      {m.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
     </>
   )
 }
@@ -65,7 +65,7 @@ export default function ThreadPanel() {
   return (
     <aside className="fixed inset-0 z-30 flex w-full shrink-0 flex-col border-l border-border bg-surface-overlay md:static md:z-auto md:w-96 md:bg-surface-raised">
       <header className="flex items-center justify-between border-b border-border px-4 py-4">
-        <span className="font-semibold">Thread</span>
+        <span className="font-semibold tracking-tight">Thread</span>
         <button
           onClick={() => dispatch(closeThread())}
           className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}

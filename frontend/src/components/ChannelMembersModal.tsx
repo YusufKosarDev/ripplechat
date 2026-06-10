@@ -9,12 +9,12 @@ import { focusRing } from './ui/focusRing'
 
 function RoleBadge({ role }: { role: MembershipRole }) {
   if (role === 'OWNER') {
-    return <span className="rounded-lg bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-warning">OWNER</span>
+    return <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-2xs font-medium text-warning">OWNER</span>
   }
   if (role === 'MODERATOR') {
-    return <span className="rounded-lg bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-accent">MOD</span>
+    return <span className="rounded-lg bg-indigo-500/20 px-2 py-0.5 text-2xs font-medium text-accent">MOD</span>
   }
-  return <span className="rounded-lg bg-surface-muted px-1.5 py-0.5 text-[10px] text-fg-muted">üye</span>
+  return <span className="rounded-lg bg-surface-muted px-2 py-0.5 text-2xs text-fg-muted">üye</span>
 }
 
 interface ChannelMembersModalProps {
@@ -58,7 +58,7 @@ export default function ChannelMembersModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Üyeler</h3>
+          <h3 className="text-lg font-semibold tracking-tight">Üyeler</h3>
           <button onClick={onClose} className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
@@ -69,7 +69,7 @@ export default function ChannelMembersModal({
             const isSelf = m.user.id === currentUserId
             const canManage = isOwner && !isSelf && m.role !== 'OWNER'
             return (
-              <li key={m.user.id} className="flex items-center justify-between gap-2 rounded-md px-1 py-1.5">
+              <li key={m.user.id} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1.5">
                 <span className="flex min-w-0 items-center gap-2">
                   <Avatar name={m.user.displayName ?? m.user.username} color={m.user.avatarColor} size="sm" />
                   <span className="truncate text-sm text-fg">
