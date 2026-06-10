@@ -21,7 +21,7 @@ const components: Components = {
       return (
         <Suspense
           fallback={
-            <pre className="my-2 overflow-x-auto rounded-lg border border-slate-300 bg-slate-100 p-3 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <pre className="my-2 overflow-x-auto rounded-lg border border-control bg-surface-muted p-3 font-mono text-xs text-fg-secondary">
               {value}
             </pre>
           }
@@ -31,7 +31,7 @@ const components: Components = {
       )
     }
     return (
-      <code className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-[0.85em] text-indigo-700 dark:bg-slate-800 dark:text-indigo-200">
+      <code className="rounded-lg bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em] text-accent">
         {children}
       </code>
     )
@@ -41,7 +41,7 @@ const components: Components = {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-indigo-600 underline underline-offset-2 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+      className="text-accent underline underline-offset-2 hover:text-accent-hover"
     >
       {children}
     </a>
@@ -50,12 +50,12 @@ const components: Components = {
   ul: ({ children }) => <ul className="list-disc space-y-0.5 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="list-decimal space-y-0.5 pl-5">{children}</ol>,
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-slate-300 pl-3 text-slate-500 dark:border-slate-600 dark:text-slate-400">
+    <blockquote className="border-l-2 border-control pl-3 text-fg-muted">
       {children}
     </blockquote>
   ),
   strong: ({ children }) => (
-    <strong className="font-semibold text-slate-900 dark:text-slate-100">{children}</strong>
+    <strong className="font-semibold text-fg">{children}</strong>
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   del: ({ children }) => <del className="line-through opacity-70">{children}</del>,
@@ -67,7 +67,7 @@ interface MessageContentProps {
 
 export default function MessageContent({ content }: MessageContentProps) {
   return (
-    <div className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+    <div className="space-y-1 text-sm text-fg-secondary">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
         {content}
       </ReactMarkdown>

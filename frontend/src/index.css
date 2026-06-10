@@ -3,6 +3,76 @@
 /* Class-based dark mode (toggle `.dark` on <html>). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Design tokens ───────────────────────────────────────────────────────
+   Semantic colors as CSS variables so every component reads from one palette
+   instead of picking raw slate/indigo shades. Values switch under `.dark`;
+   @theme inline (below) exposes them as Tailwind utilities — bg-surface,
+   text-fg, border-control, text-accent, etc. Comments note the old shade. */
+:root {
+  /* Surfaces */
+  --surface: #ffffff;          /* app background            (was white) */
+  --surface-raised: #f8fafc;   /* sidebar, panels, cards    (was slate-50) */
+  --surface-overlay: #ffffff;  /* modals, popovers          (was white) */
+  --surface-muted: #e2e8f0;    /* chips, code, hover fills  (was slate-100/200) */
+  /* Lines */
+  --border: #e2e8f0;           /* subtle dividers           (was slate-200) */
+  --control: #cbd5e1;          /* input / button borders    (was slate-300) */
+  --control-hover: #94a3b8;    /* control border on hover   (was slate-400) */
+  /* Text */
+  --fg: #0f172a;               /* headings, emphasis, names (was slate-800/900) */
+  --fg-secondary: #334155;     /* body copy                 (was slate-700) */
+  --fg-muted: #475569;         /* labels, secondary info    (was slate-500/600) */
+  --fg-faint: #94a3b8;         /* timestamps, hints         (was slate-400) */
+  /* Accent + semantic */
+  --accent: #4f46e5;           /* links / accent text       (indigo-600) */
+  --accent-hover: #6366f1;     /* link hover                (indigo-500) */
+  --brand: #4f46e5;            /* solid fills: buttons, badges (fixed both themes) */
+  --brand-hover: #6366f1;
+  --danger: #dc2626;           /* destructive text          (red-600) */
+  --danger-hover: #b91c1c;     /* destructive hover         (red-700) */
+  --warning: #d97706;          /* warning text              (amber-600) */
+}
+
+.dark {
+  --surface: #020617;          /* slate-950 */
+  --surface-raised: #0f172a;   /* slate-900 */
+  --surface-overlay: #0f172a;  /* slate-900 */
+  --surface-muted: #1e293b;    /* slate-800 */
+  --border: #1e293b;           /* slate-800 */
+  --control: #334155;          /* slate-700 */
+  --control-hover: #64748b;    /* slate-500 */
+  --fg: #f1f5f9;               /* slate-100 */
+  --fg-secondary: #cbd5e1;     /* slate-300 */
+  --fg-muted: #94a3b8;         /* slate-400 */
+  --fg-faint: #64748b;         /* slate-500 */
+  --accent: #818cf8;           /* indigo-400 */
+  --accent-hover: #a5b4fc;     /* indigo-300 */
+  --danger: #f87171;           /* red-400 */
+  --danger-hover: #fca5a5;     /* red-300 */
+  --warning: #fcd34d;          /* amber-300 */
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-control: var(--control);
+  --color-control-hover: var(--control-hover);
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-warning: var(--warning);
+}
+
 html,
 body,
 #root {

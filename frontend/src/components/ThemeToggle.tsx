@@ -8,7 +8,7 @@ export default function ThemeToggle() {
     <button
       onClick={() => dispatch(toggleTheme())}
       title={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
-      className="rounded-md p-1 text-base leading-none text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-200"
+      className="rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg"
     >
       {theme === 'dark' ? '☀️' : '🌙'}
     </button>

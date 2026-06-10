@@ -25,10 +25,10 @@ export default function CodeBlock({ language, value }: CodeBlockProps) {
   const dark = theme === 'dark'
 
   return (
-    <div className="my-2 overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
-      <div className="flex items-center justify-between bg-slate-100 px-3 py-1 text-xs text-slate-500 dark:bg-slate-800/80 dark:text-slate-400">
+    <div className="my-2 overflow-hidden rounded-lg border border-control">
+      <div className="flex items-center justify-between bg-surface-muted px-3 py-1 text-xs text-fg-muted">
         <span className="font-mono">{language}</span>
-        <button type="button" onClick={copy} className="transition hover:text-slate-800 dark:hover:text-slate-200">
+        <button type="button" onClick={copy} className="transition hover:text-fg">
           {copied ? 'Kopyalandı ✓' : 'Kopyala'}
         </button>
       </div>

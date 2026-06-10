@@ -6,7 +6,7 @@ import { register } from '../features/auth/authSlice'
 import AuthShell from '../components/AuthShell'
 
 const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500'
+  'w-full rounded-lg border border-control bg-surface px-3 py-2 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent'
 
 export default function RegisterPage() {
   const dispatch = useAppDispatch()
@@ -47,19 +47,19 @@ export default function RegisterPage() {
     <AuthShell title="Hesap oluştur">
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-400">Kullanıcı adı</label>
+          <label className="mb-1 block text-sm text-fg-muted">Kullanıcı adı</label>
           <input className={inputClass} value={form.username} onChange={update('username')} placeholder="neo" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-400">E-posta</label>
+          <label className="mb-1 block text-sm text-fg-muted">E-posta</label>
           <input className={inputClass} value={form.email} onChange={update('email')} placeholder="neo@ripplechat.io" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-400">Görünen ad (opsiyonel)</label>
+          <label className="mb-1 block text-sm text-fg-muted">Görünen ad (opsiyonel)</label>
           <input className={inputClass} value={form.displayName} onChange={update('displayName')} placeholder="Neo" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-400">Şifre</label>
+          <label className="mb-1 block text-sm text-fg-muted">Şifre</label>
           <input
             type="password"
             className={inputClass}
@@ -71,21 +71,21 @@ export default function RegisterPage() {
         </div>
 
         {(formError || error) && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">{formError || error}</p>
+          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-danger">{formError || error}</p>
         )}
 
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-hover disabled:opacity-60"
         >
           {status === 'loading' ? 'Oluşturuluyor...' : 'Kayıt ol'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+      <p className="mt-6 text-center text-sm text-fg-muted">
         Zaten hesabın var mı?{' '}
-        <Link to="/login" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+        <Link to="/login" className="text-accent hover:text-accent-hover">
           Giriş yap
         </Link>
       </p>

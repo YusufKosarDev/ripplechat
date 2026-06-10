@@ -60,7 +60,7 @@ export default function Avatar({ name, color, online, size = 'md' }: AvatarProps
       {online !== undefined && (
         <span
           title={online ? 'çevrimiçi' : 'çevrimdışı'}
-          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-950 ${
+          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${
             online ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'
           }`}
         />

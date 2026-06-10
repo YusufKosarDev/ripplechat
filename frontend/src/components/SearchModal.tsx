@@ -14,7 +14,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) =>
         part.toLowerCase() === query.toLowerCase() ? (
-          <mark key={i} className="rounded bg-amber-300/60 text-inherit dark:bg-amber-500/40">
+          <mark key={i} className="rounded-lg bg-amber-300/60 text-inherit dark:bg-amber-500/40">
             {part}
           </mark>
         ) : (
@@ -70,34 +70,34 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
       <div
-        className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-          <span className="text-slate-400">🔍</span>
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <span className="text-fg-faint">🔍</span>
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Mesajlarda ara..."
-            className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+            className="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
           />
-          <button onClick={onClose} className="text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-200">
+          <button onClick={onClose} className="text-fg-faint transition hover:text-fg">
             ✕
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loading && <p className="px-4 py-6 text-center text-sm text-slate-500">Aranıyor...</p>}
+          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">Aranıyor...</p>}
 
           {!loading && trimmed && results.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-slate-500">
+            <p className="px-4 py-6 text-center text-sm text-fg-muted">
               "{trimmed}" için sonuç bulunamadı.
             </p>
           )}
 
           {!loading && !trimmed && (
-            <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-slate-600">
+            <p className="px-4 py-6 text-center text-sm text-fg-faint">
               Üye olduğun kanallardaki mesajlarda ara.
             </p>
           )}
@@ -107,18 +107,18 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
               <button
                 key={r.id}
                 onClick={() => onPick(r.channelId)}
-                className="flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-100 dark:border-slate-800/60 dark:hover:bg-slate-800/60"
+                className="flex w-full gap-3 border-b border-border px-4 py-3 text-left transition hover:bg-surface-muted"
               >
                 <Avatar name={r.sender.displayName ?? r.sender.username} color={r.sender.avatarColor} size="sm" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2 text-xs">
-                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                    <span className="font-medium text-fg-secondary">
                       {r.sender.displayName ?? r.sender.username}
                     </span>
-                    <span className="text-indigo-600 dark:text-indigo-400">#{r.channelName}</span>
-                    <span className="text-slate-400 dark:text-slate-600">{formatWhen(r.createdAt)}</span>
+                    <span className="text-accent">#{r.channelName}</span>
+                    <span className="text-fg-faint">{formatWhen(r.createdAt)}</span>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+                  <p className="mt-0.5 line-clamp-2 text-sm text-fg-secondary">
                     <Highlighted text={r.content} query={trimmed} />
                   </p>
                 </div>

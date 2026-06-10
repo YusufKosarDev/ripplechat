@@ -61,7 +61,7 @@ export default function ChatPage() {
   }, [channelIds, dispatch])
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex h-screen flex-col overflow-hidden bg-surface text-fg">
       <ConnectionBanner />
       <div className="relative flex flex-1 overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />

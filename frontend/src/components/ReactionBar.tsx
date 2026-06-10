@@ -12,7 +12,7 @@ export default function ReactionBar({ onReact }: ReactionBarProps) {
           key={emoji}
           type="button"
           onClick={() => onReact(emoji)}
-          className="rounded-md px-2 py-1 text-lg leading-none transition hover:scale-125 hover:bg-slate-200 dark:hover:bg-slate-800"
+          className="rounded-lg px-2 py-1 text-lg leading-none transition hover:scale-125 hover:bg-surface-muted"
           title="Reaksiyon gönder"
         >
           {emoji}

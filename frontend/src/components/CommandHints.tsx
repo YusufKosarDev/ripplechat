@@ -10,16 +10,16 @@ export default function CommandHints({ prefix, onPick }: CommandHintsProps) {
   if (matches.length === 0) return null
 
   return (
-    <div className="mb-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+    <div className="mb-2 overflow-hidden rounded-lg border border-border bg-surface-overlay shadow-lg">
       {matches.map((c) => (
         <button
           key={c.name}
           type="button"
           onClick={() => onPick(c.name)}
-          className="flex w-full items-center justify-between gap-4 px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="flex w-full items-center justify-between gap-4 px-3 py-2 text-left text-sm hover:bg-surface-muted"
         >
-          <span className="font-medium text-indigo-600 dark:text-indigo-300">/{c.name}</span>
-          <span className="truncate text-xs text-slate-500">{c.usage}</span>
+          <span className="font-medium text-accent">/{c.name}</span>
+          <span className="truncate text-xs text-fg-muted">{c.usage}</span>
         </button>
       ))}
     </div>

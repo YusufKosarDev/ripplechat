@@ -6,7 +6,7 @@ import { login } from '../features/auth/authSlice'
 import AuthShell from '../components/AuthShell'
 
 const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500'
+  'w-full rounded-lg border border-control bg-surface px-3 py-2 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
@@ -34,7 +34,7 @@ export default function LoginPage() {
     <AuthShell title="Giriş yap">
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-400">Kullanıcı adı veya e-posta</label>
+          <label className="mb-1 block text-sm text-fg-muted">Kullanıcı adı veya e-posta</label>
           <input
             className={inputClass}
             value={loginValue}
@@ -44,7 +44,7 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600 dark:text-slate-400">Şifre</label>
+          <label className="mb-1 block text-sm text-fg-muted">Şifre</label>
           <input
             type="password"
             className={inputClass}
@@ -56,21 +56,21 @@ export default function LoginPage() {
         </div>
 
         {(formError || error) && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">{formError || error}</p>
+          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-danger">{formError || error}</p>
         )}
 
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-60"
+          className="w-full rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-hover disabled:opacity-60"
         >
           {status === 'loading' ? 'Giriş yapılıyor...' : 'Giriş yap'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+      <p className="mt-6 text-center text-sm text-fg-muted">
         Hesabın yok mu?{' '}
-        <Link to="/register" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
+        <Link to="/register" className="text-accent hover:text-accent-hover">
           Kayıt ol
         </Link>
       </p>
