@@ -35,6 +35,9 @@ import PollCard from './PollCard'
 import ReactionBar from './ReactionBar'
 import ReactionOverlay from './ReactionOverlay'
 import type { FlyingEmoji } from './ReactionOverlay'
+import Button from './ui/Button'
+import { Textarea } from './ui/Field'
+import { focusRing } from './ui/focusRing'
 
 const TYPING_TTL = 4000
 const TYPING_STOP_DELAY = 2000
@@ -42,8 +45,6 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000
 const MAX_FLYING = 40
 
 const borderC = 'border-border'
-const composerInput =
-  'flex-1 resize-none rounded-lg border border-control bg-surface px-3 py-2 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent'
 
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
@@ -231,12 +232,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     return (
       <section className="flex flex-1 flex-col">
         <div className={`flex items-center border-b px-4 py-3 md:hidden ${borderC}`}>
-          <button
-            onClick={onOpenSidebar}
-            className="rounded-lg border border-control px-3 py-1 text-sm text-fg-muted"
-          >
+          <Button variant="secondary" onClick={onOpenSidebar}>
             ☰ Kanallar
-          </button>
+          </Button>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-muted text-2xl">
@@ -354,7 +352,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     if (editingId === msg.id) {
       return (
         <div className="mt-1">
-          <textarea
+          <Textarea
             value={editDraft}
             onChange={(e) => setEditDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -366,18 +364,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             }}
             rows={2}
             autoFocus
-            className={`w-full ${composerInput}`}
           />
-          <div className="mt-1 flex gap-2 text-xs">
-            <button onClick={() => saveEdit(msg)} className="rounded-lg bg-brand px-2 py-1 text-white hover:bg-brand-hover">
+          <div className="mt-1 flex gap-2">
+            <Button onClick={() => saveEdit(msg)} size="sm">
               Kaydet
-            </button>
-            <button
-              onClick={cancelEdit}
-              className="rounded-lg border border-control px-2 py-1 text-fg-muted hover:border-control-hover"
-            >
+            </Button>
+            <Button onClick={cancelEdit} variant="secondary" size="sm">
               İptal
-            </button>
+            </Button>
           </div>
         </div>
       )
@@ -391,12 +385,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         {(mine || canDelete) && (
           <span className="ml-2 hidden gap-2 text-xs text-fg-muted group-hover:inline-flex">
             {mine && (
-              <button onClick={() => startEdit(msg)} className="hover:text-fg">
+              <button onClick={() => startEdit(msg)} className={`rounded-lg hover:text-fg ${focusRing}`}>
                 Düzenle
               </button>
             )}
             {canDelete && (
-              <button onClick={() => onDelete(msg)} className="hover:text-danger">
+              <button onClick={() => onDelete(msg)} className={`rounded-lg hover:text-danger ${focusRing}`}>
                 Sil
               </button>
             )}
@@ -418,13 +412,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     <section className="flex flex-1 flex-col">
       <header className={`flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 ${borderC}`}>
         <div className="flex min-w-0 items-center gap-3">
-          <button
-            onClick={onOpenSidebar}
-            className="shrink-0 rounded-lg border border-control px-2.5 py-1 text-fg-muted transition hover:border-control-hover md:hidden"
-            title="Kanallar"
-          >
+          <Button variant="secondary" size="sm" onClick={onOpenSidebar} className="shrink-0 md:hidden" title="Kanallar">
             ☰
-          </button>
+          </Button>
           <div className="min-w-0">
             <h2 className="truncate font-semibold">
               <span className="text-fg-faint">#</span> {channel.name}
@@ -432,12 +422,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             {channel.description && <p className="truncate text-sm text-fg-muted">{channel.description}</p>}
           </div>
         </div>
-        <button
-          onClick={() => setShowMembers(true)}
-          className="shrink-0 rounded-lg border border-control px-3 py-1 text-xs text-fg-muted transition hover:border-control-hover"
-        >
+        <Button variant="secondary" size="sm" onClick={() => setShowMembers(true)} className="shrink-0">
           Üyeler ({members.length})
-        </button>
+        </Button>
       </header>
 
       {showMembers && (
@@ -453,12 +440,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       {forbidden ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <p className="text-fg-muted">Bu kanalın üyesi değilsin.</p>
-          <button
-            onClick={onJoin}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-hover"
-          >
-            Kanala katıl
-          </button>
+          <Button onClick={onJoin}>Kanala katıl</Button>
         </div>
       ) : (
         <>
@@ -525,7 +507,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                         {msg.thread.replyCount > 0 && (
                           <button
                             onClick={() => dispatch(openThread(msg.id))}
-                            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-control bg-surface-muted px-2 py-1 text-xs text-accent transition hover:border-control-hover"
+                            className={`mt-1 inline-flex items-center gap-1.5 rounded-lg border border-control bg-surface-muted px-2 py-1 text-xs text-accent transition hover:border-control-hover ${focusRing}`}
                           >
                             <span className="flex -space-x-1.5">
                               {msg.thread.lastRepliers.map((u) => (
@@ -538,7 +520,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                         {!msg.deleted && (
                           <button
                             onClick={() => dispatch(openThread(msg.id))}
-                            className="mt-1 hidden text-xs text-fg-muted transition hover:text-fg group-hover:inline"
+                            className={`mt-1 hidden rounded-lg text-xs text-fg-muted transition hover:text-fg group-hover:inline ${focusRing}`}
                           >
                             Yanıtla
                           </button>
@@ -570,7 +552,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             </div>
             {cmdError && <p className="mb-2 text-xs text-danger">{cmdError}</p>}
             <form onSubmit={onSend} className="flex items-end gap-3">
-              <textarea
+              <Textarea
                 ref={inputRef}
                 value={draft}
                 onChange={(e) => onDraftChange(e.target.value)}
@@ -582,14 +564,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 }}
                 rows={1}
                 placeholder={`#${channel.name} kanalına yaz  ·  /poll, /giphy, /shrug`}
-                className={`max-h-40 ${composerInput}`}
+                className="max-h-40 flex-1"
               />
-              <button
-                type="submit"
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-hover"
-              >
-                Gönder
-              </button>
+              <Button type="submit">Gönder</Button>
             </form>
             <p className="mt-1.5 text-[11px] text-fg-faint">
               Markdown destekli · <span className="text-fg-muted">**kalın**</span>{' '}

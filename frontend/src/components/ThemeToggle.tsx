@@ -1,5 +1,6 @@
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { toggleTheme } from '../features/ui/uiSlice'
+import { focusRing } from './ui/focusRing'
 
 export default function ThemeToggle() {
   const dispatch = useAppDispatch()
@@ -8,7 +9,7 @@ export default function ThemeToggle() {
     <button
       onClick={() => dispatch(toggleTheme())}
       title={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
-      className="rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg"
+      className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
     >
       {theme === 'dark' ? '☀️' : '🌙'}
     </button>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactionSummary } from '../api/types'
+import { focusRing } from './ui/focusRing'
 
 const PICKER = ['👍', '❤️', '😂', '🔥', '🎉', '👀']
 
@@ -22,7 +23,7 @@ export default function MessageReactions({ reactions, currentUsername, onToggle 
             type="button"
             onClick={() => onToggle(r.emoji)}
             title={r.users.join(', ')}
-            className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
+            className={`${focusRing} flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
               mine
                 ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200'
                 : 'border-control bg-surface-muted text-fg-secondary hover:border-control-hover'
@@ -38,7 +39,7 @@ export default function MessageReactions({ reactions, currentUsername, onToggle 
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="hidden items-center rounded-full border border-control px-2 py-0.5 text-xs text-fg-faint transition hover:border-control-hover hover:text-fg-muted group-hover:inline-flex"
+          className={`hidden items-center rounded-full border border-control px-2 py-0.5 text-xs text-fg-faint transition hover:border-control-hover hover:text-fg-muted group-hover:inline-flex ${focusRing}`}
           title="Tepki ekle"
         >
           ＋
@@ -53,7 +54,7 @@ export default function MessageReactions({ reactions, currentUsername, onToggle 
                   onToggle(emoji)
                   setOpen(false)
                 }}
-                className="rounded-lg px-1 text-base transition hover:bg-surface-muted"
+                className={`rounded-lg px-1 text-base transition hover:bg-surface-muted ${focusRing}`}
               >
                 {emoji}
               </button>

@@ -8,14 +8,14 @@ import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
+import Button from './ui/Button'
+import { Input } from './ui/Field'
+import { focusRing } from './ui/focusRing'
 
 interface SidebarProps {
   open: boolean
   onClose: () => void
 }
-
-const inputClass =
-  'min-w-0 flex-1 rounded-lg border border-control bg-surface px-2 py-1 text-sm outline-none transition placeholder:text-fg-faint focus:border-accent'
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const dispatch = useAppDispatch()
@@ -70,7 +70,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <button
                 onClick={() => setShowSearch(true)}
                 title="Mesajlarda ara"
-                className="rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg"
+                className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
               >
                 🔍
               </button>
@@ -81,14 +81,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <button
               onClick={() => setShowSettings(true)}
               title="Ayarlar"
-              className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5 transition hover:bg-surface-muted"
+              className={`flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5 transition hover:bg-surface-muted ${focusRing}`}
             >
               <Avatar name={displayName} color={user?.avatarColor} online={selfOnline} size="sm" />
               <span className="truncate text-sm text-fg-secondary">{displayName}</span>
             </button>
             <button
               onClick={onLogout}
-              className="shrink-0 text-xs text-fg-muted transition hover:text-fg"
+              className={`shrink-0 rounded-lg text-xs text-fg-muted transition hover:text-fg ${focusRing}`}
             >
               Çıkış
             </button>
@@ -119,7 +119,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                         dispatch(selectChannel(channel.id))
                         onClose()
                       }}
-                      className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                      className={`${focusRing} flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
                         selectedId === channel.id
                           ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
                           : unread > 0
@@ -152,21 +152,28 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         <div className="space-y-3 border-t border-border px-3 py-3">
           <form onSubmit={onCreate} className="flex gap-2">
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Yeni kanal" className={inputClass} />
-            <button className="rounded-lg bg-brand px-2.5 py-1 text-sm text-white transition hover:bg-brand-hover">
+            <Input
+              inputSize="sm"
+              className="min-w-0 flex-1"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Yeni kanal"
+            />
+            <Button type="submit" size="sm" aria-label="Kanal oluştur">
               +
-            </button>
+            </Button>
           </form>
           <form onSubmit={onJoin} className="flex gap-2">
-            <input
+            <Input
+              inputSize="sm"
+              className="min-w-0 flex-1"
               value={joinId}
               onChange={(e) => setJoinId(e.target.value)}
               placeholder="Kanal ID ile katıl"
-              className={`${inputClass} text-xs`}
             />
-            <button className="rounded-lg border border-control px-2 py-1 text-xs text-fg-muted transition hover:border-control-hover">
+            <Button type="submit" variant="secondary" size="sm">
               Katıl
-            </button>
+            </Button>
           </form>
         </div>
       </aside>

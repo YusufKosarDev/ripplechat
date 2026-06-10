@@ -5,9 +5,9 @@ import { changePassword, logout, updateMe } from '../features/auth/authSlice'
 import { AVATAR_COLORS } from './Avatar'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
-
-const inputClass =
-  'w-full rounded-lg border border-control bg-surface px-3 py-1.5 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent'
+import Button from './ui/Button'
+import { Input } from './ui/Field'
+import { focusRing } from './ui/focusRing'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -69,7 +69,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Ayarlar</h3>
-          <button onClick={onClose} className="text-fg-muted transition hover:text-fg">
+          <button onClick={onClose} className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>
@@ -84,7 +84,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
 
         <label className="mt-4 mb-1 block text-sm text-fg-muted">Görünen ad</label>
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} />
+        <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
 
         <label className="mt-3 mb-1 block text-sm text-fg-muted">Avatar rengi</label>
         <div className="flex flex-wrap gap-2">
@@ -93,7 +93,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               key={key}
               type="button"
               onClick={() => setColor(key)}
-              className={`h-7 w-7 rounded-full bg-${key}-500 transition ${
+              className={`h-7 w-7 rounded-full bg-${key}-500 transition ${focusRing} ${
                 color === key ? 'ring-2 ring-slate-900 ring-offset-2 ring-offset-white dark:ring-white dark:ring-offset-slate-900' : ''
               }`}
               title={key}
@@ -102,12 +102,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
 
         <div className="mt-3 flex items-center gap-3">
-          <button
-            onClick={onSaveProfile}
-            className="rounded-lg bg-brand px-3 py-1.5 text-sm text-white transition hover:bg-brand-hover"
-          >
-            Profili kaydet
-          </button>
+          <Button onClick={onSaveProfile}>Profili kaydet</Button>
           {profileMsg && <span className="text-xs text-fg-muted">{profileMsg}</span>}
         </div>
 
@@ -120,29 +115,26 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         {/* Password */}
         <div className="mt-6 border-t border-border pt-4">
           <h4 className="mb-2 text-sm font-medium text-fg-secondary">Şifre değiştir</h4>
-          <input
+          <Input
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder="Mevcut şifre"
             autoComplete="current-password"
-            className={`mb-2 ${inputClass}`}
+            className="mb-2"
           />
-          <input
+          <Input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder="Yeni şifre (en az 8)"
             autoComplete="new-password"
-            className={`mb-2 ${inputClass}`}
+            className="mb-2"
           />
           <div className="flex items-center gap-3">
-            <button
-              onClick={onChangePassword}
-              className="rounded-lg border border-control px-3 py-1.5 text-sm text-fg-secondary transition hover:border-control-hover"
-            >
+            <Button onClick={onChangePassword} variant="secondary">
               Şifreyi değiştir
-            </button>
+            </Button>
             {pwMsg && (
               <span className={`text-xs ${pwError ? 'text-danger' : 'text-fg-muted'}`}>{pwMsg}</span>
             )}
@@ -151,12 +143,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         {/* Logout */}
         <div className="mt-6 border-t border-border pt-4">
-          <button
-            onClick={onLogout}
-            className="rounded-lg border border-red-500/50 px-3 py-1.5 text-sm text-danger transition hover:bg-red-500/10"
-          >
+          <Button onClick={onLogout} variant="danger">
             Çıkış yap
-          </button>
+          </Button>
         </div>
       </div>
     </div>

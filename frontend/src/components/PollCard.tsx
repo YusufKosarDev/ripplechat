@@ -1,4 +1,5 @@
 import type { Poll } from '../api/types'
+import { focusRing } from './ui/focusRing'
 
 interface PollCardProps {
   poll: Poll
@@ -20,7 +21,7 @@ export default function PollCard({ poll, myVote, onVote }: PollCardProps) {
               key={opt.id}
               type="button"
               onClick={() => onVote(opt.id)}
-              className={`relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-sm transition ${
+              className={`${focusRing} relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-sm transition ${
                 mine
                   ? 'border-indigo-500'
                   : 'border-control hover:border-control-hover'

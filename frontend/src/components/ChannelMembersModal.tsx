@@ -3,6 +3,9 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { deleteChannel, kickMember, setMemberRole, updateChannel } from '../features/channels/channelsSlice'
 import type { MemberResponse, MembershipRole } from '../api/types'
 import Avatar from './Avatar'
+import Button from './ui/Button'
+import { Input } from './ui/Field'
+import { focusRing } from './ui/focusRing'
 
 function RoleBadge({ role }: { role: MembershipRole }) {
   if (role === 'OWNER') {
@@ -13,9 +16,6 @@ function RoleBadge({ role }: { role: MembershipRole }) {
   }
   return <span className="rounded-lg bg-surface-muted px-1.5 py-0.5 text-[10px] text-fg-muted">üye</span>
 }
-
-const settingsInput =
-  'w-full rounded-lg border border-control bg-surface px-3 py-1.5 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent'
 
 interface ChannelMembersModalProps {
   channelId: string
@@ -59,7 +59,7 @@ export default function ChannelMembersModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Üyeler</h3>
-          <button onClick={onClose} className="text-fg-muted transition hover:text-fg">
+          <button onClick={onClose} className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>
@@ -82,21 +82,21 @@ export default function ChannelMembersModal({
                     {m.role === 'MEMBER' ? (
                       <button
                         onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MODERATOR' }))}
-                        className="text-accent transition hover:text-accent-hover"
+                        className={`rounded-lg text-accent transition hover:text-accent-hover ${focusRing}`}
                       >
                         Mod yap
                       </button>
                     ) : (
                       <button
                         onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MEMBER' }))}
-                        className="text-fg-muted transition hover:text-fg"
+                        className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
                       >
                         Mod al
                       </button>
                     )}
                     <button
                       onClick={() => dispatch(kickMember({ channelId, userId: m.user.id }))}
-                      className="text-danger transition hover:text-danger-hover"
+                      className={`rounded-lg text-danger transition hover:text-danger-hover ${focusRing}`}
                     >
                       Çıkar
                     </button>
@@ -110,31 +110,23 @@ export default function ChannelMembersModal({
         {isOwner && (
           <div className="mt-6 border-t border-border pt-4">
             <h4 className="mb-2 text-sm font-medium text-fg-secondary">Kanal ayarları</h4>
-            <input
+            <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Kanal adı"
-              className={`mb-2 ${settingsInput}`}
+              className="mb-2"
             />
-            <input
+            <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Açıklama"
-              className={`mb-3 ${settingsInput}`}
+              className="mb-3"
             />
             <div className="flex justify-between">
-              <button
-                onClick={onSaveChannel}
-                className="rounded-lg bg-brand px-3 py-1.5 text-sm text-white transition hover:bg-brand-hover"
-              >
-                Kaydet
-              </button>
-              <button
-                onClick={onDeleteChannel}
-                className="rounded-lg border border-red-500/50 px-3 py-1.5 text-sm text-danger transition hover:bg-red-500/10"
-              >
+              <Button onClick={onSaveChannel}>Kaydet</Button>
+              <Button onClick={onDeleteChannel} variant="danger">
                 Kanalı sil
-              </button>
+              </Button>
             </div>
           </div>
         )}

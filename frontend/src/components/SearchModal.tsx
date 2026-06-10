@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { client } from '../api/client'
 import type { SearchResult } from '../api/types'
 import Avatar from './Avatar'
+import { focusRing } from './ui/focusRing'
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -80,9 +81,9 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Mesajlarda ara..."
-            className="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-faint"
+            className={`flex-1 rounded-lg bg-transparent text-sm text-fg placeholder:text-fg-faint ${focusRing}`}
           />
-          <button onClick={onClose} className="text-fg-faint transition hover:text-fg">
+          <button onClick={onClose} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>
@@ -107,7 +108,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
               <button
                 key={r.id}
                 onClick={() => onPick(r.channelId)}
-                className="flex w-full gap-3 border-b border-border px-4 py-3 text-left transition hover:bg-surface-muted"
+                className={`flex w-full gap-3 border-b border-border px-4 py-3 text-left transition hover:bg-surface-muted ${focusRing}`}
               >
                 <Avatar name={r.sender.displayName ?? r.sender.username} color={r.sender.avatarColor} size="sm" />
                 <div className="min-w-0 flex-1">

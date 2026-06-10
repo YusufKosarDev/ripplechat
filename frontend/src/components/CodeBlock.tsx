@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useAppSelector } from '../app/hooks'
+import { focusRing } from './ui/focusRing'
 
 interface CodeBlockProps {
   language: string
@@ -28,7 +29,7 @@ export default function CodeBlock({ language, value }: CodeBlockProps) {
     <div className="my-2 overflow-hidden rounded-lg border border-control">
       <div className="flex items-center justify-between bg-surface-muted px-3 py-1 text-xs text-fg-muted">
         <span className="font-mono">{language}</span>
-        <button type="button" onClick={copy} className="transition hover:text-fg">
+        <button type="button" onClick={copy} className={`rounded-lg transition hover:text-fg ${focusRing}`}>
           {copied ? 'Kopyalandı ✓' : 'Kopyala'}
         </button>
       </div>

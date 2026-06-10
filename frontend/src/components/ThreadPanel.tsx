@@ -6,6 +6,8 @@ import { sendChatMessage, unwatchThread, watchThread } from '../realtime/chatSoc
 import type { Message } from '../api/types'
 import Avatar from './Avatar'
 import MessageContent from './MessageContent'
+import { Input } from './ui/Field'
+import { focusRing } from './ui/focusRing'
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
@@ -66,7 +68,7 @@ export default function ThreadPanel() {
         <span className="font-semibold">Thread</span>
         <button
           onClick={() => dispatch(closeThread())}
-          className="text-fg-muted transition hover:text-fg"
+          className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
           title="Kapat"
         >
           ✕
@@ -119,12 +121,7 @@ export default function ThreadPanel() {
       </div>
 
       <form onSubmit={onSend} className="border-t border-border p-4">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Yanıt yaz..."
-          className="w-full rounded-lg border border-control bg-surface px-3 py-2 text-sm text-fg outline-none transition placeholder:text-fg-faint focus:border-accent"
-        />
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Yanıt yaz..." />
       </form>
     </aside>
   )
