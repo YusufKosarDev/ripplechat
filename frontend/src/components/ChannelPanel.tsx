@@ -383,7 +383,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         <MessageContent content={msg.content} />
         {msg.editedAt && <span className="text-[11px] text-fg-faint">(düzenlendi)</span>}
         {(mine || canDelete) && (
-          <span className="ml-2 hidden gap-2 text-xs text-fg-muted group-hover:inline-flex">
+          <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
             {mine && (
               <button onClick={() => startEdit(msg)} className={`rounded-lg hover:text-fg ${focusRing}`}>
                 Düzenle
@@ -520,7 +520,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                         {!msg.deleted && (
                           <button
                             onClick={() => dispatch(openThread(msg.id))}
-                            className={`mt-1 hidden rounded-lg text-xs text-fg-muted transition hover:text-fg group-hover:inline ${focusRing}`}
+                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
                           >
                             Yanıtla
                           </button>

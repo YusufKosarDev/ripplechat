@@ -39,7 +39,7 @@ export default function MessageReactions({ reactions, currentUsername, onToggle 
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`hidden items-center rounded-full border border-control px-2 py-0.5 text-xs text-fg-faint transition hover:border-control-hover hover:text-fg-muted group-hover:inline-flex ${focusRing}`}
+          className={`hidden items-center rounded-full border border-control px-2 py-0.5 text-xs text-fg-faint transition hover:border-control-hover hover:text-fg-muted group-hover:inline-flex group-focus-within:inline-flex ${focusRing}`}
           title="Tepki ekle"
         >
           ＋
