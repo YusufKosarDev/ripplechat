@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -23,8 +24,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "channel_memberships", uniqueConstraints =
-        @UniqueConstraint(name = "uk_membership_channel_user", columnNames = {"channel_id", "user_id"}))
+@Table(name = "channel_memberships",
+        uniqueConstraints = @UniqueConstraint(name = "uk_membership_channel_user", columnNames = {"channel_id", "user_id"}),
+        // The composite unique above covers channel_id-leading lookups; this adds
+        // user_id-leading lookups (findByUser_Username — channel list + search).
+        indexes = @Index(name = "idx_membership_user", columnList = "user_id"))
 @Getter
 @Setter
 @NoArgsConstructor

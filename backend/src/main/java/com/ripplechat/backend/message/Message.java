@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -21,7 +22,16 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "messages")
+@Table(name = "messages", indexes = {
+        // Main channel feed: where channel_id = ? and parent_message_id is null
+        // order by created_at (findByChannelIdAndParentIsNull) + channel scoping
+        // for search. Postgres does not auto-index FK columns.
+        @Index(name = "idx_messages_channel_parent_created",
+                columnList = "channel_id, parent_message_id, created_at"),
+        // Thread replies: where parent_message_id = ?/in (?) order by created_at.
+        @Index(name = "idx_messages_parent_created",
+                columnList = "parent_message_id, created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
