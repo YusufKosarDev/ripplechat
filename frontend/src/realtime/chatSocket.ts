@@ -156,7 +156,9 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
   }
   handlers = chatHandlers
   hasConnectedBefore = false
-  const url = window.location.origin + config.wsUrl
+  // Absolute URL (production: cross-origin backend) is used as-is; a relative
+  // path (dev) is resolved against the current origin so the Vite proxy handles it.
+  const url = /^https?:\/\//i.test(config.wsUrl) ? config.wsUrl : window.location.origin + config.wsUrl
   client = new Client({
     webSocketFactory: () => new SockJS(url),
     connectHeaders: { Authorization: `Bearer ${getToken() ?? ''}` },
