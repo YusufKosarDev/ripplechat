@@ -5,7 +5,9 @@ import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
+import com.ripplechat.backend.common.RateLimiter;
 import com.ripplechat.backend.common.dto.PageResponse;
+import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
@@ -18,9 +20,11 @@ import com.ripplechat.backend.user.dto.UserSummary;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,6 +40,10 @@ import java.util.stream.Collectors;
 public class MessageService {
 
     private static final int MAX_LAST_REPLIERS = 3;
+    private static final int MAX_MESSAGE_LENGTH = 4000;
+    // Send throttle: 10-message burst, then ~5/sec sustained per user.
+    private static final double SEND_BURST = 10;
+    private static final double SEND_REFILL_PER_SEC = 5;
 
     private final MessageRepository messageRepository;
     private final ChannelRepository channelRepository;
@@ -43,6 +51,7 @@ public class MessageService {
     private final ChannelMembershipRepository membershipRepository;
     private final MessageReactionService messageReactionService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RateLimiter rateLimiter;
 
     /**
      * Persists a message and broadcasts it. A top-level message goes to the main
@@ -51,6 +60,19 @@ public class MessageService {
      */
     @Transactional
     public MessageResponse send(UUID channelId, CreateMessageRequest request, String username) {
+        if (!rateLimiter.tryAcquire("msg:" + username, SEND_BURST, SEND_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "sending too fast, please slow down");
+        }
+        // Enforce content rules in the service so they apply to WebSocket sends too
+        // (the @Valid on the REST DTO does not cover the STOMP @Payload path).
+        String content = request.content();
+        if (content == null || content.isBlank()) {
+            throw new BadRequestException("content is required");
+        }
+        if (content.length() > MAX_MESSAGE_LENGTH) {
+            throw new BadRequestException("content must be at most " + MAX_MESSAGE_LENGTH + " characters");
+        }
+
         Channel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new ResourceNotFoundException("channel not found: " + channelId));
         if (channel.isDeleted()) {
@@ -127,7 +149,7 @@ public class MessageService {
     @Transactional
     public void editMessage(UUID channelId, UUID messageId, String username, String content) {
         Message message = requireOwnMessage(channelId, messageId, username);
-        if (message.isDeleted() || content == null || content.isBlank()) {
+        if (message.isDeleted() || content == null || content.isBlank() || content.length() > MAX_MESSAGE_LENGTH) {
             return;
         }
         message.setContent(content);

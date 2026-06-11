@@ -3,6 +3,7 @@ package com.ripplechat.backend.user;
 import com.ripplechat.backend.user.dto.ChangePasswordRequest;
 import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,7 +34,7 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    public UserResponse updateMe(@RequestBody UpdateMeRequest request,
+    public UserResponse updateMe(@Valid @RequestBody UpdateMeRequest request,
                                  @AuthenticationPrincipal String username) {
         return userService.updateMe(username, request);
     }

@@ -18,6 +18,8 @@ import java.util.stream.IntStream;
 public class PollService {
 
     private static final int MAX_OPTIONS = 10;
+    private static final int MAX_QUESTION_LENGTH = 300;
+    private static final int MAX_OPTION_LENGTH = 100;
 
     private final PollStore store;
     private final ChannelMembershipService membershipService;
@@ -27,10 +29,14 @@ public class PollService {
         requireMember(channelId, username);
 
         String question = request.question() == null ? "" : request.question().trim();
+        if (question.length() > MAX_QUESTION_LENGTH) {
+            question = question.substring(0, MAX_QUESTION_LENGTH);
+        }
         List<String> optionTexts = request.options() == null ? List.of()
                 : request.options().stream()
                         .map(s -> s == null ? "" : s.trim())
                         .filter(s -> !s.isEmpty())
+                        .map(s -> s.length() > MAX_OPTION_LENGTH ? s.substring(0, MAX_OPTION_LENGTH) : s)
                         .limit(MAX_OPTIONS)
                         .toList();
 
