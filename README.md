@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="RippleChat" width="110" />
+</p>
+
 # 💬 RippleChat
 
 **Real-time, community-driven messaging platform** — a Slack/Discord-style workspace where channels, threads, reactions, and presence all update live over WebSockets. Built with a Spring Boot backend and a React + TypeScript frontend.
@@ -36,9 +40,11 @@
 - **Slash commands** — an extensible command system (`/poll`, `/giphy`, `/shrug`)
 
 ### 🔐 Security & Authorization
-- **JWT authentication** with stateless sessions
+- **JWT authentication** with stateless sessions and BCrypt-hashed passwords
 - **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`
 - **Channel moderation** — owners and moderators manage membership and content; all checks are enforced server-side
+- **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members (or removed members) can't eavesdrop
+- **Abuse protection** — input size limits plus rate limiting on login, message sends, and reactions
 
 ### 🎨 Experience
 - **Light / dark theme** toggle
@@ -67,7 +73,8 @@
 
 **DevOps**
 - Docker Compose (PostgreSQL)
-- Maven
+- Flyway (production schema migrations)
+- Maven · Spring profiles (dev / prod)
 
 ---
 
@@ -85,6 +92,8 @@ presence · typing · reaction · poll · search · websocket
 **Frontend.** Application state lives in Redux Toolkit, with a dedicated realtime layer managing the socket lifecycle, subscriptions, and reconnection. UI state (theme, modals, unread counts) is kept in feature slices.
 
 **Security is enforced on the backend.** Authentication and every role/permission check (channel membership, moderation, profile ownership) run server-side — the frontend never holds the authority, only reflects it.
+
+**Dev vs. production.** Development favours fast iteration: Hibernate auto-updates the schema (`ddl-auto=update`) and SQL logging is on. The `prod` profile is hardened instead — schema is owned by **Flyway** migrations and only *validated* by Hibernate, SQL logging is off, and CORS / WebSocket origins come from an explicit, environment-configured allowlist (no wildcards).
 
 ---
 
@@ -142,6 +151,20 @@ Open **http://localhost:5173** — register an account and start chatting. The d
 | Backend API | http://localhost:8081   |
 | PostgreSQL  | localhost:5434 (host)   |
 
+### Running in production
+
+The `prod` profile swaps auto-schema for validated, Flyway-managed migrations and locks down origins. Activate it with `SPRING_PROFILES_ACTIVE=prod` and provide:
+
+| Variable | Notes |
+|----------|-------|
+| `SPRING_PROFILES_ACTIVE=prod` | enables Flyway + `ddl-auto=validate`, disables SQL logging |
+| `POSTGRES_PASSWORD` | strong, unique (never `change-me`) |
+| `JWT_SECRET` | long random secret — `openssl rand -hex 48` |
+| `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
+| `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
+
+On first boot against an empty database, Flyway applies `V1__initial_schema.sql` and Hibernate validates the schema against the entities. The full list lives in `.env.example`.
+
 ---
 
 ## 📁 Project Structure
@@ -149,18 +172,20 @@ Open **http://localhost:5173** — register an account and start chatting. The d
 ```
 ripplechat/
 ├── backend/                     # Spring Boot application
-│   └── src/main/java/com/ripplechat/backend/
-│       ├── auth/                # Registration, login, JWT
-│       ├── user/                # Profiles, settings, password
-│       ├── channel/             # Channels + membership & roles
-│       ├── message/             # Messages, threads, edit/delete
-│       ├── reaction/            # Emoji reactions
-│       ├── poll/                # Polls (REST + WebSocket)
-│       ├── presence/            # Online status
-│       ├── typing/              # Typing indicators
-│       ├── search/              # Message search
-│       ├── websocket/           # STOMP config & security
-│       └── common/              # Shared errors, exceptions, utilities
+│   ├── src/main/java/com/ripplechat/backend/
+│   │   ├── auth/                # Registration, login, JWT, security config
+│   │   ├── user/                # Profiles, settings, password (self-service)
+│   │   ├── channel/             # Channels + membership & roles
+│   │   ├── message/             # Messages, threads, edit/delete
+│   │   ├── reaction/            # Emoji reactions
+│   │   ├── poll/                # Polls (REST + WebSocket)
+│   │   ├── presence/            # Online status
+│   │   ├── typing/              # Typing indicators
+│   │   ├── search/              # Message search
+│   │   ├── websocket/           # STOMP config & subscription auth
+│   │   └── common/              # Shared errors, exceptions, rate limiter
+│   └── src/main/resources/
+│       └── db/migration/        # Flyway migrations (prod schema)
 ├── frontend/                    # React + TypeScript app
 │   └── src/
 │       ├── api/                 # HTTP client & types
@@ -169,7 +194,7 @@ ripplechat/
 │       │                        #   polls, presence, unread, connection, ui
 │       ├── realtime/            # STOMP socket lifecycle
 │       ├── commands/            # Slash-command registry
-│       ├── components/          # UI components
+│       ├── components/          # UI components (+ ui/ Button/Input primitives)
 │       └── pages/               # Route-level views
 ├── docker-compose.yml           # PostgreSQL service
 └── .env.example                 # Environment template
@@ -179,9 +204,13 @@ ripplechat/
 
 ## 📸 Screenshots
 
-_Coming soon._
+Screenshots live in [`docs/screenshots/`](docs/screenshots). Capture the running app (`docker compose up -d`, start the backend and frontend, open <http://localhost:5173>) — the channel view, a thread with reactions, message search, and dark mode show it off best — then drop the PNGs in and embed them here:
 
-> Add screenshots or a short demo GIF here — channel view, threads, reactions, and dark mode showcase the project well.
+```md
+![Channel view](docs/screenshots/channel.png)
+![Dark mode](docs/screenshots/dark.png)
+![Thread & reactions](docs/screenshots/thread.png)
+```
 
 ---
 
