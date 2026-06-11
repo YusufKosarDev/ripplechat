@@ -25,7 +25,7 @@ export default function LoginPage() {
     }
     const result = await dispatch(login({ login: loginValue.trim(), password }))
     if (login.fulfilled.match(result)) {
-      navigate('/')
+      navigate('/chat')
     }
   }
 

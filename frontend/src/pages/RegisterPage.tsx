@@ -38,7 +38,7 @@ export default function RegisterPage() {
       }),
     )
     if (register.fulfilled.match(result)) {
-      navigate('/')
+      navigate('/chat')
     }
   }
 

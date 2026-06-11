@@ -51,8 +51,11 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        // Brute-force throttle, keyed by the attempted login identifier.
-        if (!rateLimiter.tryAcquire("login:" + request.login().toLowerCase(), LOGIN_BURST, LOGIN_REFILL_PER_SEC)) {
+        // Brute-force throttle, keyed by the attempted login identifier. The
+        // public "demo" account is exempt — its password is intentionally known,
+        // so throttling it would only block the one-click demo for real visitors.
+        boolean isDemo = "demo".equalsIgnoreCase(request.login().trim());
+        if (!isDemo && !rateLimiter.tryAcquire("login:" + request.login().toLowerCase(), LOGIN_BURST, LOGIN_REFILL_PER_SEC)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "too many login attempts, please wait a moment and try again");
         }

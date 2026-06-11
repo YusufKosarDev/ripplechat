@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from './app/hooks'
 import { fetchCurrentUser } from './features/auth/authSlice'
 import { applyTheme } from './theme'
 import PrivateRoute from './components/PrivateRoute'
+import LandingPage from './pages/LandingPage'
 import ChatPage from './pages/ChatPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -27,10 +28,11 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<PrivateRoute />}>
-        <Route path="/" element={<ChatPage />} />
+        <Route path="/chat" element={<ChatPage />} />
       </Route>
     </Routes>
   )
