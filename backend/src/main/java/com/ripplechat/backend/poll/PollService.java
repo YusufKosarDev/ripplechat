@@ -8,10 +8,10 @@ import com.ripplechat.backend.poll.dto.PollResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -21,10 +21,11 @@ public class PollService {
     private static final int MAX_QUESTION_LENGTH = 300;
     private static final int MAX_OPTION_LENGTH = 100;
 
-    private final PollStore store;
+    private final PollRepository pollRepository;
     private final ChannelMembershipService membershipService;
     private final SimpMessagingTemplate messagingTemplate;
 
+    @Transactional
     public void createPoll(UUID channelId, String username, CreatePollRequest request) {
         requireMember(channelId, username);
 
@@ -45,28 +46,30 @@ public class PollService {
             return;
         }
 
-        List<Poll.Option> options = IntStream.range(0, optionTexts.size())
-                .mapToObj(i -> new Poll.Option(String.valueOf(i), optionTexts.get(i)))
-                .toList();
-
-        Poll poll = new Poll(channelId, question, options, username);
-        store.save(poll);
+        Poll poll = new Poll(channelId, question, username);
+        for (int i = 0; i < optionTexts.size(); i++) {
+            poll.addOption(String.valueOf(i), optionTexts.get(i), i);
+        }
+        pollRepository.save(poll);
         broadcast(poll);
     }
 
+    @Transactional
     public void vote(UUID channelId, UUID pollId, String username, String optionId) {
         requireMember(channelId, username);
-        Poll poll = store.get(pollId);
+        Poll poll = pollRepository.findById(pollId).orElse(null);
         if (poll == null || !poll.getChannelId().equals(channelId)) {
             throw new ResourceNotFoundException("poll not found: " + pollId);
         }
         poll.vote(username, optionId);
-        broadcast(poll);
+        broadcast(poll); // flushed at commit via dirty checking
     }
 
+    @Transactional(readOnly = true)
     public List<PollResponse> listActive(UUID channelId, String username) {
         requireMember(channelId, username);
-        return store.byChannel(channelId).stream().map(PollResponse::from).toList();
+        return pollRepository.findByChannelIdOrderByCreatedAtAsc(channelId).stream()
+                .map(PollResponse::from).toList();
     }
 
     private void broadcast(Poll poll) {

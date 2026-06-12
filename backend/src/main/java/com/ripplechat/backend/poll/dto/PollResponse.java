@@ -20,7 +20,7 @@ public record PollResponse(
 
     public static PollResponse from(Poll poll) {
         List<OptionResult> results = poll.getOptions().stream()
-                .map(o -> new OptionResult(o.id(), o.text(), poll.countFor(o.id())))
+                .map(o -> new OptionResult(o.getOptionKey(), o.getText(), poll.countFor(o.getOptionKey())))
                 .toList();
         return new PollResponse(
                 poll.getId(),

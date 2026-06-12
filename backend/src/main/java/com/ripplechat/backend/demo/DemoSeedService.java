@@ -10,7 +10,7 @@ import com.ripplechat.backend.message.MessageReaction;
 import com.ripplechat.backend.message.MessageReactionRepository;
 import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.poll.Poll;
-import com.ripplechat.backend.poll.PollStore;
+import com.ripplechat.backend.poll.PollRepository;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +24,8 @@ import java.util.List;
  * Seeds a public demo account ("demo") with realistic content so the "Try the
  * demo" button lands on a lively workspace instead of an empty screen.
  *
- * <p>Idempotent: persistent content (users, channels, messages, reactions) is
- * created only when the demo user is missing. The demo poll lives in the
- * in-memory {@link PollStore} (cleared on every restart), so it is re-seeded on
- * each startup if absent — see {@link #seedDemoPoll()}.
+ * <p>Idempotent: all demo content (users, channels, messages, reactions and a
+ * poll) is created only when the demo user is missing.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,7 +40,7 @@ public class DemoSeedService {
     private final ChannelMembershipRepository membershipRepository;
     private final MessageRepository messageRepository;
     private final MessageReactionRepository reactionRepository;
-    private final PollStore pollStore;
+    private final PollRepository pollRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -89,25 +87,28 @@ public class DemoSeedService {
         return true;
     }
 
-    /** Re-adds the demo poll to the in-memory store on startup if it's not there. */
-    @Transactional(readOnly = true)
-    public void seedDemoPoll() {
+    /**
+     * Seeds a demo poll in #genel if the channel exists and has none yet. Polls
+     * are now persistent, so this is a one-time, idempotent backfill (it also
+     * adds the poll to a demo workspace that predates persistent polls).
+     */
+    @Transactional
+    public void seedDemoPollIfAbsent() {
         channelRepository
                 .findFirstByNameAndCreatedBy_UsernameAndDeletedFalse(GENERAL_CHANNEL, DEMO_USERNAME)
                 .ifPresent(general -> {
-                    if (!pollStore.byChannel(general.getId()).isEmpty()) {
+                    if (!pollRepository.findByChannelIdOrderByCreatedAtAsc(general.getId()).isEmpty()) {
                         return;
                     }
-                    List<Poll.Option> options = List.of(
-                            new Poll.Option("0", "JavaScript"),
-                            new Poll.Option("1", "Java"),
-                            new Poll.Option("2", "Python"),
-                            new Poll.Option("3", "Go"));
-                    Poll poll = new Poll(general.getId(), "Favori programlama diliniz?", options, DEMO_USERNAME);
+                    Poll poll = new Poll(general.getId(), "Favori programlama diliniz?", DEMO_USERNAME);
+                    poll.addOption("0", "JavaScript", 0);
+                    poll.addOption("1", "Java", 1);
+                    poll.addOption("2", "Python", 2);
+                    poll.addOption("3", "Go", 3);
                     poll.vote("elif", "0");
                     poll.vote("kerem", "1");
                     poll.vote(DEMO_USERNAME, "2");
-                    pollStore.save(poll);
+                    pollRepository.save(poll);
                 });
     }
 
