@@ -3,6 +3,7 @@ package com.ripplechat.backend.auth;
 import com.ripplechat.backend.auth.dto.AuthResponse;
 import com.ripplechat.backend.auth.dto.LoginRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
+import com.ripplechat.backend.auth.dto.TokenResponse;
 import com.ripplechat.backend.common.RateLimiter;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
@@ -27,6 +28,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final RateLimiter rateLimiter;
 
     @Transactional
@@ -45,11 +47,12 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
 
         User saved = userRepository.saveAndFlush(user);
-        String token = jwtService.generateToken(saved.getUsername());
-        return AuthResponse.bearer(token, UserResponse.from(saved));
+        String accessToken = jwtService.generateToken(saved.getUsername());
+        String refreshToken = refreshTokenService.issue(saved);
+        return AuthResponse.of(accessToken, refreshToken, UserResponse.from(saved));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         // Brute-force throttle, keyed by the attempted login identifier. The
         // public "demo" account is exempt — its password is intentionally known,
@@ -67,7 +70,27 @@ public class AuthService {
             throw new InvalidCredentialsException("invalid username/email or password");
         }
 
-        String token = jwtService.generateToken(user.getUsername());
-        return AuthResponse.bearer(token, UserResponse.from(user));
+        String accessToken = jwtService.generateToken(user.getUsername());
+        String refreshToken = refreshTokenService.issue(user);
+        return AuthResponse.of(accessToken, refreshToken, UserResponse.from(user));
+    }
+
+    /**
+     * Renews the access token from a valid refresh token, rotating the refresh
+     * token (the presented one is invalidated). Throws if it is unknown,
+     * expired or revoked.
+     */
+    @Transactional
+    public TokenResponse refresh(String refreshToken) {
+        User user = refreshTokenService.rotate(refreshToken);
+        String accessToken = jwtService.generateToken(user.getUsername());
+        String newRefreshToken = refreshTokenService.issue(user);
+        return TokenResponse.of(accessToken, newRefreshToken);
+    }
+
+    /** Revokes the refresh token so it can no longer renew a session (logout). */
+    @Transactional
+    public void logout(String refreshToken) {
+        refreshTokenService.revoke(refreshToken);
     }
 }

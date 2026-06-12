@@ -1,0 +1,84 @@
+package com.ripplechat.backend.auth;
+
+import com.ripplechat.backend.common.exception.InvalidCredentialsException;
+import com.ripplechat.backend.user.User;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HexFormat;
+
+/**
+ * Issues, rotates and revokes opaque refresh tokens. The raw token returned to
+ * the client is high-entropy random; only its SHA-256 hash is persisted.
+ */
+@Service
+public class RefreshTokenService {
+
+    private final RefreshTokenRepository repository;
+    private final long refreshExpirationMillis;
+    private final SecureRandom random = new SecureRandom();
+
+    public RefreshTokenService(RefreshTokenRepository repository,
+                               @Value("${jwt.refresh-expiration}") long refreshExpirationMillis) {
+        this.repository = repository;
+        this.refreshExpirationMillis = refreshExpirationMillis;
+    }
+
+    /** Mints a new refresh token for the user and returns the raw value. */
+    @Transactional
+    public String issue(User user) {
+        RefreshToken token = new RefreshToken();
+        String raw = randomToken();
+        token.setTokenHash(hash(raw));
+        token.setUser(user);
+        token.setExpiresAt(Instant.now().plusMillis(refreshExpirationMillis));
+        repository.save(token);
+        return raw;
+    }
+
+    /**
+     * Validates and consumes a refresh token (one-time use): the row is deleted
+     * so the same token can never be replayed, and the caller issues a fresh one
+     * (rotation). Throws if the token is unknown or expired.
+     */
+    @Transactional
+    public User rotate(String rawToken) {
+        RefreshToken token = repository.findByTokenHash(hash(rawToken))
+                .orElseThrow(() -> new InvalidCredentialsException("invalid refresh token"));
+        User user = token.getUser();
+        boolean expired = token.getExpiresAt().isBefore(Instant.now());
+        repository.delete(token);
+        if (expired) {
+            throw new InvalidCredentialsException("refresh token expired");
+        }
+        return user;
+    }
+
+    /** Revokes a refresh token if present (logout); unknown tokens are ignored. */
+    @Transactional
+    public void revoke(String rawToken) {
+        repository.findByTokenHash(hash(rawToken)).ifPresent(repository::delete);
+    }
+
+    private String randomToken() {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hash(String raw) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(raw.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+}

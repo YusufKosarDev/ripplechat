@@ -9,8 +9,16 @@ export interface User {
 
 export interface AuthResponse {
   accessToken: string
+  refreshToken: string
   tokenType: string
   user: User
+}
+
+// Returned by /api/auth/refresh (no user payload).
+export interface TokenResponse {
+  accessToken: string
+  refreshToken: string
+  tokenType: string
 }
 
 export interface LoginRequest {

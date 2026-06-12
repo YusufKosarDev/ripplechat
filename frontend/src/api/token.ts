@@ -1,7 +1,21 @@
-const TOKEN_KEY = 'ripplechat_token'
+const ACCESS_KEY = 'ripplechat_token'
+const REFRESH_KEY = 'ripplechat_refresh'
 
-export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY)
+export const getToken = (): string | null => localStorage.getItem(ACCESS_KEY)
 
-export const setToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token)
+export const getRefreshToken = (): string | null => localStorage.getItem(REFRESH_KEY)
 
-export const clearToken = (): void => localStorage.removeItem(TOKEN_KEY)
+// Stores both tokens (login/register, and a rotated refresh token).
+export const setTokens = (accessToken: string, refreshToken: string): void => {
+  localStorage.setItem(ACCESS_KEY, accessToken)
+  localStorage.setItem(REFRESH_KEY, refreshToken)
+}
+
+// Updates only the access token.
+export const setToken = (accessToken: string): void => localStorage.setItem(ACCESS_KEY, accessToken)
+
+// Clears the whole session (both tokens).
+export const clearToken = (): void => {
+  localStorage.removeItem(ACCESS_KEY)
+  localStorage.removeItem(REFRESH_KEY)
+}

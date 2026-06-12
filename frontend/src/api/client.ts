@@ -1,6 +1,8 @@
 import axios from 'axios'
+import type { InternalAxiosRequestConfig } from 'axios'
 import { config } from '../config'
-import { clearToken, getToken } from './token'
+import type { TokenResponse } from './types'
+import { clearToken, getRefreshToken, getToken, setTokens } from './token'
 
 export const client = axios.create({
   baseURL: config.apiUrl,
@@ -40,15 +42,49 @@ client.interceptors.request.use((request) => {
   return request
 })
 
-// On an expired/invalid session (401), drop the token and return to login.
-// Login/register failures (also 401) are left for the forms to display.
+// Single-flight refresh: concurrent 401s share one refresh round-trip. Exposed
+// so the WebSocket layer can renew the token on a STOMP auth error too.
+let refreshPromise: Promise<string | null> | null = null
+
+export function refreshSession(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
+}
+
+async function doRefresh(): Promise<string | null> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return null
+  try {
+    // Bare axios (not `client`) so the response interceptor can't recurse.
+    const { data } = await axios.post<TokenResponse>(`${config.apiUrl}/api/auth/refresh`, { refreshToken })
+    setTokens(data.accessToken, data.refreshToken)
+    return data.accessToken
+  } catch {
+    clearToken()
+    return null
+  }
+}
+
+// On a 401, transparently refresh the access token once and replay the request.
+// If refresh fails, the session is over: clear it and return to login.
+// Auth endpoints (login/register/refresh) are exempt — their 401s are real.
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const url: string = error.config?.url ?? ''
+  async (error) => {
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
+    const url: string = original?.url ?? ''
     const isAuthRequest = url.includes('/api/auth/')
-    if (error.response?.status === 401 && !isAuthRequest) {
-      clearToken()
+    if (error.response?.status === 401 && !isAuthRequest && original && !original._retry) {
+      original._retry = true
+      const newToken = await refreshSession()
+      if (newToken) {
+        original.headers.Authorization = `Bearer ${newToken}`
+        return client(original)
+      }
       if (window.location.pathname !== '/login') {
         window.location.assign('/login')
       }

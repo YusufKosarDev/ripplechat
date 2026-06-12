@@ -20,7 +20,7 @@ public class JwtService {
     private final long expirationMillis;
 
     public JwtService(@Value("${jwt.secret}") String secret,
-                      @Value("${jwt.expiration}") long expirationMillis) {
+                      @Value("${jwt.access-expiration}") long expirationMillis) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMillis = expirationMillis;
     }

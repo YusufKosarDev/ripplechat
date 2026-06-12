@@ -2,7 +2,9 @@ package com.ripplechat.backend.auth;
 
 import com.ripplechat.backend.auth.dto.AuthResponse;
 import com.ripplechat.backend.auth.dto.LoginRequest;
+import com.ripplechat.backend.auth.dto.RefreshRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
+import com.ripplechat.backend.auth.dto.TokenResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,5 +30,16 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return authService.refresh(request.refreshToken());
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request.refreshToken());
     }
 }

@@ -2,6 +2,7 @@ import { Client } from '@stomp/stompjs'
 import type { StompSubscription } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { config } from '../config'
+import { refreshSession } from '../api/client'
 import { getToken } from '../api/token'
 import type { ConnectionStatus } from '../features/connection/connectionSlice'
 import type {
@@ -195,10 +196,18 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
     onWebSocketError: () => {
       handlers.onStatus?.('disconnected')
     },
-    // A STOMP ERROR on a live socket means the server rejected us (e.g. the
-    // JWT is invalid/expired) — treat it as an auth failure, not a retry.
+    // A STOMP ERROR on a live socket means the server rejected the CONNECT —
+    // most often an expired access token. Try a silent refresh and reconnect
+    // with the new token; only give up (real auth failure) if refresh fails.
     onStompError: () => {
-      handlers.onAuthError?.()
+      void refreshSession().then((newToken) => {
+        if (newToken && client) {
+          client.connectHeaders = { Authorization: `Bearer ${newToken}` }
+          // STOMP will retry per reconnectDelay using the refreshed header.
+        } else {
+          handlers.onAuthError?.()
+        }
+      })
     },
   })
   client.activate()

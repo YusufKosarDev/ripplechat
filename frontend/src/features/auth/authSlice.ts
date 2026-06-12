@@ -1,8 +1,9 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
+import { config } from '../../config'
 import { client, withColdStartRetry } from '../../api/client'
-import { clearToken, getToken, setToken } from '../../api/token'
+import { clearToken, getRefreshToken, getToken, setTokens } from '../../api/token'
 import type { ApiError, AuthResponse, LoginRequest, RegisterRequest, User } from '../../api/types'
 
 function extractError(e: unknown): string {
@@ -56,6 +57,20 @@ export const register = createAsyncThunk(
   },
 )
 
+// Server-side logout: revoke the refresh token so it can't renew a session.
+// Best-effort — the local session is cleared regardless of the network result.
+export const logout = createAsyncThunk('auth/logout', async () => {
+  const refreshToken = getRefreshToken()
+  clearToken()
+  if (refreshToken) {
+    try {
+      await axios.post(`${config.apiUrl}/api/auth/logout`, { refreshToken }, { timeout: 5000 })
+    } catch {
+      // ignore — the refresh token will expire on its own
+    }
+  }
+})
+
 export const fetchCurrentUser = createAsyncThunk(
   'auth/me',
   async (_, { rejectWithValue }) => {
@@ -96,12 +111,6 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.token = null
-      state.user = null
-      state.error = null
-      clearToken()
-    },
     clearError(state) {
       state.error = null
     },
@@ -112,7 +121,7 @@ const authSlice = createSlice({
       state.error = null
       state.token = action.payload.accessToken
       state.user = action.payload.user
-      setToken(action.payload.accessToken)
+      setTokens(action.payload.accessToken, action.payload.refreshToken)
     }
     builder
       .addCase(login.pending, (state) => {
@@ -145,8 +154,14 @@ const authSlice = createSlice({
         state.user = null
         clearToken()
       })
+      .addCase(logout.pending, (state) => {
+        // Clear immediately so route guards redirect without waiting on the network.
+        state.token = null
+        state.user = null
+        state.error = null
+      })
   },
 })
 
-export const { logout, clearError } = authSlice.actions
+export const { clearError } = authSlice.actions
 export default authSlice.reducer
