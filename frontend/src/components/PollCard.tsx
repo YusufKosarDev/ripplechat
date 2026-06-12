@@ -9,7 +9,7 @@ interface PollCardProps {
 
 export default function PollCard({ poll, myVote, onVote }: PollCardProps) {
   return (
-    <div className="rounded-2xl border border-border bg-surface-raised p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-surface-raised p-4 shadow-card">
       <div className="mb-1 text-xs text-fg-muted">📊 Anket · {poll.createdBy}</div>
       <div className="mb-3 font-medium text-fg">{poll.question}</div>
       <div className="space-y-2">

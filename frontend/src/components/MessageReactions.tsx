@@ -45,7 +45,7 @@ export default function MessageReactions({ reactions, currentUsername, onToggle 
           ＋
         </button>
         {open && (
-          <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-1 rounded-lg border border-border bg-surface-overlay p-1 shadow-lg">
+          <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-1 rounded-lg border border-border bg-surface-overlay p-1 shadow-elevated">
             {PICKER.map((emoji) => (
               <button
                 key={emoji}

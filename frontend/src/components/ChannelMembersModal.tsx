@@ -54,7 +54,7 @@ export default function ChannelMembersModal({
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border border-border bg-surface-overlay p-6 shadow-lg"
+        className="w-full max-w-md rounded-2xl border border-border bg-surface-overlay p-6 shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

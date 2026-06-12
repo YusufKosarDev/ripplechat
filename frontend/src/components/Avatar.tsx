@@ -12,17 +12,19 @@ export const AVATAR_COLORS = [
   'pink',
 ] as const
 
+// Diagonal gradients read richer than flat fills (literal classes so Tailwind
+// keeps them). Each goes light-400 -> deep-600 for a subtle sheen.
 const COLOR_CLASS: Record<string, string> = {
-  rose: 'bg-rose-500',
-  orange: 'bg-orange-500',
-  amber: 'bg-amber-500',
-  emerald: 'bg-emerald-500',
-  teal: 'bg-teal-500',
-  sky: 'bg-sky-500',
-  indigo: 'bg-indigo-500',
-  violet: 'bg-violet-500',
-  fuchsia: 'bg-fuchsia-500',
-  pink: 'bg-pink-500',
+  rose: 'bg-gradient-to-br from-rose-400 to-rose-600',
+  orange: 'bg-gradient-to-br from-orange-400 to-orange-600',
+  amber: 'bg-gradient-to-br from-amber-400 to-amber-600',
+  emerald: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
+  teal: 'bg-gradient-to-br from-teal-400 to-teal-600',
+  sky: 'bg-gradient-to-br from-sky-400 to-sky-600',
+  indigo: 'bg-gradient-to-br from-indigo-400 to-indigo-600',
+  violet: 'bg-gradient-to-br from-violet-400 to-violet-600',
+  fuchsia: 'bg-gradient-to-br from-fuchsia-400 to-fuchsia-600',
+  pink: 'bg-gradient-to-br from-pink-400 to-pink-600',
 }
 
 // Stable fallback color per name (same person always gets the same color).

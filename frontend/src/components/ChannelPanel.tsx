@@ -237,11 +237,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           </Button>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-muted text-2xl">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
             💬
           </div>
-          <p className="mt-4 text-fg-muted">Bir kanal seç veya yeni bir kanal oluştur.</p>
-          <p className="mt-1 text-sm text-fg-faint">Sohbet burada başlayacak.</p>
+          <p className="mt-4 font-medium text-fg">Bir kanal seç veya yeni bir kanal oluştur.</p>
+          <p className="mt-1 text-sm text-fg-muted">Sohbet burada başlayacak.</p>
         </div>
       </section>
     )
@@ -416,7 +416,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             ☰
           </Button>
           <div className="min-w-0">
-            <h2 className="truncate font-semibold tracking-tight">
+            <h2 className="truncate text-base font-semibold tracking-tight">
               <span className="text-fg-faint">#</span> {channel.name}
             </h2>
             {channel.description && <p className="truncate text-sm text-fg-muted">{channel.description}</p>}
@@ -463,8 +463,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
               {!loadingMessages && messages.length === 0 && polls.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center text-center">
-                  <p className="text-fg-muted">Burada henüz mesaj yok.</p>
-                  <p className="mt-1 text-sm text-fg-faint">İlk mesajı sen gönder.</p>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
+                    👋
+                  </div>
+                  <p className="mt-4 font-medium text-fg">Burada henüz mesaj yok.</p>
+                  <p className="mt-1 text-sm text-fg-muted">İlk mesajı sen gönder.</p>
                 </div>
               )}
 
@@ -480,11 +483,16 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                   const senderName = msg.sender.displayName ?? msg.sender.username
 
                   return (
-                    <div key={msg.id} className="group">
+                    <div
+                      key={msg.id}
+                      className="group -mx-2 rounded-lg px-2 transition-colors hover:bg-surface-muted/50"
+                    >
                       {showDate && (
-                        <div className="my-3 flex items-center gap-3 text-xs text-fg-muted">
+                        <div className="my-3 flex items-center gap-3">
                           <div className="h-px flex-1 bg-border" />
-                          <span>{dateLabel(msg.createdAt)}</span>
+                          <span className="rounded-full border border-border bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-fg-muted">
+                            {dateLabel(msg.createdAt)}
+                          </span>
                           <div className="h-px flex-1 bg-border" />
                         </div>
                       )}

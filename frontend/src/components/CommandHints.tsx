@@ -11,7 +11,7 @@ export default function CommandHints({ prefix, onPick }: CommandHintsProps) {
   if (matches.length === 0) return null
 
   return (
-    <div className="mb-2 overflow-hidden rounded-lg border border-border bg-surface-overlay shadow-lg">
+    <div className="mb-2 overflow-hidden rounded-lg border border-border bg-surface-overlay shadow-elevated">
       {matches.map((c) => (
         <button
           key={c.name}
