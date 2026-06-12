@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { joinChannel } from '../features/channels/channelsSlice'
 import {
   fetchMessages,
+  fetchOlderMessages,
   messageReactionsUpdated,
   messageReceived,
   messageUpdated,
@@ -85,7 +86,7 @@ interface ChannelPanelProps {
 export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const dispatch = useAppDispatch()
   const { items, selectedId } = useAppSelector((state) => state.channels)
-  const { byChannel, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
+  const { byChannel, paging, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
   const pollsByChannel = useAppSelector((state) => state.polls.byChannel)
   const myVotes = useAppSelector((state) => state.polls.myVotes)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
@@ -100,7 +101,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
 
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const prevHeightRef = useRef<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
@@ -111,6 +113,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const channel = items.find((c) => c.id === selectedId) ?? null
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
+  const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden
   const loadingMessages = messagesStatus === 'loading' && messages.length === 0
@@ -195,6 +198,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   useEffect(() => {
     if (!selectedId) return
+    prevHeightRef.current = null
     dispatch(fetchMessages(selectedId))
     dispatch(fetchPolls(selectedId))
     dispatch(fetchMembers(selectedId))
@@ -224,9 +228,28 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, dispatch])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+  // Keep the viewport pinned to the newest message — except when older history
+  // was just prepended (scroll-up), where we restore the prior position.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    if (prevHeightRef.current != null) {
+      el.scrollTop += el.scrollHeight - prevHeightRef.current
+      prevHeightRef.current = null
+    } else {
+      el.scrollTop = el.scrollHeight
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, messages.length])
+
+  const onMessagesScroll = () => {
+    const el = scrollRef.current
+    if (!el || !selectedId || !channelPaging) return
+    if (el.scrollTop < 80 && channelPaging.hasMore && !channelPaging.loadingOlder) {
+      prevHeightRef.current = el.scrollHeight // anchor so the view doesn't jump on prepend
+      dispatch(fetchOlderMessages({ channelId: selectedId, page: channelPaging.nextPage }))
+    }
+  }
 
   if (!selectedId || !channel) {
     return (
@@ -445,7 +468,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       ) : (
         <>
           <div className="relative flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto px-6 py-4">
+            <div ref={scrollRef} onScroll={onMessagesScroll} className="h-full overflow-y-auto px-6 py-4">
+              {channelPaging?.loadingOlder && (
+                <div className="py-2 text-center text-xs text-fg-muted">Daha eski mesajlar yükleniyor…</div>
+              )}
               {polls.length > 0 && (
                 <div className="mb-4 space-y-3">
                   {polls.map((poll) => (
@@ -546,7 +572,6 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                     </div>
                   )
                 })}
-              <div ref={bottomRef} />
             </div>
 
             <ReactionOverlay items={flying} />

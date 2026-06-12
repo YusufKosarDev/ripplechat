@@ -4,8 +4,18 @@ import axios from 'axios'
 import { client } from '../../api/client'
 import type { Message, PageResponse, ReactionSummary, ThreadSummary } from '../../api/types'
 
+const PAGE_SIZE = 50
+
+interface Paging {
+  nextPage: number
+  hasMore: boolean
+  loadingOlder: boolean
+}
+
 interface MessagesState {
   byChannel: Record<string, Message[]>
+  // Pagination cursor per channel for "load older" (scroll-up) history.
+  paging: Record<string, Paging>
   status: 'idle' | 'loading'
   // Set when the current channel's history could not be loaded (e.g. 403 not a member).
   loadError: { channelId: string; forbidden: boolean } | null
@@ -13,22 +23,39 @@ interface MessagesState {
 
 const initialState: MessagesState = {
   byChannel: {},
+  paging: {},
   status: 'idle',
   loadError: null,
 }
 
+// Newest-first page from the API, reversed to chronological (oldest→newest) order.
+async function fetchPage(channelId: string, page: number) {
+  const { data } = await client.get<PageResponse<Message>>(`/api/channels/${channelId}/messages`, {
+    params: { page, size: PAGE_SIZE, sort: 'createdAt,desc' },
+  })
+  return { messages: [...data.content].reverse(), last: data.last }
+}
+
+// Initial load: the most recent page of messages.
 export const fetchMessages = createAsyncThunk(
   'messages/fetch',
   async (channelId: string, { rejectWithValue }) => {
     try {
-      const { data } = await client.get<PageResponse<Message>>(
-        `/api/channels/${channelId}/messages`,
-      )
-      return { channelId, messages: data.content }
+      const { messages, last } = await fetchPage(channelId, 0)
+      return { channelId, messages, last }
     } catch (e) {
       const status = axios.isAxiosError(e) ? e.response?.status : undefined
       return rejectWithValue({ channelId, status })
     }
+  },
+)
+
+// Scroll-up: an older page, prepended to the existing history.
+export const fetchOlderMessages = createAsyncThunk(
+  'messages/fetchOlder',
+  async ({ channelId, page }: { channelId: string; page: number }) => {
+    const { messages, last } = await fetchPage(channelId, page)
+    return { channelId, older: messages, last, page }
   },
 )
 
@@ -82,8 +109,10 @@ const messagesSlice = createSlice({
         state.loadError = null
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
+        const { channelId, messages, last } = action.payload
         state.status = 'idle'
-        state.byChannel[action.payload.channelId] = action.payload.messages
+        state.byChannel[channelId] = messages
+        state.paging[channelId] = { nextPage: 1, hasMore: !last, loadingOlder: false }
       })
       .addCase(fetchMessages.rejected, (state, action) => {
         state.status = 'idle'
@@ -91,6 +120,22 @@ const messagesSlice = createSlice({
         if (payload) {
           state.loadError = { channelId: payload.channelId, forbidden: payload.status === 403 }
         }
+      })
+      .addCase(fetchOlderMessages.pending, (state, action) => {
+        const paging = state.paging[action.meta.arg.channelId]
+        if (paging) paging.loadingOlder = true
+      })
+      .addCase(fetchOlderMessages.fulfilled, (state, action) => {
+        const { channelId, older, last, page } = action.payload
+        const existing = state.byChannel[channelId] ?? []
+        const seen = new Set(existing.map((m) => m.id))
+        const fresh = older.filter((m) => !seen.has(m.id))
+        state.byChannel[channelId] = [...fresh, ...existing]
+        state.paging[channelId] = { nextPage: page + 1, hasMore: !last, loadingOlder: false }
+      })
+      .addCase(fetchOlderMessages.rejected, (state, action) => {
+        const paging = state.paging[action.meta.arg.channelId]
+        if (paging) paging.loadingOlder = false
       })
   },
 })
