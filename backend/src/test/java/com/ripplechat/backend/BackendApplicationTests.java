@@ -1,13 +1,12 @@
 package com.ripplechat.backend;
 
+import com.ripplechat.backend.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class BackendApplicationTests {
+/** Smoke test: the full application context boots against a real database. */
+class BackendApplicationTests extends AbstractIntegrationTest {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+    }
 }
