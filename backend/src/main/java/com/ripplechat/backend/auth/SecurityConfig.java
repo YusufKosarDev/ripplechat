@@ -40,6 +40,9 @@ public class SecurityConfig {
                         // The WebSocket handshake is open; STOMP CONNECT is authenticated
                         // separately via JWT in StompAuthChannelInterceptor.
                         .requestMatchers("/ws/**").permitAll()
+                        // Public API docs and health.
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
