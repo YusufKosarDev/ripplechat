@@ -6,11 +6,13 @@ import { register } from '../features/auth/authSlice'
 import AuthShell from '../components/AuthShell'
 import Button from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
+import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
 
 export default function RegisterPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { status, error } = useAppSelector((state) => state.auth)
+  const waking = useWakeNotice(status === 'loading')
 
   const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '' })
   const [formError, setFormError] = useState<string | null>(null)
@@ -75,6 +77,7 @@ export default function RegisterPage() {
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
           {status === 'loading' ? 'Oluşturuluyor...' : 'Kayıt ol'}
         </Button>
+        <WakeNotice show={waking} />
       </form>
 
       <p className="mt-6 text-center text-sm text-fg-muted">

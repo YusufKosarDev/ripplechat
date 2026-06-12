@@ -46,9 +46,9 @@ public class DemoSeedService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public void seedContentIfAbsent() {
+    public boolean seedContentIfAbsent() {
         if (userRepository.existsByUsername(DEMO_USERNAME)) {
-            return; // already seeded
+            return false; // already seeded
         }
 
         User demo = user(DEMO_USERNAME, "demo@ripplechat.app", "Demo Kullanıcı", "indigo");
@@ -86,6 +86,7 @@ public class DemoSeedService {
         // #tasarım
         message(design, elif, "Koyu tema gerçekten şık olmuş ✨ Sağ üstten açık/koyu geçiş yapabilirsiniz.");
         message(design, demo, "Mobilde de düzgün çalışıyor — responsive tasarım hazır.");
+        return true;
     }
 
     /** Re-adds the demo poll to the in-memory store on startup if it's not there. */

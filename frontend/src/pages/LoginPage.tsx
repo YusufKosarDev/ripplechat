@@ -6,11 +6,13 @@ import { login } from '../features/auth/authSlice'
 import AuthShell from '../components/AuthShell'
 import Button from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
+import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { status, error } = useAppSelector((state) => state.auth)
+  const waking = useWakeNotice(status === 'loading')
 
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
@@ -59,6 +61,7 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
           {status === 'loading' ? 'Giriş yapılıyor...' : 'Giriş yap'}
         </Button>
+        <WakeNotice show={waking} />
       </form>
 
       <p className="mt-6 text-center text-sm text-fg-muted">

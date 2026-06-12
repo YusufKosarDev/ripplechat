@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { login } from '../features/auth/authSlice'
 import Button from '../components/ui/Button'
+import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
 
 // Public demo account (seeded server-side). Credentials are intentionally
 // public — one click signs in through the normal auth flow and gets a real token.
@@ -25,6 +26,7 @@ export default function LandingPage() {
   const token = useAppSelector((state) => state.auth.token)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState<string | null>(null)
+  const waking = useWakeNotice(demoLoading)
 
   // Returning (authenticated) visitors skip the landing.
   if (token) return <Navigate to="/chat" replace />
@@ -63,8 +65,9 @@ export default function LandingPage() {
           </Button>
         </div>
 
+        <WakeNotice show={waking} />
         {demoError && <p className="mt-3 text-sm text-danger">{demoError}</p>}
-        <p className="mt-3 text-xs text-fg-faint">Demo’yu Dene: hazır bir hesapla tek tıkla, kayıt gerekmez.</p>
+        {!waking && <p className="mt-3 text-xs text-fg-faint">Demo’yu Dene: hazır bir hesapla tek tıkla, kayıt gerekmez.</p>}
 
         <div className="mt-12 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (

@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
-import { client } from '../../api/client'
+import { client, withColdStartRetry } from '../../api/client'
 import { clearToken, getToken, setToken } from '../../api/token'
 import type { ApiError, AuthResponse, LoginRequest, RegisterRequest, User } from '../../api/types'
 
@@ -36,7 +36,7 @@ export const login = createAsyncThunk(
   'auth/login',
   async (body: LoginRequest, { rejectWithValue }) => {
     try {
-      const { data } = await client.post<AuthResponse>('/api/auth/login', body)
+      const { data } = await withColdStartRetry(() => client.post<AuthResponse>('/api/auth/login', body))
       return data
     } catch (e) {
       return rejectWithValue(extractError(e))
@@ -48,7 +48,7 @@ export const register = createAsyncThunk(
   'auth/register',
   async (body: RegisterRequest, { rejectWithValue }) => {
     try {
-      const { data } = await client.post<AuthResponse>('/api/auth/register', body)
+      const { data } = await withColdStartRetry(() => client.post<AuthResponse>('/api/auth/register', body))
       return data
     } catch (e) {
       return rejectWithValue(extractError(e))
