@@ -14,21 +14,32 @@ import java.util.UUID;
 public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     /**
-     * Case-insensitive content search within the given channels (excludes deleted).
-     * Fetch-joins sender and channel since the result view needs both (avoids N+1).
+     * Full-text message search within the given channels (excludes deleted),
+     * ranked by relevance. Matches a 'simple' tsvector against a prefix tsquery;
+     * a functional GIN index on to_tsvector('simple', content) backs it in prod.
+     * Returns ids only so the rows can be fetch-joined afterwards without N+1.
      */
+    @Query(value = """
+            select m.id
+            from messages m
+            where m.channel_id in (:channelIds)
+              and m.deleted = false
+              and to_tsvector('simple', m.content) @@ to_tsquery('simple', :tsquery)
+            order by ts_rank(to_tsvector('simple', m.content), to_tsquery('simple', :tsquery)) desc,
+                     m.created_at desc
+            """, nativeQuery = true)
+    List<UUID> searchMessageIds(@Param("channelIds") Collection<UUID> channelIds,
+                                @Param("tsquery") String tsquery,
+                                Pageable pageable);
+
+    /** Loads search hits in bulk, fetch-joining sender and channel for the result view. */
     @Query("""
             select m from Message m
             join fetch m.sender
             join fetch m.channel
-            where m.channel.id in :channelIds
-              and m.deleted = false
-              and lower(m.content) like lower(concat('%', :q, '%'))
-            order by m.createdAt desc
+            where m.id in :ids
             """)
-    List<Message> search(@Param("channelIds") Collection<UUID> channelIds,
-                         @Param("q") String q,
-                         Pageable pageable);
+    List<Message> findForSearchByIds(@Param("ids") Collection<UUID> ids);
 
     /** Top-level channel messages only (thread replies are excluded from the main feed). */
     @EntityGraph(attributePaths = "sender")
