@@ -19,6 +19,9 @@ export default function ChatPage() {
   const selectedId = useAppSelector((state) => state.channels.selectedId)
   const channelIds = useAppSelector((state) => state.channels.items.map((c) => c.id).join(','))
   const currentUserId = useAppSelector((state) => state.auth.user?.id)
+  const totalUnread = useAppSelector((state) =>
+    Object.values(state.unread.counts).reduce((sum, n) => sum + n, 0),
+  )
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Keep the latest values available to the (stable) realtime handlers.
@@ -59,6 +62,14 @@ export default function ChatPage() {
       }
     })
   }, [channelIds, dispatch])
+
+  // Reflect total unread in the tab title (e.g. "(3) RippleChat").
+  useEffect(() => {
+    document.title = totalUnread > 0 ? `(${totalUnread}) RippleChat` : 'RippleChat'
+    return () => {
+      document.title = 'RippleChat'
+    }
+  }, [totalUnread])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface text-fg">
