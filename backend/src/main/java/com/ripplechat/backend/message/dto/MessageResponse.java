@@ -21,7 +21,8 @@ public record MessageResponse(
         String attachmentUrl,
         UUID quotedMessageId,
         String quotedSender,
-        String quotedContent
+        String quotedContent,
+        boolean forwarded
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -42,6 +43,7 @@ public record MessageResponse(
                 message.getAttachmentUrl(),
                 message.getQuotedMessageId(),
                 message.getQuotedSender(),
-                message.getQuotedContent());
+                message.getQuotedContent(),
+                message.isForwarded());
     }
 }

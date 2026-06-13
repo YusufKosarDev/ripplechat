@@ -82,6 +82,11 @@ public class Message {
     @Column(name = "quoted_content", columnDefinition = "text")
     private String quotedContent;
 
+    /** True when this message was created by forwarding another message. */
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean forwarded = false;
+
     /** Soft delete: the row stays (threads/reactions intact) but content is cleared. */
     @Column(nullable = false)
     @ColumnDefault("false")

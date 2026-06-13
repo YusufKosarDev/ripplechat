@@ -139,6 +139,47 @@ public class MessageService {
         return response;
     }
 
+    /**
+     * Forwards an existing message into another channel. The content/attachment
+     * are copied server-side from the source (which the user must be able to see),
+     * marked as forwarded, and broadcast like a normal top-level message.
+     */
+    @Transactional
+    public MessageResponse forward(UUID targetChannelId, UUID sourceMessageId, String username) {
+        if (!rateLimiter.tryAcquire("msg:" + username, SEND_BURST, SEND_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "sending too fast, please slow down");
+        }
+        Channel target = channelRepository.findById(targetChannelId)
+                .orElseThrow(() -> new ResourceNotFoundException("channel not found: " + targetChannelId));
+        if (target.isDeleted()) {
+            throw new ResourceNotFoundException("channel not found: " + targetChannelId);
+        }
+        requireMember(targetChannelId, username);
+
+        Message source = messageRepository.findById(sourceMessageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + sourceMessageId));
+        // You can only forward a message from a channel you're a member of.
+        requireMember(source.getChannel().getId(), username);
+        if (source.isDeleted()) {
+            throw new BadRequestException("cannot forward a deleted message");
+        }
+
+        User sender = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+
+        Message message = new Message();
+        message.setContent(source.getContent() == null ? "" : source.getContent());
+        message.setAttachmentUrl(source.getAttachmentUrl());
+        message.setForwarded(true);
+        message.setChannel(target);
+        message.setSender(sender);
+        Message saved = messageRepository.saveAndFlush(message);
+
+        MessageResponse response = MessageResponse.from(saved);
+        messagingTemplate.convertAndSend("/topic/channels/" + targetChannelId, response);
+        return response;
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<MessageResponse> findByChannel(UUID channelId, String username, Pageable pageable) {
         if (!channelRepository.existsById(channelId)) {

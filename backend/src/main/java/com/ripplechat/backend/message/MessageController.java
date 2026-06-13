@@ -2,6 +2,7 @@ package com.ripplechat.backend.message;
 
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
+import com.ripplechat.backend.message.dto.ForwardRequest;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,15 @@ public class MessageController {
                                 @Valid @RequestBody CreateMessageRequest request,
                                 @AuthenticationPrincipal String username) {
         return messageService.send(channelId, request, username);
+    }
+
+    /** Forwards an existing message into this channel. */
+    @PostMapping("/forward")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MessageResponse forward(@PathVariable UUID channelId,
+                                   @Valid @RequestBody ForwardRequest request,
+                                   @AuthenticationPrincipal String username) {
+        return messageService.forward(channelId, request.sourceMessageId(), username);
     }
 
     @GetMapping

@@ -110,6 +110,7 @@ export interface Message {
   quotedMessageId: string | null
   quotedSender: string | null
   quotedContent: string | null
+  forwarded: boolean
 }
 
 export interface MessageReactionUpdate {

@@ -11,12 +11,13 @@ import {
   messageUpdated,
   threadSummaryUpdated,
 } from '../features/messages/messagesSlice'
-import { channelRemoved, fetchMembers } from '../features/channels/channelsSlice'
+import { channelRemoved, fetchMembers, selectChannel } from '../features/channels/channelsSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
+import ForwardModal from './ForwardModal'
 import {
   sendChatMessage,
   sendDeleteMessage,
@@ -120,6 +121,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [attachment, setAttachment] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
+  const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -456,6 +458,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       !!otherLastRead && new Date(otherLastRead).getTime() >= new Date(msg.createdAt).getTime()
     return (
       <div>
+        {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ İletildi</div>}
         {msg.quotedMessageId && (
           <div className="mb-1 rounded-r border-l-2 border-accent/60 bg-surface-muted/60 py-0.5 pl-2 pr-2 text-xs">
             <span className="font-medium text-fg-secondary">{msg.quotedSender}</span>
@@ -528,6 +531,18 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     inputRef.current?.focus()
   }
 
+  const onForward = async (targetChannelId: string) => {
+    const source = forwardingMsg
+    setForwardingMsg(null)
+    if (!source) return
+    try {
+      await client.post(`/api/channels/${targetChannelId}/messages/forward`, { sourceMessageId: source.id })
+      dispatch(selectChannel(targetChannelId))
+    } catch {
+      setCmdError('Mesaj iletilemedi.')
+    }
+  }
+
   return (
     <section className="flex flex-1 flex-col">
       <header className={`flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 ${borderC}`}>
@@ -574,6 +589,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           onClose={() => setShowMembers(false)}
         />
       )}
+
+      {forwardingMsg && <ForwardModal onPick={onForward} onClose={() => setForwardingMsg(null)} />}
 
       {forbidden ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
@@ -683,6 +700,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                             className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
                           >
                             Alıntıla
+                          </button>
+                        )}
+                        {!msg.deleted && (
+                          <button
+                            onClick={() => setForwardingMsg(msg)}
+                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
+                          >
+                            İlet
                           </button>
                         )}
                       </div>
