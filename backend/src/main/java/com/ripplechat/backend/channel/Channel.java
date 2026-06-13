@@ -3,6 +3,8 @@ package com.ripplechat.backend.channel;
 import com.ripplechat.backend.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -38,6 +40,19 @@ public class Channel {
 
     @Column(name = "is_private", nullable = false)
     private boolean isPrivate = false;
+
+    /** Regular channel vs. one-to-one direct message. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @ColumnDefault("'CHANNEL'")
+    private ChannelType type = ChannelType.CHANNEL;
+
+    /**
+     * For DIRECT channels: a stable "minUserId:maxUserId" key so a pair of users
+     * has exactly one DM (unique). Null for regular channels.
+     */
+    @Column(name = "dm_key", unique = true)
+    private String dmKey;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false, updatable = false)

@@ -67,6 +67,14 @@ export interface Channel {
   createdAt: string
 }
 
+// A one-to-one direct message, from the current user's perspective. The id is
+// the underlying channel id (used for messages/WebSocket like any channel).
+export interface DirectChannel {
+  id: string
+  otherUser: UserSummary
+  createdAt: string
+}
+
 export interface ReactionSummary {
   emoji: string
   count: number

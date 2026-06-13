@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
-import { fetchChannels } from '../features/channels/channelsSlice'
+import { fetchChannels, fetchDms } from '../features/channels/channelsSlice'
 import { setConnectionStatus } from '../features/connection/connectionSlice'
 import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
 import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice'
@@ -17,7 +17,9 @@ export default function ChatPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const selectedId = useAppSelector((state) => state.channels.selectedId)
-  const channelIds = useAppSelector((state) => state.channels.items.map((c) => c.id).join(','))
+  const channelIds = useAppSelector((state) =>
+    [...state.channels.items.map((c) => c.id), ...state.channels.dms.map((d) => d.id)].join(','),
+  )
   const currentUserId = useAppSelector((state) => state.auth.user?.id)
   const totalUnread = useAppSelector((state) =>
     Object.values(state.unread.counts).reduce((sum, n) => sum + n, 0),
@@ -48,6 +50,7 @@ export default function ChatPage() {
     setPresenceHandler((event) => dispatch(presenceChanged(event)))
     dispatch(fetchOnline())
     dispatch(fetchChannels())
+    dispatch(fetchDms())
     return () => disconnectChat()
   }, [dispatch, navigate])
 

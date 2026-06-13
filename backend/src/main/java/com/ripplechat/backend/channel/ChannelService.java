@@ -59,6 +59,8 @@ public class ChannelService {
 
         return channelRepository.findAll().stream()
                 .filter(channel -> !channel.isDeleted())
+                // Direct messages are listed separately (GET /api/dm), not here.
+                .filter(channel -> channel.getType() == ChannelType.CHANNEL)
                 .filter(channel -> !channel.isPrivate() || memberChannelIds.contains(channel.getId()))
                 .map(ChannelResponse::from)
                 .toList();

@@ -3,9 +3,10 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
-import { createChannel, joinChannel, selectChannel } from '../features/channels/channelsSlice'
+import { createChannel, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
+import NewDmModal from './NewDmModal'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
 import Button from './ui/Button'
@@ -20,7 +21,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { items, selectedId, status } = useAppSelector((state) => state.channels)
+  const { items, dms, selectedId, status } = useAppSelector((state) => state.channels)
   const user = useAppSelector((state) => state.auth.user)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const unreadCounts = useAppSelector((state) => state.unread.counts)
@@ -30,6 +31,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [joinId, setJoinId] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showNewDm, setShowNewDm] = useState(false)
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault()
@@ -148,6 +150,56 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               )}
             </ul>
           )}
+
+          <div className="mt-5 flex items-center justify-between px-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-faint">
+              Direkt Mesajlar
+            </span>
+            <button
+              onClick={() => setShowNewDm(true)}
+              title="Yeni direkt mesaj"
+              className={`rounded-lg px-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
+            >
+              +
+            </button>
+          </div>
+          <ul className="mt-2 space-y-0.5">
+            {dms.map((d) => {
+              const name = d.otherUser.displayName ?? d.otherUser.username
+              const unread = selectedId === d.id ? 0 : (unreadCounts[d.id] ?? 0)
+              const online = onlineUserIds.includes(d.otherUser.id)
+              return (
+                <li key={d.id}>
+                  <button
+                    onClick={() => {
+                      dispatch(selectChannel(d.id))
+                      onClose()
+                    }}
+                    className={`${focusRing} flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                      selectedId === d.id
+                        ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
+                        : unread > 0
+                          ? 'font-semibold text-fg hover:bg-surface-muted'
+                          : 'text-fg-secondary hover:bg-surface-muted'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Avatar name={name} color={d.otherUser.avatarColor} online={online} size="sm" />
+                      <span className="truncate">{name}</span>
+                    </span>
+                    {unread > 0 && (
+                      <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+            {dms.length === 0 && (
+              <li className="px-2 py-2 text-xs text-fg-faint">Henüz direkt mesajın yok.</li>
+            )}
+          </ul>
         </div>
 
         <div className="space-y-3 border-t border-border px-3 py-3">
@@ -190,6 +242,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
+      {showNewDm && (
+        <NewDmModal
+          onPick={(userId) => {
+            dispatch(openDm(userId))
+            setShowNewDm(false)
+            onClose()
+          }}
+          onClose={() => setShowNewDm(false)}
+        />
+      )}
     </>
   )
 }

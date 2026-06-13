@@ -1,6 +1,9 @@
 package com.ripplechat.backend.user;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -24,4 +27,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     /** Resolves a set of usernames to users (used for the online presence list). */
     List<User> findByUsernameIn(Collection<String> usernames);
+
+    /** Case-insensitive lookup by username or display name (for the direct-message picker). */
+    @Query("""
+            select u from User u
+            where lower(u.username) like lower(concat('%', :q, '%'))
+               or lower(u.displayName) like lower(concat('%', :q, '%'))
+            order by u.username
+            """)
+    List<User> searchByUsernameOrDisplayName(@Param("q") String q, Pageable pageable);
 }

@@ -6,10 +6,14 @@ import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.user.dto.ChangePasswordRequest;
 import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
+import com.ripplechat.backend.user.dto.UserSummary;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +27,23 @@ public class UserService {
         return userRepository.findByUsername(username)
                 .map(UserResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+    }
+
+    /**
+     * Finds users by username or display name for the direct-message picker.
+     * Requires at least 2 characters, returns a safe summary (no PII), excludes
+     * the caller, and caps the result count.
+     */
+    @Transactional(readOnly = true)
+    public List<UserSummary> search(String query, String excludeUsername) {
+        String q = query == null ? "" : query.trim();
+        if (q.length() < 2) {
+            return List.of();
+        }
+        return userRepository.searchByUsernameOrDisplayName(q, PageRequest.of(0, 10)).stream()
+                .filter(u -> !u.getUsername().equals(excludeUsername))
+                .map(UserSummary::from)
+                .toList();
     }
 
     /** Self profile update — the authenticated user can only edit their own profile. */

@@ -1,10 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { client } from '../../api/client'
-import type { Channel, MemberResponse, MembershipRole } from '../../api/types'
+import type { Channel, DirectChannel, MemberResponse, MembershipRole } from '../../api/types'
 
 interface ChannelsState {
   items: Channel[]
+  dms: DirectChannel[]
   selectedId: string | null
   status: 'idle' | 'loading'
   membersByChannel: Record<string, MemberResponse[]>
@@ -12,6 +13,7 @@ interface ChannelsState {
 
 const initialState: ChannelsState = {
   items: [],
+  dms: [],
   selectedId: null,
   status: 'idle',
   membersByChannel: {},
@@ -58,6 +60,17 @@ export const setMemberRole = createAsyncThunk(
     return { channelId, members: data }
   },
 )
+
+export const fetchDms = createAsyncThunk('channels/fetchDms', async () => {
+  const { data } = await client.get<DirectChannel[]>('/api/dm')
+  return data
+})
+
+// Opens (or creates) the DM with a user, then selects it.
+export const openDm = createAsyncThunk('channels/openDm', async (userId: string) => {
+  const { data } = await client.post<DirectChannel>(`/api/dm/${userId}`)
+  return data
+})
 
 export const updateChannel = createAsyncThunk(
   'channels/update',
@@ -109,6 +122,15 @@ const channelsSlice = createSlice({
       .addCase(joinChannel.fulfilled, (state, action) => {
         state.items = action.payload.channels
         state.selectedId = action.payload.channelId
+      })
+      .addCase(fetchDms.fulfilled, (state, action) => {
+        state.dms = action.payload
+      })
+      .addCase(openDm.fulfilled, (state, action) => {
+        if (!state.dms.some((d) => d.id === action.payload.id)) {
+          state.dms.unshift(action.payload)
+        }
+        state.selectedId = action.payload.id
       })
       .addCase(fetchMembers.fulfilled, applyMembers)
       .addCase(kickMember.fulfilled, applyMembers)

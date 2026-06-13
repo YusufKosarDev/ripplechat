@@ -27,7 +27,7 @@ import {
   watchChannel,
 } from '../realtime/chatSocket'
 import { parseCommand } from '../commands/registry'
-import type { Message, Poll, ReactionEvent, TypingEvent } from '../api/types'
+import type { Channel, DirectChannel, Message, Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
 import MessageContent from './MessageContent'
 import MessageReactions from './MessageReactions'
@@ -79,13 +79,26 @@ function makeFlyingEmoji(emoji: string): FlyingEmoji {
   }
 }
 
+// Presents a selected direct message as a channel so the panel can render it
+// with the existing message/typing/reaction machinery unchanged.
+function dmAsChannel(dm: DirectChannel): Channel {
+  return {
+    id: dm.id,
+    name: dm.otherUser.displayName ?? dm.otherUser.username,
+    description: null,
+    isPrivate: true,
+    createdBy: dm.otherUser,
+    createdAt: dm.createdAt,
+  }
+}
+
 interface ChannelPanelProps {
   onOpenSidebar: () => void
 }
 
 export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const dispatch = useAppDispatch()
-  const { items, selectedId } = useAppSelector((state) => state.channels)
+  const { items, dms, selectedId } = useAppSelector((state) => state.channels)
   const { byChannel, paging, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
   const pollsByChannel = useAppSelector((state) => state.polls.byChannel)
   const myVotes = useAppSelector((state) => state.polls.myVotes)
@@ -111,7 +124,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const currentUserIdRef = useRef<string | undefined>(undefined)
   currentUserIdRef.current = currentUser?.id
 
-  const channel = items.find((c) => c.id === selectedId) ?? null
+  const dm = selectedId ? (dms.find((d) => d.id === selectedId) ?? null) : null
+  const channel = items.find((c) => c.id === selectedId) ?? (dm ? dmAsChannel(dm) : null)
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -438,16 +452,33 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           <Button variant="secondary" size="sm" onClick={onOpenSidebar} className="shrink-0 md:hidden" title="Kanallar">
             ☰
           </Button>
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold tracking-tight">
-              <span className="text-fg-faint">#</span> {channel.name}
-            </h2>
-            {channel.description && <p className="truncate text-sm text-fg-muted">{channel.description}</p>}
-          </div>
+          {dm ? (
+            <>
+              <Avatar
+                name={channel.name}
+                color={dm.otherUser.avatarColor}
+                online={onlineUserIds.includes(dm.otherUser.id)}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold tracking-tight">{channel.name}</h2>
+                <p className="truncate text-sm text-fg-muted">Direkt mesaj</p>
+              </div>
+            </>
+          ) : (
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold tracking-tight">
+                <span className="text-fg-faint">#</span> {channel.name}
+              </h2>
+              {channel.description && <p className="truncate text-sm text-fg-muted">{channel.description}</p>}
+            </div>
+          )}
         </div>
-        <Button variant="secondary" size="sm" onClick={() => setShowMembers(true)} className="shrink-0">
-          Üyeler ({members.length})
-        </Button>
+        {!dm && (
+          <Button variant="secondary" size="sm" onClick={() => setShowMembers(true)} className="shrink-0">
+            Üyeler ({members.length})
+          </Button>
+        )}
       </header>
 
       {showMembers && (

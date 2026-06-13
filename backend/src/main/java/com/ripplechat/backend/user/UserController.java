@@ -3,6 +3,7 @@ package com.ripplechat.backend.user;
 import com.ripplechat.backend.user.dto.ChangePasswordRequest;
 import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
+import com.ripplechat.backend.user.dto.UserSummary;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,8 +12,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Self-service user endpoints. A user may only read and modify their own
@@ -31,6 +35,13 @@ public class UserController {
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal String username) {
         return userService.findByUsername(username);
+    }
+
+    /** Searches users (no PII) for the direct-message picker; excludes the caller. */
+    @GetMapping("/search")
+    public List<UserSummary> search(@RequestParam("q") String q,
+                                    @AuthenticationPrincipal String username) {
+        return userService.search(q, username);
     }
 
     @PutMapping("/me")
