@@ -18,8 +18,6 @@ const FEATURES = [
   { icon: '🌗', title: 'Açık / koyu tema', desc: 'Responsive arayüz, iki temada da şık ve okunaklı.' },
 ]
 
-const TECH = ['React', 'TypeScript', 'Spring Boot', 'WebSocket', 'PostgreSQL']
-
 const ctaClass = 'px-5 py-2.5 text-base'
 
 export default function LandingPage() {
@@ -93,20 +91,6 @@ export default function LandingPage() {
               <div className="mt-1 text-sm leading-relaxed text-fg-muted">{f.desc}</div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-14">
-          <p className="text-xs uppercase tracking-wider text-fg-faint">Şununla geliştirildi</p>
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-            {TECH.map((t) => (
-              <span
-                key={t}
-                className="rounded-full border border-border bg-surface-raised px-3 py-1 text-xs font-medium text-fg-muted"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
     </div>

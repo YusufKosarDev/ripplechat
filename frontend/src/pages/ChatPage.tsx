@@ -11,7 +11,6 @@ import { connectChat, disconnectChat, setPresenceHandler, watchAllChannels } fro
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
-import ConnectionBanner from '../components/ConnectionBanner'
 
 export default function ChatPage() {
   const dispatch = useAppDispatch()
@@ -76,7 +75,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface text-fg">
-      <ConnectionBanner />
       <div className="relative flex flex-1 overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <ChannelPanel onOpenSidebar={() => setSidebarOpen(true)} />
