@@ -6,11 +6,17 @@ import { fetchChannels, fetchDms } from '../features/channels/channelsSlice'
 import { setConnectionStatus } from '../features/connection/connectionSlice'
 import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
 import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice'
-import { incrementUnread } from '../features/unread/unreadSlice'
+import { addMention, incrementUnread } from '../features/unread/unreadSlice'
 import { connectChat, disconnectChat, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
+
+// True if the message text @mentions the given username (standalone token).
+function mentionsUser(content: string, username: string): boolean {
+  const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^\\w@])@${escaped}\\b`, 'i').test(content ?? '')
+}
 
 export default function ChatPage() {
   const dispatch = useAppDispatch()
@@ -20,6 +26,7 @@ export default function ChatPage() {
     [...state.channels.items.map((c) => c.id), ...state.channels.dms.map((d) => d.id)].join(','),
   )
   const currentUserId = useAppSelector((state) => state.auth.user?.id)
+  const currentUsername = useAppSelector((state) => state.auth.user?.username)
   const totalUnread = useAppSelector((state) =>
     Object.values(state.unread.counts).reduce((sum, n) => sum + n, 0),
   )
@@ -30,6 +37,8 @@ export default function ChatPage() {
   selectedIdRef.current = selectedId
   const currentUserIdRef = useRef(currentUserId)
   currentUserIdRef.current = currentUserId
+  const currentUsernameRef = useRef(currentUsername)
+  currentUsernameRef.current = currentUsername
 
   useEffect(() => {
     connectChat({
@@ -61,6 +70,10 @@ export default function ChatPage() {
       dispatch(messageReceived(msg))
       if (msg.channelId !== selectedIdRef.current && msg.sender.id !== currentUserIdRef.current) {
         dispatch(incrementUnread(msg.channelId))
+        const uname = currentUsernameRef.current
+        if (uname && mentionsUser(msg.content, uname)) {
+          dispatch(addMention(msg.channelId))
+        }
       }
     })
   }, [channelIds, dispatch])

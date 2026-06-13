@@ -508,6 +508,26 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const showHints = draft.startsWith('/') && !draft.includes(' ')
 
+  // @mention autocomplete: when the text ends with "@partial", suggest members.
+  const mentionMatch = /(^|\s)@(\w*)$/.exec(draft)
+  const mentionQuery = mentionMatch ? mentionMatch[2].toLowerCase() : null
+  const mentionCandidates =
+    mentionQuery !== null
+      ? members
+          .filter((m) => m.user.id !== currentUser?.id)
+          .filter(
+            (m) =>
+              m.user.username.toLowerCase().includes(mentionQuery) ||
+              (m.user.displayName ?? '').toLowerCase().includes(mentionQuery),
+          )
+          .slice(0, 6)
+      : []
+
+  const pickMention = (username: string) => {
+    setDraft((d) => d.replace(/@(\w*)$/, `@${username} `))
+    inputRef.current?.focus()
+  }
+
   return (
     <section className="flex flex-1 flex-col">
       <header className={`flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 ${borderC}`}>
@@ -685,6 +705,22 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
           <div className={`border-t px-6 pb-4 pt-3 ${borderC}`}>
             {showHints && <CommandHints prefix={draft.slice(1)} onPick={onPickCommand} />}
+            {mentionQuery !== null && mentionCandidates.length > 0 && (
+              <div className="mb-2 overflow-hidden rounded-lg border border-border bg-surface-overlay shadow-card">
+                {mentionCandidates.map((m) => (
+                  <button
+                    key={m.user.id}
+                    type="button"
+                    onClick={() => pickMention(m.user.username)}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition hover:bg-surface-muted ${focusRing}`}
+                  >
+                    <Avatar name={m.user.displayName ?? m.user.username} color={m.user.avatarColor} imageUrl={m.user.avatarUrl} size="sm" />
+                    <span className="text-fg">{m.user.displayName ?? m.user.username}</span>
+                    <span className="text-fg-faint">@{m.user.username}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="mb-2 flex items-center justify-between gap-2">
               <ReactionBar onReact={(emoji) => sendReaction(channel.id, emoji)} />
               <span className="min-w-0 flex-1 truncate text-right text-xs text-fg-muted">{typingText}</span>

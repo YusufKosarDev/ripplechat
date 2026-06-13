@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import remarkMentions from './remarkMentions'
 
 // Lazy-loaded so the heavy syntax highlighter is fetched only when a message
 // actually contains a code block (keeps the initial bundle small).
@@ -59,6 +60,12 @@ const components: Components = {
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   del: ({ children }) => <del className="line-through opacity-70">{children}</del>,
+  span: ({ className, children }) =>
+    className === 'mention' ? (
+      <span className="rounded bg-accent/10 px-1 font-medium text-accent">{children}</span>
+    ) : (
+      <span className={className}>{children}</span>
+    ),
 }
 
 interface MessageContentProps {
@@ -68,7 +75,7 @@ interface MessageContentProps {
 export default function MessageContent({ content }: MessageContentProps) {
   return (
     <div className="space-y-1 text-sm leading-relaxed text-fg-secondary">
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions]} components={components}>
         {content}
       </ReactMarkdown>
     </div>

@@ -17,10 +17,13 @@ function save(counts: Record<string, number>): void {
 
 interface UnreadState {
   counts: Record<string, number>
+  // Channels where the current user was @mentioned (in-memory; resets on reload).
+  mentions: Record<string, boolean>
 }
 
 const initialState: UnreadState = {
   counts: load(),
+  mentions: {},
 }
 
 const unreadSlice = createSlice({
@@ -32,14 +35,18 @@ const unreadSlice = createSlice({
       state.counts[id] = (state.counts[id] ?? 0) + 1
       save(state.counts)
     },
+    addMention(state, action: PayloadAction<string>) {
+      state.mentions[action.payload] = true
+    },
     clearUnread(state, action: PayloadAction<string>) {
       if (state.counts[action.payload]) {
         state.counts[action.payload] = 0
         save(state.counts)
       }
+      delete state.mentions[action.payload]
     },
   },
 })
 
-export const { incrementUnread, clearUnread } = unreadSlice.actions
+export const { incrementUnread, addMention, clearUnread } = unreadSlice.actions
 export default unreadSlice.reducer

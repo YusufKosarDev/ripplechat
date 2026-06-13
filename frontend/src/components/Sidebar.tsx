@@ -25,6 +25,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const user = useAppSelector((state) => state.auth.user)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const unreadCounts = useAppSelector((state) => state.unread.counts)
+  const mentions = useAppSelector((state) => state.unread.mentions)
   const selfOnline = user ? onlineUserIds.includes(user.id) : false
 
   const [newName, setNewName] = useState('')
@@ -132,11 +133,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                       <span className="truncate">
                         <span className="text-fg-faint">#</span> {channel.name}
                       </span>
-                      {unread > 0 && (
-                        <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
-                          {unread > 99 ? '99+' : unread}
-                        </span>
-                      )}
+                      <span className="flex shrink-0 items-center gap-1">
+                        {mentions[channel.id] && selectedId !== channel.id && (
+                          <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
+                            @
+                          </span>
+                        )}
+                        {unread > 0 && (
+                          <span className="rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
+                            {unread > 99 ? '99+' : unread}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   </li>
                 )
@@ -187,11 +195,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                       <Avatar name={name} color={d.otherUser.avatarColor} imageUrl={d.otherUser.avatarUrl} online={online} size="sm" />
                       <span className="truncate">{name}</span>
                     </span>
-                    {unread > 0 && (
-                      <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
-                        {unread > 99 ? '99+' : unread}
-                      </span>
-                    )}
+                    <span className="flex shrink-0 items-center gap-1">
+                      {mentions[d.id] && selectedId !== d.id && (
+                        <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
+                          @
+                        </span>
+                      )}
+                      {unread > 0 && (
+                        <span className="rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </li>
               )
