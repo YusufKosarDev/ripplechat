@@ -97,6 +97,7 @@ export interface Message {
   thread: ThreadSummary
   editedAt: string | null
   deleted: boolean
+  attachmentUrl: string | null
 }
 
 export interface MessageReactionUpdate {

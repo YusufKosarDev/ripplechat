@@ -68,6 +68,10 @@ public class Message {
     @Column(name = "edited_at")
     private Instant editedAt;
 
+    /** URL of an optional image attachment (Cloudinary); null for text-only messages. */
+    @Column(name = "attachment_url", length = 1024)
+    private String attachmentUrl;
+
     /** Soft delete: the row stays (threads/reactions intact) but content is cleared. */
     @Column(nullable = false)
     @ColumnDefault("false")

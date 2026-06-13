@@ -17,7 +17,8 @@ public record MessageResponse(
         UUID parentMessageId,
         ThreadSummary thread,
         Instant editedAt,
-        boolean deleted
+        boolean deleted,
+        String attachmentUrl
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -34,6 +35,7 @@ public record MessageResponse(
                 message.getParent() != null ? message.getParent().getId() : null,
                 thread,
                 message.getEditedAt(),
-                message.isDeleted());
+                message.isDeleted(),
+                message.getAttachmentUrl());
     }
 }

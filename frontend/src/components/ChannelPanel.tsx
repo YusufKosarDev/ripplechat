@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
+import { client } from '../api/client'
 import { joinChannel } from '../features/channels/channelsSlice'
 import {
   fetchMessages,
@@ -113,7 +114,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
+  const [attachment, setAttachment] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevHeightRef = useRef<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -312,10 +316,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const submit = () => {
     const text = draft.trim()
-    if (!text) return
+    if (!text && !attachment) return
     setCmdError(null)
 
-    if (text.startsWith('/')) {
+    // Slash commands apply to plain text only (not when an image is attached).
+    if (text.startsWith('/') && !attachment) {
       const parsed = parseCommand(text)!
       if (!parsed.command) {
         setCmdError(`Bilinmeyen komut: /${parsed.name}`)
@@ -334,8 +339,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       })
       if (!hadError) setDraft('')
     } else {
-      sendChatMessage(channel.id, text)
+      sendChatMessage(channel.id, text, undefined, attachment ?? undefined)
       setDraft('')
+      setAttachment(null)
     }
     stopTyping()
   }
@@ -360,6 +366,24 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const onPickCommand = (name: string) => {
     setDraft(`/${name} `)
     inputRef.current?.focus()
+  }
+
+  const onPickFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // let the same file be picked again later
+    if (!file) return
+    setCmdError(null)
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const { data } = await client.post<{ url: string }>('/api/uploads/image', form)
+      setAttachment(data.url)
+    } catch {
+      setCmdError('Görsel yüklenemedi — tür bir resim mi ve 5 MB altında mı?')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const startEdit = (msg: Message) => {
@@ -417,7 +441,17 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     const canDelete = mine || canModerate
     return (
       <div>
-        <MessageContent content={msg.content} />
+        {msg.content && <MessageContent content={msg.content} />}
+        {msg.attachmentUrl && (
+          <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
+            <img
+              src={msg.attachmentUrl}
+              alt="ek görsel"
+              loading="lazy"
+              className="max-h-80 max-w-sm rounded-lg border border-border"
+            />
+          </a>
+        )}
         {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
         {(mine || canDelete) && (
           <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
@@ -615,7 +649,30 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               <span className="min-w-0 flex-1 truncate text-right text-xs text-fg-muted">{typingText}</span>
             </div>
             {cmdError && <p className="mb-2 text-xs text-danger">{cmdError}</p>}
+            {attachment && (
+              <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-muted p-1 pr-2">
+                <img src={attachment} alt="" className="h-12 w-12 rounded object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setAttachment(null)}
+                  className={`rounded-lg text-xs text-fg-muted transition hover:text-danger ${focusRing}`}
+                >
+                  ✕ Kaldır
+                </button>
+              </div>
+            )}
             <form onSubmit={onSend} className="flex items-end gap-3">
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={onPickFile} className="hidden" />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                aria-label="Görsel ekle"
+                title="Görsel ekle"
+              >
+                {uploading ? '…' : '📎'}
+              </Button>
               <Textarea
                 ref={inputRef}
                 value={draft}
@@ -630,7 +687,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 placeholder={`#${channel.name} kanalına yaz  ·  /poll, /giphy, /shrug`}
                 className="max-h-40 flex-1"
               />
-              <Button type="submit">Gönder</Button>
+              <Button type="submit" disabled={uploading}>
+                Gönder
+              </Button>
             </form>
             <p className="mt-2 text-xs text-fg-faint">
               Markdown destekli · <span className="text-fg-muted">**kalın**</span>{' '}

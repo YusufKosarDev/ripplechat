@@ -224,10 +224,15 @@ export function watchChannel(channelId: string, channelHandlers: ChannelHandlers
   resolveChannelSubs()
 }
 
-export function sendChatMessage(channelId: string, content: string, parentMessageId?: string) {
+export function sendChatMessage(
+  channelId: string,
+  content: string,
+  parentMessageId?: string,
+  attachmentUrl?: string,
+) {
   client?.publish({
     destination: `/app/channels/${channelId}/send`,
-    body: JSON.stringify({ content, parentMessageId }),
+    body: JSON.stringify({ content, parentMessageId, attachmentUrl }),
   })
 }
 

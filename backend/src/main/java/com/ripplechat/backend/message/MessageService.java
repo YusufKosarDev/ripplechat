@@ -41,6 +41,8 @@ public class MessageService {
 
     private static final int MAX_LAST_REPLIERS = 3;
     private static final int MAX_MESSAGE_LENGTH = 4000;
+    // Attachment URLs must be ones we issued (Cloudinary), never arbitrary client input.
+    private static final String ALLOWED_ATTACHMENT_PREFIX = "https://res.cloudinary.com/";
     // Send throttle: 10-message burst, then ~5/sec sustained per user.
     private static final double SEND_BURST = 10;
     private static final double SEND_REFILL_PER_SEC = 5;
@@ -65,12 +67,17 @@ public class MessageService {
         }
         // Enforce content rules in the service so they apply to WebSocket sends too
         // (the @Valid on the REST DTO does not cover the STOMP @Payload path).
-        String content = request.content();
-        if (content == null || content.isBlank()) {
-            throw new BadRequestException("content is required");
+        String content = request.content() == null ? "" : request.content().trim();
+        String attachmentUrl = request.attachmentUrl();
+        boolean hasAttachment = attachmentUrl != null && !attachmentUrl.isBlank();
+        if (content.isBlank() && !hasAttachment) {
+            throw new BadRequestException("content or attachment is required");
         }
         if (content.length() > MAX_MESSAGE_LENGTH) {
             throw new BadRequestException("content must be at most " + MAX_MESSAGE_LENGTH + " characters");
+        }
+        if (hasAttachment && !attachmentUrl.startsWith(ALLOWED_ATTACHMENT_PREFIX)) {
+            throw new BadRequestException("invalid attachment url");
         }
 
         Channel channel = channelRepository.findById(channelId)
@@ -84,7 +91,10 @@ public class MessageService {
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
         Message message = new Message();
-        message.setContent(request.content());
+        message.setContent(content);
+        if (hasAttachment) {
+            message.setAttachmentUrl(attachmentUrl);
+        }
         message.setChannel(channel);
         message.setSender(sender);
 
@@ -181,6 +191,7 @@ public class MessageService {
         }
         message.setDeleted(true);
         message.setContent("");
+        message.setAttachmentUrl(null);
         messageRepository.saveAndFlush(message);
         messageReactionService.deleteAllForMessage(messageId);
         broadcastUpdate(message);
