@@ -5,12 +5,18 @@
       <stop offset="1" stop-color="#8B5CF6"/>
     </linearGradient>
   </defs>
+
+  <!-- App tile -->
   <rect width="512" height="512" rx="116" fill="url(#rc-bg)"/>
+
+  <!-- Ripple rings emanating from the centre (the "ripple") -->
   <g fill="none" stroke="#FFFFFF" stroke-linecap="round">
     <circle cx="256" cy="248" r="150" stroke-opacity="0.22" stroke-width="20"/>
     <circle cx="256" cy="248" r="104" stroke-opacity="0.5"  stroke-width="22"/>
     <circle cx="256" cy="248" r="58"  stroke-opacity="0.9"  stroke-width="24"/>
   </g>
   <circle cx="256" cy="248" r="20" fill="#FFFFFF"/>
+
+  <!-- Chat-bubble tail, so the mark also reads as a speech bubble -->
   <path d="M168 372 q-14 44 -52 64 q56 6 96 -34 z" fill="#FFFFFF" fill-opacity="0.9"/>
 </svg>
