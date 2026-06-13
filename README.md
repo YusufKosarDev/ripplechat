@@ -2,7 +2,7 @@
   <img src="docs/logo.png" alt="RippleChat" width="110" />
 </p>
 
-# 💬 RippleChat
+# RippleChat
 
 **Real-time, community-driven messaging platform** — a Slack/Discord-style workspace where channels, threads, reactions, and presence all update live over WebSockets. Built with a Spring Boot backend and a React + TypeScript frontend.
 
