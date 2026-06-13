@@ -111,6 +111,7 @@ export interface Message {
   quotedSender: string | null
   quotedContent: string | null
   forwarded: boolean
+  pinned: boolean
 }
 
 export interface MessageReactionUpdate {

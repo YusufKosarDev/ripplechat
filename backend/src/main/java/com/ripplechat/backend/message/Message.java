@@ -87,6 +87,11 @@ public class Message {
     @ColumnDefault("false")
     private boolean forwarded = false;
 
+    /** Pinned to the channel (highlighted in a pinned list). */
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean pinned = false;
+
     /** Soft delete: the row stays (threads/reactions intact) but content is cleared. */
     @Column(nullable = false)
     @ColumnDefault("false")

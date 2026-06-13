@@ -22,7 +22,8 @@ public record MessageResponse(
         UUID quotedMessageId,
         String quotedSender,
         String quotedContent,
-        boolean forwarded
+        boolean forwarded,
+        boolean pinned
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -44,6 +45,7 @@ public record MessageResponse(
                 message.getQuotedMessageId(),
                 message.getQuotedSender(),
                 message.getQuotedContent(),
-                message.isForwarded());
+                message.isForwarded(),
+                message.isPinned());
     }
 }

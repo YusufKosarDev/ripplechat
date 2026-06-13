@@ -32,6 +32,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
                                 @Param("tsquery") String tsquery,
                                 Pageable pageable);
 
+    /** Pinned messages of a channel, newest first (sender fetched for the view). */
+    @EntityGraph(attributePaths = "sender")
+    List<Message> findByChannelIdAndPinnedTrueAndDeletedFalseOrderByCreatedAtDesc(UUID channelId);
+
     /** Loads search hits in bulk, fetch-joining sender and channel for the result view. */
     @Query("""
             select m from Message m

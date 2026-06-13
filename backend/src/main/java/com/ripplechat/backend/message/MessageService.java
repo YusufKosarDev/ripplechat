@@ -256,6 +256,39 @@ public class MessageService {
         broadcastUpdate(message);
     }
 
+    @Transactional
+    public void pin(UUID channelId, UUID messageId, String username) {
+        setPinned(channelId, messageId, username, true);
+    }
+
+    @Transactional
+    public void unpin(UUID channelId, UUID messageId, String username) {
+        setPinned(channelId, messageId, username, false);
+    }
+
+    private void setPinned(UUID channelId, UUID messageId, String username, boolean pinned) {
+        requireMember(channelId, username);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
+        if (!message.getChannel().getId().equals(channelId)) {
+            throw new ResourceNotFoundException("message not found in channel: " + messageId);
+        }
+        if (message.isPinned() == pinned) {
+            return;
+        }
+        message.setPinned(pinned);
+        messageRepository.saveAndFlush(message);
+        broadcastUpdate(message);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageResponse> listPinned(UUID channelId, String username) {
+        requireMember(channelId, username);
+        return messageRepository.findByChannelIdAndPinnedTrueAndDeletedFalseOrderByCreatedAtDesc(channelId).stream()
+                .map(MessageResponse::from)
+                .toList();
+    }
+
     private Message requireOwnMessage(UUID channelId, UUID messageId, String username) {
         requireMember(channelId, username);
         Message message = messageRepository.findById(messageId)
