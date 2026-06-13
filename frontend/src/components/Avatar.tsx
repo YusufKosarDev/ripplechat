@@ -44,21 +44,27 @@ interface AvatarProps {
   name: string
   /** Chosen color key; falls back to a stable hash of the name. */
   color?: string | null
+  /** Uploaded avatar image URL; when present it's shown instead of the initial. */
+  imageUrl?: string | null
   /** undefined → no presence dot; true/false → green/gray corner dot */
   online?: boolean
   size?: 'sm' | 'md'
 }
 
-export default function Avatar({ name, color, online, size = 'md' }: AvatarProps) {
+export default function Avatar({ name, color, imageUrl, online, size = 'md' }: AvatarProps) {
   const dim = size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm'
   const bg = (color && COLOR_CLASS[color]) || COLOR_CLASS[colorKeyFor(name)]
   return (
     <span className="relative inline-flex shrink-0">
-      <span
-        className={`inline-flex items-center justify-center rounded-full font-semibold text-white ${bg} ${dim}`}
-      >
-        {initial(name)}
-      </span>
+      {imageUrl ? (
+        <img src={imageUrl} alt={name} className={`rounded-full object-cover ${dim}`} />
+      ) : (
+        <span
+          className={`inline-flex items-center justify-center rounded-full font-semibold text-white ${bg} ${dim}`}
+        >
+          {initial(name)}
+        </span>
+      )}
       {online !== undefined && (
         <span
           title={online ? 'çevrimiçi' : 'çevrimdışı'}

@@ -77,7 +77,7 @@ export default function NewDmModal({ onPick, onClose }: NewDmModalProps) {
                 onClick={() => onPick(u.id)}
                 className={`flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition hover:bg-surface-muted ${focusRing}`}
               >
-                <Avatar name={u.displayName ?? u.username} color={u.avatarColor} size="sm" />
+                <Avatar name={u.displayName ?? u.username} color={u.avatarColor} imageUrl={u.avatarUrl} size="sm" />
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-fg-secondary">{u.displayName ?? u.username}</div>
                   <div className="truncate text-xs text-fg-faint">@{u.username}</div>

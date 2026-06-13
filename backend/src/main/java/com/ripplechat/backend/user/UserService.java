@@ -19,6 +19,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
 
+    // Avatar URLs must be ones we issued (Cloudinary), never arbitrary client input.
+    private static final String AVATAR_URL_PREFIX = "https://res.cloudinary.com/";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -64,6 +67,16 @@ public class UserService {
         }
         if (request.avatarColor() != null) {
             user.setAvatarColor(request.avatarColor().isBlank() ? null : request.avatarColor().trim());
+        }
+        if (request.avatarUrl() != null) {
+            String url = request.avatarUrl().trim();
+            if (url.isEmpty()) {
+                user.setAvatarUrl(null);
+            } else if (url.startsWith(AVATAR_URL_PREFIX)) {
+                user.setAvatarUrl(url);
+            } else {
+                throw new BadRequestException("invalid avatar url");
+            }
         }
         return UserResponse.from(userRepository.saveAndFlush(user));
     }

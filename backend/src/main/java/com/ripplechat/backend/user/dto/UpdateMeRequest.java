@@ -16,6 +16,9 @@ public record UpdateMeRequest(
         String email,
 
         @Size(max = 32, message = "avatar color must be at most 32 characters")
-        String avatarColor
+        String avatarColor,
+
+        @Size(max = 1024)
+        String avatarUrl
 ) {
 }

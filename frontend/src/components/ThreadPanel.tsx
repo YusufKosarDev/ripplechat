@@ -81,6 +81,7 @@ export default function ThreadPanel() {
             <Avatar
               name={parent.sender.displayName ?? parent.sender.username}
               color={parent.sender.avatarColor}
+              imageUrl={parent.sender.avatarUrl}
               online={onlineUserIds.includes(parent.sender.id)}
             />
             <div className="min-w-0">
@@ -102,6 +103,7 @@ export default function ThreadPanel() {
               <Avatar
                 name={r.sender.displayName ?? r.sender.username}
                 color={r.sender.avatarColor}
+                imageUrl={r.sender.avatarUrl}
                 online={onlineUserIds.includes(r.sender.id)}
                 size="sm"
               />

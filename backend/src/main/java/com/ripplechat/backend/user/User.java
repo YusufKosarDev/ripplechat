@@ -48,6 +48,10 @@ public class User {
     @Column(name = "avatar_color")
     private String avatarColor;
 
+    /** Uploaded avatar image URL (Cloudinary); null → fall back to the color initial. */
+    @Column(name = "avatar_url", length = 1024)
+    private String avatarUrl;
+
     /** BCrypt-hashed password. Never stored or exposed in plain text. */
     @Column(nullable = false)
     private String password;

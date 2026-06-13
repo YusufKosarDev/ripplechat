@@ -14,6 +14,7 @@ public record UserResponse(
         String email,
         String displayName,
         String avatarColor,
+        String avatarUrl,
         Instant createdAt
 ) {
     public static UserResponse from(User user) {
@@ -23,6 +24,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getDisplayName(),
                 user.getAvatarColor(),
+                user.getAvatarUrl(),
                 user.getCreatedAt()
         );
     }

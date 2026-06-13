@@ -110,7 +110,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
                 onClick={() => onPick(r.channelId)}
                 className={`flex w-full gap-3 border-b border-border px-4 py-3 text-left transition hover:bg-surface-muted ${focusRing}`}
               >
-                <Avatar name={r.sender.displayName ?? r.sender.username} color={r.sender.avatarColor} size="sm" />
+                <Avatar name={r.sender.displayName ?? r.sender.username} color={r.sender.avatarColor} imageUrl={r.sender.avatarUrl} size="sm" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2 text-xs">
                     <span className="font-medium text-fg-secondary">

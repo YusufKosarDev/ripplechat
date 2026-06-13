@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { client } from '../api/client'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { changePassword, logout, updateMe } from '../features/auth/authSlice'
 import { AVATAR_COLORS } from './Avatar'
@@ -20,6 +22,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [color, setColor] = useState<string | null>(user?.avatarColor ?? null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
 
   const [currentPassword, setCurrentPassword] = useState('')
@@ -31,8 +36,28 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const onSaveProfile = async () => {
     setProfileMsg(null)
-    const result = await dispatch(updateMe({ displayName: displayName.trim() || undefined, avatarColor: color ?? '' }))
+    const result = await dispatch(
+      updateMe({ displayName: displayName.trim() || undefined, avatarColor: color ?? '', avatarUrl: avatarUrl ?? '' }),
+    )
     setProfileMsg(updateMe.fulfilled.match(result) ? 'Profil güncellendi ✓' : 'Güncellenemedi.')
+  }
+
+  const onPickPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setProfileMsg(null)
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const { data } = await client.post<{ url: string }>('/api/uploads/image', form)
+      setAvatarUrl(data.url)
+    } catch {
+      setProfileMsg('Fotoğraf yüklenemedi — bir resim mi ve 5 MB altında mı?')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const onChangePassword = async () => {
@@ -76,10 +101,30 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         {/* Profile */}
         <div className="flex items-center gap-3">
-          <Avatar name={previewName} color={color} />
-          <div className="text-sm">
+          <Avatar name={previewName} color={color} imageUrl={avatarUrl} />
+          <div className="min-w-0 text-sm">
             <div className="font-medium text-fg">{previewName}</div>
             <div className="text-fg-muted">@{user.username}</div>
+            <div className="mt-1 flex gap-3">
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className={`rounded-lg text-xs text-accent transition hover:text-accent-hover ${focusRing}`}
+              >
+                {uploading ? 'Yükleniyor…' : 'Fotoğraf yükle'}
+              </button>
+              {avatarUrl && (
+                <button
+                  type="button"
+                  onClick={() => setAvatarUrl(null)}
+                  className={`rounded-lg text-xs text-fg-muted transition hover:text-danger ${focusRing}`}
+                >
+                  Kaldır
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

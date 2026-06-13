@@ -85,7 +85,7 @@ export const fetchCurrentUser = createAsyncThunk(
 
 export const updateMe = createAsyncThunk(
   'auth/updateMe',
-  async (body: { displayName?: string; email?: string; avatarColor?: string }, { rejectWithValue }) => {
+  async (body: { displayName?: string; email?: string; avatarColor?: string; avatarUrl?: string }, { rejectWithValue }) => {
     try {
       const { data } = await client.put<User>('/api/users/me', body)
       return data

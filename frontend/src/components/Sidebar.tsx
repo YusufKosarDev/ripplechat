@@ -85,7 +85,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               title="Ayarlar"
               className={`flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5 transition hover:bg-surface-muted ${focusRing}`}
             >
-              <Avatar name={displayName} color={user?.avatarColor} online={selfOnline} size="sm" />
+              <Avatar name={displayName} color={user?.avatarColor} imageUrl={user?.avatarUrl} online={selfOnline} size="sm" />
               <span className="truncate text-sm text-fg-secondary">{displayName}</span>
             </button>
             <button
@@ -184,7 +184,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <Avatar name={name} color={d.otherUser.avatarColor} online={online} size="sm" />
+                      <Avatar name={name} color={d.otherUser.avatarColor} imageUrl={d.otherUser.avatarUrl} online={online} size="sm" />
                       <span className="truncate">{name}</span>
                     </span>
                     {unread > 0 && (

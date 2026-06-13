@@ -4,6 +4,7 @@ export interface User {
   email: string
   displayName: string | null
   avatarColor: string | null
+  avatarUrl: string | null
   createdAt: string
 }
 
@@ -48,6 +49,7 @@ export interface UserSummary {
   username: string
   displayName: string | null
   avatarColor: string | null
+  avatarUrl: string | null
 }
 
 export type MembershipRole = 'OWNER' | 'MODERATOR' | 'MEMBER'
