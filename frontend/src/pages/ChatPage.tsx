@@ -27,6 +27,7 @@ export default function ChatPage() {
   )
   const currentUserId = useAppSelector((state) => state.auth.user?.id)
   const currentUsername = useAppSelector((state) => state.auth.user?.username)
+  const muted = useAppSelector((state) => state.muted.muted)
   const totalUnread = useAppSelector((state) =>
     Object.values(state.unread.counts).reduce((sum, n) => sum + n, 0),
   )
@@ -39,6 +40,8 @@ export default function ChatPage() {
   currentUserIdRef.current = currentUserId
   const currentUsernameRef = useRef(currentUsername)
   currentUsernameRef.current = currentUsername
+  const mutedRef = useRef(muted)
+  mutedRef.current = muted
 
   useEffect(() => {
     connectChat({
@@ -68,7 +71,11 @@ export default function ChatPage() {
     const ids = channelIds ? channelIds.split(',') : []
     watchAllChannels(ids, (msg) => {
       dispatch(messageReceived(msg))
-      if (msg.channelId !== selectedIdRef.current && msg.sender.id !== currentUserIdRef.current) {
+      if (
+        msg.channelId !== selectedIdRef.current &&
+        msg.sender.id !== currentUserIdRef.current &&
+        !mutedRef.current[msg.channelId]
+      ) {
         dispatch(incrementUnread(msg.channelId))
         const uname = currentUsernameRef.current
         if (uname && mentionsUser(msg.content, uname)) {

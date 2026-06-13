@@ -3,6 +3,7 @@ import authReducer from '../features/auth/authSlice'
 import channelsReducer from '../features/channels/channelsSlice'
 import connectionReducer from '../features/connection/connectionSlice'
 import messagesReducer from '../features/messages/messagesSlice'
+import mutedReducer from '../features/muted/mutedSlice'
 import pollsReducer from '../features/polls/pollsSlice'
 import presenceReducer from '../features/presence/presenceSlice'
 import readsReducer from '../features/reads/readsSlice'
@@ -16,6 +17,7 @@ export const store = configureStore({
     channels: channelsReducer,
     connection: connectionReducer,
     messages: messagesReducer,
+    muted: mutedReducer,
     polls: pollsReducer,
     presence: presenceReducer,
     reads: readsReducer,

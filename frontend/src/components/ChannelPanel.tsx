@@ -16,6 +16,7 @@ import { channelRemoved, fetchMembers, selectChannel } from '../features/channel
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
+import { toggleMute } from '../features/muted/mutedSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
@@ -121,6 +122,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const membersByChannel = useAppSelector((state) => state.channels.membersByChannel)
   const currentUser = useAppSelector((state) => state.auth.user)
   const reads = useAppSelector((state) => (selectedId ? state.reads.byChannel[selectedId] : undefined))
+  const isMuted = useAppSelector((state) => (selectedId ? !!state.muted.muted[selectedId] : false))
 
   const [draft, setDraft] = useState('')
   const [showMembers, setShowMembers] = useState(false)
@@ -628,6 +630,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => selectedId && dispatch(toggleMute(selectedId))}
+            title={isMuted ? 'Bildirimleri aç' : 'Sessize al'}
+          >
+            {isMuted ? '🔕' : '🔔'}
+          </Button>
           {pinned.length > 0 && (
             <Button variant="secondary" size="sm" onClick={() => setShowPinned(true)} title="Sabitlenenler">
               📌 {pinned.length}

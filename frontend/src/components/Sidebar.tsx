@@ -26,6 +26,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const unreadCounts = useAppSelector((state) => state.unread.counts)
   const mentions = useAppSelector((state) => state.unread.mentions)
+  const muted = useAppSelector((state) => state.muted.muted)
   const selfOnline = user ? onlineUserIds.includes(user.id) : false
 
   const [newName, setNewName] = useState('')
@@ -134,6 +135,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                         <span className="text-fg-faint">#</span> {channel.name}
                       </span>
                       <span className="flex shrink-0 items-center gap-1">
+                        {muted[channel.id] && <span className="text-fg-faint" title="Sessiz">🔕</span>}
                         {mentions[channel.id] && selectedId !== channel.id && (
                           <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
                             @
@@ -196,6 +198,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                       <span className="truncate">{name}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1">
+                      {muted[d.id] && <span className="text-fg-faint" title="Sessiz">🔕</span>}
                       {mentions[d.id] && selectedId !== d.id && (
                         <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
                           @
