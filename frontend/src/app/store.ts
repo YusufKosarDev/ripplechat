@@ -5,6 +5,7 @@ import connectionReducer from '../features/connection/connectionSlice'
 import messagesReducer from '../features/messages/messagesSlice'
 import pollsReducer from '../features/polls/pollsSlice'
 import presenceReducer from '../features/presence/presenceSlice'
+import readsReducer from '../features/reads/readsSlice'
 import threadsReducer from '../features/threads/threadsSlice'
 import uiReducer from '../features/ui/uiSlice'
 import unreadReducer from '../features/unread/unreadSlice'
@@ -17,6 +18,7 @@ export const store = configureStore({
     messages: messagesReducer,
     polls: pollsReducer,
     presence: presenceReducer,
+    reads: readsReducer,
     threads: threadsReducer,
     ui: uiReducer,
     unread: unreadReducer,

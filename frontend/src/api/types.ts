@@ -69,6 +69,13 @@ export interface Channel {
   createdAt: string
 }
 
+// A user's read position in a channel (powers read receipts).
+export interface ReadReceipt {
+  channelId: string
+  userId: string
+  lastReadAt: string
+}
+
 // A one-to-one direct message, from the current user's perspective. The id is
 // the underlying channel id (used for messages/WebSocket like any channel).
 export interface DirectChannel {

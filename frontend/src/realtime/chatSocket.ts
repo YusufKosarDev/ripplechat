@@ -11,6 +11,7 @@ import type {
   Poll,
   PresenceEvent,
   ReactionEvent,
+  ReadReceipt,
   ThreadUpdate,
   TypingEvent,
 } from '../api/types'
@@ -24,6 +25,7 @@ type ThreadUpdateHandler = (update: ThreadUpdate) => void
 type ChannelDeletedHandler = () => void
 type ReplyHandler = (reply: Message) => void
 type PollHandler = (poll: Poll) => void
+type ReadHandler = (receipt: ReadReceipt) => void
 type PresenceHandler = (event: PresenceEvent) => void
 
 interface ChatHandlers {
@@ -41,6 +43,7 @@ interface ChannelHandlers {
   onThreadUpdate: ThreadUpdateHandler
   onChannelDeleted: ChannelDeletedHandler
   onPoll: PollHandler
+  onRead: ReadHandler
 }
 
 let client: Client | null = null
@@ -52,6 +55,7 @@ let messageUpdateSub: StompSubscription | null = null
 let threadUpdateSub: StompSubscription | null = null
 let channelDeletedSub: StompSubscription | null = null
 let pollSub: StompSubscription | null = null
+let readSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
 
 // Separate single subscription for the currently open thread's replies.
@@ -80,6 +84,7 @@ function resolveChannelSubs() {
   threadUpdateSub?.unsubscribe()
   channelDeletedSub?.unsubscribe()
   pollSub?.unsubscribe()
+  readSub?.unsubscribe()
   const {
     channelId,
     onMessage,
@@ -90,6 +95,7 @@ function resolveChannelSubs() {
     onThreadUpdate,
     onChannelDeleted,
     onPoll,
+    onRead,
   } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
     onMessage(JSON.parse(frame.body) as Message)
@@ -114,6 +120,9 @@ function resolveChannelSubs() {
   })
   pollSub = client.subscribe(`/topic/channels/${channelId}/polls`, (frame) => {
     onPoll(JSON.parse(frame.body) as Poll)
+  })
+  readSub = client.subscribe(`/topic/channels/${channelId}/reads`, (frame) => {
+    onRead(JSON.parse(frame.body) as ReadReceipt)
   })
 }
 
@@ -177,6 +186,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       threadUpdateSub = null
       channelDeletedSub = null
       pollSub = null
+      readSub = null
       presenceSub = null
       threadSub = null
       allChannelSubs = []
@@ -275,6 +285,11 @@ export function sendTyping(channelId: string, typing: boolean) {
   })
 }
 
+// Marks the channel read up to now (the server broadcasts the receipt).
+export function sendRead(channelId: string) {
+  client?.publish({ destination: `/app/channels/${channelId}/read`, body: '{}' })
+}
+
 export function sendReaction(channelId: string, emoji: string) {
   client?.publish({
     destination: `/app/channels/${channelId}/reaction`,
@@ -312,6 +327,7 @@ export function disconnectChat() {
   threadUpdateSub?.unsubscribe()
   channelDeletedSub?.unsubscribe()
   pollSub?.unsubscribe()
+  readSub?.unsubscribe()
   presenceSub?.unsubscribe()
   threadSub?.unsubscribe()
   allChannelSubs.forEach((s) => s.unsubscribe())
@@ -323,6 +339,7 @@ export function disconnectChat() {
   threadUpdateSub = null
   channelDeletedSub = null
   pollSub = null
+  readSub = null
   presenceSub = null
   threadSub = null
   allChannelSubs = []

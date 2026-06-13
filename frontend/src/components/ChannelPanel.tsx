@@ -14,6 +14,7 @@ import {
 import { channelRemoved, fetchMembers } from '../features/channels/channelsSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
+import { fetchReads, readReceived } from '../features/reads/readsSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
 import {
@@ -24,6 +25,7 @@ import {
   sendPoll,
   sendPollVote,
   sendReaction,
+  sendRead,
   sendTyping,
   watchChannel,
 } from '../realtime/chatSocket'
@@ -106,6 +108,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const membersByChannel = useAppSelector((state) => state.channels.membersByChannel)
   const currentUser = useAppSelector((state) => state.auth.user)
+  const reads = useAppSelector((state) => (selectedId ? state.reads.byChannel[selectedId] : undefined))
 
   const [draft, setDraft] = useState('')
   const [showMembers, setShowMembers] = useState(false)
@@ -130,6 +133,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const dm = selectedId ? (dms.find((d) => d.id === selectedId) ?? null) : null
   const channel = items.find((c) => c.id === selectedId) ?? (dm ? dmAsChannel(dm) : null)
+  const otherLastRead = dm ? reads?.[dm.otherUser.id] : undefined
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -211,6 +215,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         dispatch(channelRemoved(channelId))
       },
       onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
+      onRead: (receipt) => dispatch(readReceived(receipt)),
     })
   }
 
@@ -220,6 +225,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     dispatch(fetchMessages(selectedId))
     dispatch(fetchPolls(selectedId))
     dispatch(fetchMembers(selectedId))
+    dispatch(fetchReads(selectedId))
     subscribe(selectedId)
     dispatch(clearUnread(selectedId))
     dispatch(closeThread())
@@ -258,6 +264,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       el.scrollTop = el.scrollHeight
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, messages.length])
+
+  // Mark the channel read while it's open (on load and as new messages arrive).
+  useEffect(() => {
+    if (selectedId && messages.length > 0) sendRead(selectedId)
   }, [selectedId, messages.length])
 
   const onMessagesScroll = () => {
@@ -439,6 +450,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }
     const mine = msg.sender.id === currentUser?.id
     const canDelete = mine || canModerate
+    const readByOther =
+      !!otherLastRead && new Date(otherLastRead).getTime() >= new Date(msg.createdAt).getTime()
     return (
       <div>
         {msg.content && <MessageContent content={msg.content} />}
@@ -453,6 +466,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           </a>
         )}
         {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
+        {dm && mine && !msg.deleted && (
+          <span
+            title={readByOther ? 'Okundu' : 'İletildi'}
+            className={`ml-1.5 align-middle text-xs ${readByOther ? 'text-accent' : 'text-fg-faint'}`}
+          >
+            ✓✓
+          </span>
+        )}
         {(mine || canDelete) && (
           <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
             {mine && (

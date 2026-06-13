@@ -2,6 +2,7 @@ package com.ripplechat.backend.websocket;
 
 import com.ripplechat.backend.message.MessageService;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
+import com.ripplechat.backend.read.ReadReceiptService;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -19,9 +20,11 @@ import java.util.UUID;
 public class ChatController {
 
     private final MessageService messageService;
+    private final ReadReceiptService readReceiptService;
 
-    public ChatController(MessageService messageService) {
+    public ChatController(MessageService messageService, ReadReceiptService readReceiptService) {
         this.messageService = messageService;
+        this.readReceiptService = readReceiptService;
     }
 
     @MessageMapping("/channels/{channelId}/send")
@@ -29,5 +32,11 @@ public class ChatController {
                      @Payload CreateMessageRequest request,
                      Principal principal) {
         messageService.send(channelId, request, principal.getName());
+    }
+
+    /** Marks the channel read up to now for the sender (powers read receipts). */
+    @MessageMapping("/channels/{channelId}/read")
+    public void read(@DestinationVariable UUID channelId, Principal principal) {
+        readReceiptService.markRead(channelId, principal.getName());
     }
 }
