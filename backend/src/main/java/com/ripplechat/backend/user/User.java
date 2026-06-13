@@ -52,6 +52,10 @@ public class User {
     @Column(name = "avatar_url", length = 1024)
     private String avatarUrl;
 
+    /** Last time the user went offline (their last WebSocket connection closed). */
+    @Column(name = "last_seen_at")
+    private Instant lastSeenAt;
+
     /** BCrypt-hashed password. Never stored or exposed in plain text. */
     @Column(nullable = false)
     private String password;

@@ -2,6 +2,7 @@ package com.ripplechat.backend.user.dto;
 
 import com.ripplechat.backend.user.User;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -13,10 +14,11 @@ public record UserSummary(
         String username,
         String displayName,
         String avatarColor,
-        String avatarUrl
+        String avatarUrl,
+        Instant lastSeenAt
 ) {
     public static UserSummary from(User user) {
         return new UserSummary(user.getId(), user.getUsername(), user.getDisplayName(),
-                user.getAvatarColor(), user.getAvatarUrl());
+                user.getAvatarColor(), user.getAvatarUrl(), user.getLastSeenAt());
     }
 }

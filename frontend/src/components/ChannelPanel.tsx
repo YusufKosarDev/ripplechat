@@ -72,6 +72,16 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function formatLastSeen(iso: string): string {
+  const d = new Date(iso)
+  const today = startOfDay(new Date())
+  const that = startOfDay(d)
+  const time = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  if (that === today) return `bugün ${time}`
+  if (that === today - 86_400_000) return `dün ${time}`
+  return `${d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} ${time}`
+}
+
 function makeFlyingEmoji(emoji: string): FlyingEmoji {
   const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Math.random())
   return {
@@ -140,6 +150,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const dm = selectedId ? (dms.find((d) => d.id === selectedId) ?? null) : null
   const channel = items.find((c) => c.id === selectedId) ?? (dm ? dmAsChannel(dm) : null)
   const otherLastRead = dm ? reads?.[dm.otherUser.id] : undefined
+  const partnerOnline = dm ? onlineUserIds.includes(dm.otherUser.id) : false
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -598,7 +609,13 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               />
               <div className="min-w-0">
                 <h2 className="truncate text-base font-semibold tracking-tight">{channel.name}</h2>
-                <p className="truncate text-sm text-fg-muted">Direkt mesaj</p>
+                <p className="truncate text-sm text-fg-muted">
+                  {partnerOnline
+                    ? 'çevrimiçi'
+                    : dm.otherUser.lastSeenAt
+                      ? `son görülme ${formatLastSeen(dm.otherUser.lastSeenAt)}`
+                      : 'çevrimdışı'}
+                </p>
               </div>
             </>
           ) : (

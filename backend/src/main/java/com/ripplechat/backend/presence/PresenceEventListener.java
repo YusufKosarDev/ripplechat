@@ -9,6 +9,7 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
+import java.time.Instant;
 
 /**
  * Reacts to STOMP session lifecycle events to maintain presence and broadcast
@@ -52,8 +53,13 @@ public class PresenceEventListener {
     }
 
     private void broadcast(String username, PresenceStatus status) {
-        userRepository.findByUsername(username).ifPresent(user ->
-                messagingTemplate.convertAndSend(PRESENCE_TOPIC,
-                        new PresenceEvent(user.getId(), user.getUsername(), user.getDisplayName(), status)));
+        userRepository.findByUsername(username).ifPresent(user -> {
+            if (status == PresenceStatus.OFFLINE) {
+                user.setLastSeenAt(Instant.now());
+                userRepository.save(user);
+            }
+            messagingTemplate.convertAndSend(PRESENCE_TOPIC,
+                    new PresenceEvent(user.getId(), user.getUsername(), user.getDisplayName(), status));
+        });
     }
 }

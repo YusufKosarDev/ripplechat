@@ -50,6 +50,7 @@ export interface UserSummary {
   displayName: string | null
   avatarColor: string | null
   avatarUrl: string | null
+  lastSeenAt: string | null
 }
 
 export type MembershipRole = 'OWNER' | 'MODERATOR' | 'MEMBER'
