@@ -18,6 +18,17 @@
 
 ---
 
+## 🔗 Live Demo
+
+- **App:** <https://ripplechat-app.vercel.app>
+- **API docs (Swagger UI):** <https://ripplechat-backend.onrender.com/swagger-ui.html>
+
+> Hosted on free tiers, so the backend may take ~30–60s to wake on the first request (the UI shows a "waking up" notice). On the landing page, click **“Demo’yu Dene”** for a one-click guided account — no signup needed.
+
+![RippleChat](docs/screenshots/landing.png)
+
+---
+
 ## ✨ Features
 
 ### ⚡ Real-time
@@ -28,10 +39,12 @@
 
 ### 💬 Messaging
 - **Channels** with membership management
+- **Direct messages** — private 1:1 conversations that reuse the same real-time pipeline
 - **Threads** — keep focused reply chains off the main timeline
 - **Edit & delete** messages, with soft delete so history stays consistent
 - **Markdown** formatting and **syntax-highlighted code blocks**
-- **Message search** across channels
+- **Full-text search** (PostgreSQL `tsvector` + GIN index) across your channels and DMs
+- **Infinite scroll** — older history loads as you scroll up
 
 ### 🎉 Interaction
 - **Persistent emoji reactions** on any message
@@ -41,6 +54,7 @@
 
 ### 🔐 Security & Authorization
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
+- **Refresh tokens** with rotation and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
 - **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`
 - **Channel moderation** — owners and moderators manage membership and content; all checks are enforced server-side
 - **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members (or removed members) can't eavesdrop
@@ -49,8 +63,13 @@
 ### 🎨 Experience
 - **Light / dark theme** toggle
 - **Responsive layout** that adapts to mobile
-- **Unread message badges** so nothing slips by
+- **Unread message badges** — plus a live unread count in the browser tab title
 - **User profile & settings** — display name, avatar color, and password management
+
+### 🛠️ Platform
+- **OpenAPI / Swagger UI** — interactive, always-current API docs (`/swagger-ui.html`)
+- **Health endpoint** — `/actuator/health` for uptime checks
+- **Tested** — backend integration tests on a real PostgreSQL (Testcontainers), frontend unit tests (Vitest), and end-to-end tests (Playwright), all wired into CI
 
 ---
 
@@ -59,10 +78,11 @@
 **Backend**
 - Java 21
 - Spring Boot 3.5
-- Spring Security (JWT, HS256)
+- Spring Security (JWT access + rotating refresh tokens, HS256)
 - Spring Data JPA
 - Spring WebSocket (STOMP messaging)
-- PostgreSQL
+- PostgreSQL (full-text search)
+- springdoc-openapi (Swagger UI) · Spring Boot Actuator
 
 **Frontend**
 - React + TypeScript
@@ -71,10 +91,16 @@
 - Tailwind CSS
 - STOMP.js / SockJS
 
+**Testing**
+- JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests
+- Vitest + React Testing Library — frontend unit tests
+- Playwright — end-to-end tests
+
 **DevOps**
 - Docker Compose (PostgreSQL)
 - Flyway (production schema migrations)
 - Maven · Spring profiles (dev / prod)
+- GitHub Actions CI (backend, frontend, e2e)
 
 ---
 
@@ -83,8 +109,8 @@
 **Modular monolith backend.** The codebase is organized by domain, each package owning its own controllers, services, and persistence:
 
 ```
-auth · user · channel (+ membership) · message
-presence · typing · reaction · poll · search · websocket
+auth · user · channel (+ membership · direct messages) · message
+presence · typing · reaction · poll · search (full-text) · websocket
 ```
 
 **WebSocket layer.** Clients open a single STOMP connection authenticated with a JWT on `CONNECT`. The server broadcasts to `/topic/...` destinations (e.g. `/topic/channels/{id}`); clients publish via `/app/...`. Messages, reactions, presence, typing, and polls all travel over this channel for instant fan-out.
@@ -163,7 +189,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies `V1__initial_schema.sql` and Hibernate validates the schema against the entities. The full list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V5__direct_messages`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 ---
 
@@ -175,13 +201,13 @@ ripplechat/
 │   ├── src/main/java/com/ripplechat/backend/
 │   │   ├── auth/                # Registration, login, JWT, security config
 │   │   ├── user/                # Profiles, settings, password (self-service)
-│   │   ├── channel/             # Channels + membership & roles
+│   │   ├── channel/             # Channels, membership & roles, direct messages
 │   │   ├── message/             # Messages, threads, edit/delete
 │   │   ├── reaction/            # Emoji reactions
-│   │   ├── poll/                # Polls (REST + WebSocket)
+│   │   ├── poll/                # Polls (REST + WebSocket, persisted)
 │   │   ├── presence/            # Online status
 │   │   ├── typing/              # Typing indicators
-│   │   ├── search/              # Message search
+│   │   ├── search/              # Full-text message search (tsvector)
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, rate limiter
 │   └── src/main/resources/
@@ -195,7 +221,8 @@ ripplechat/
 │       ├── realtime/            # STOMP socket lifecycle
 │       ├── commands/            # Slash-command registry
 │       ├── components/          # UI components (+ ui/ Button/Input primitives)
-│       └── pages/               # Route-level views
+│       ├── pages/               # Route-level views
+│       └── ../e2e/              # Playwright end-to-end tests
 ├── docker-compose.yml           # PostgreSQL service
 └── .env.example                 # Environment template
 ```
@@ -204,13 +231,13 @@ ripplechat/
 
 ## 📸 Screenshots
 
-Screenshots live in [`docs/screenshots/`](docs/screenshots). Capture the running app (`docker compose up -d`, start the backend and frontend, open <http://localhost:5173>) — the channel view, a thread with reactions, message search, and dark mode show it off best — then drop the PNGs in and embed them here:
+**Channel** — live messages, reactions, a thread, markdown and a syntax-highlighted code block:
 
-```md
 ![Channel view](docs/screenshots/channel.png)
-![Dark mode](docs/screenshots/dark.png)
-![Thread & reactions](docs/screenshots/thread.png)
-```
+
+**Direct message** — a private 1:1 conversation:
+
+![Direct messages](docs/screenshots/direct-message.png)
 
 ---
 
