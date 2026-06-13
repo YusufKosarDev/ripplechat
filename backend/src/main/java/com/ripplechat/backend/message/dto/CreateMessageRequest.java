@@ -16,10 +16,18 @@ public record CreateMessageRequest(
 
         /** Optional image attachment URL (returned by POST /api/uploads/image). */
         @Size(max = 1024)
-        String attachmentUrl
+        String attachmentUrl,
+
+        /** When set, this message quotes that message (inline preview). */
+        UUID quotedMessageId
 ) {
-    /** Text/thread message without an attachment. */
+    /** Plain text / thread message, no attachment or quote. */
     public CreateMessageRequest(String content, UUID parentMessageId) {
-        this(content, parentMessageId, null);
+        this(content, parentMessageId, null, null);
+    }
+
+    /** Message with an attachment but no quote. */
+    public CreateMessageRequest(String content, UUID parentMessageId, String attachmentUrl) {
+        this(content, parentMessageId, attachmentUrl, null);
     }
 }

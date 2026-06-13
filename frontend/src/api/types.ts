@@ -107,6 +107,9 @@ export interface Message {
   editedAt: string | null
   deleted: boolean
   attachmentUrl: string | null
+  quotedMessageId: string | null
+  quotedSender: string | null
+  quotedContent: string | null
 }
 
 export interface MessageReactionUpdate {

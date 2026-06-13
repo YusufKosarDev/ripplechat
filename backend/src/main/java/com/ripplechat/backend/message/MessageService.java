@@ -107,6 +107,24 @@ public class MessageService {
             message.setParent(parent);
         }
 
+        // Quoted reply: denormalize a small preview (sender + snippet) of the quoted
+        // message. Ignored if the quote isn't a message in the same channel.
+        if (request.quotedMessageId() != null) {
+            messageRepository.findById(request.quotedMessageId())
+                    .filter(q -> q.getChannel().getId().equals(channelId))
+                    .ifPresent(q -> {
+                        message.setQuotedMessageId(q.getId());
+                        String quotedSenderName = q.getSender().getDisplayName() != null
+                                ? q.getSender().getDisplayName() : q.getSender().getUsername();
+                        message.setQuotedSender(quotedSenderName);
+                        String preview = q.isDeleted() || q.getContent() == null ? "" : q.getContent();
+                        if (preview.isBlank() && q.getAttachmentUrl() != null) {
+                            preview = "📷 Görsel";
+                        }
+                        message.setQuotedContent(preview.length() > 140 ? preview.substring(0, 140) : preview);
+                    });
+        }
+
         Message saved = messageRepository.saveAndFlush(message);
         MessageResponse response = MessageResponse.from(saved);
 

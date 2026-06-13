@@ -18,7 +18,10 @@ public record MessageResponse(
         ThreadSummary thread,
         Instant editedAt,
         boolean deleted,
-        String attachmentUrl
+        String attachmentUrl,
+        UUID quotedMessageId,
+        String quotedSender,
+        String quotedContent
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -36,6 +39,9 @@ public record MessageResponse(
                 thread,
                 message.getEditedAt(),
                 message.isDeleted(),
-                message.getAttachmentUrl());
+                message.getAttachmentUrl(),
+                message.getQuotedMessageId(),
+                message.getQuotedSender(),
+                message.getQuotedContent());
     }
 }

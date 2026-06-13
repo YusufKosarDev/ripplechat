@@ -239,10 +239,11 @@ export function sendChatMessage(
   content: string,
   parentMessageId?: string,
   attachmentUrl?: string,
+  quotedMessageId?: string,
 ) {
   client?.publish({
     destination: `/app/channels/${channelId}/send`,
-    body: JSON.stringify({ content, parentMessageId, attachmentUrl }),
+    body: JSON.stringify({ content, parentMessageId, attachmentUrl, quotedMessageId }),
   })
 }
 

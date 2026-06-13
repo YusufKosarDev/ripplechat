@@ -119,6 +119,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [editDraft, setEditDraft] = useState('')
   const [attachment, setAttachment] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -330,8 +331,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     if (!text && !attachment) return
     setCmdError(null)
 
-    // Slash commands apply to plain text only (not when an image is attached).
-    if (text.startsWith('/') && !attachment) {
+    // Slash commands apply to plain text only (not with an attachment or a quote).
+    if (text.startsWith('/') && !attachment && !replyingTo) {
       const parsed = parseCommand(text)!
       if (!parsed.command) {
         setCmdError(`Bilinmeyen komut: /${parsed.name}`)
@@ -350,9 +351,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       })
       if (!hadError) setDraft('')
     } else {
-      sendChatMessage(channel.id, text, undefined, attachment ?? undefined)
+      sendChatMessage(channel.id, text, undefined, attachment ?? undefined, replyingTo?.id)
       setDraft('')
       setAttachment(null)
+      setReplyingTo(null)
     }
     stopTyping()
   }
@@ -454,6 +456,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       !!otherLastRead && new Date(otherLastRead).getTime() >= new Date(msg.createdAt).getTime()
     return (
       <div>
+        {msg.quotedMessageId && (
+          <div className="mb-1 rounded-r border-l-2 border-accent/60 bg-surface-muted/60 py-0.5 pl-2 pr-2 text-xs">
+            <span className="font-medium text-fg-secondary">{msg.quotedSender}</span>
+            <span className="ml-1.5 text-fg-faint">{msg.quotedContent}</span>
+          </div>
+        )}
         {msg.content && <MessageContent content={msg.content} />}
         {msg.attachmentUrl && (
           <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
@@ -646,6 +654,17 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                             Yanıtla
                           </button>
                         )}
+                        {!msg.deleted && (
+                          <button
+                            onClick={() => {
+                              setReplyingTo(msg)
+                              inputRef.current?.focus()
+                            }}
+                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
+                          >
+                            Alıntıla
+                          </button>
+                        )}
                       </div>
                       {!msg.deleted && (
                         <div className="pl-12">
@@ -671,6 +690,25 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               <span className="min-w-0 flex-1 truncate text-right text-xs text-fg-muted">{typingText}</span>
             </div>
             {cmdError && <p className="mb-2 text-xs text-danger">{cmdError}</p>}
+            {replyingTo && (
+              <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-2 border-accent/60 bg-surface-muted px-2 py-1 text-xs">
+                <div className="min-w-0">
+                  <div className="font-medium text-fg-secondary">
+                    {(replyingTo.sender.displayName ?? replyingTo.sender.username)} kişisine yanıt
+                  </div>
+                  <div className="truncate text-fg-faint">
+                    {replyingTo.content || (replyingTo.attachmentUrl ? '📷 Görsel' : '')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyingTo(null)}
+                  className={`shrink-0 text-fg-muted transition hover:text-danger ${focusRing}`}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             {attachment && (
               <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-muted p-1 pr-2">
                 <img src={attachment} alt="" className="h-12 w-12 rounded object-cover" />

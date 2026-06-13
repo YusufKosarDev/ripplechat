@@ -72,6 +72,16 @@ public class Message {
     @Column(name = "attachment_url", length = 1024)
     private String attachmentUrl;
 
+    /** Quoted message reference + denormalized preview (sender + snippet), or null. */
+    @Column(name = "quoted_message_id")
+    private UUID quotedMessageId;
+
+    @Column(name = "quoted_sender")
+    private String quotedSender;
+
+    @Column(name = "quoted_content", columnDefinition = "text")
+    private String quotedContent;
+
     /** Soft delete: the row stays (threads/reactions intact) but content is cleared. */
     @Column(nullable = false)
     @ColumnDefault("false")
