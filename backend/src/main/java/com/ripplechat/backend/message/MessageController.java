@@ -67,6 +67,14 @@ public class MessageController {
         messageService.unpin(channelId, messageId, username);
     }
 
+    /** "Delete for me": hides the message from the caller's feed only. */
+    @PostMapping("/{messageId}/hide")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void hide(@PathVariable UUID channelId, @PathVariable UUID messageId,
+                     @AuthenticationPrincipal String username) {
+        messageService.hideForMe(channelId, messageId, username);
+    }
+
     @GetMapping
     public PageResponse<MessageResponse> list(
             @PathVariable UUID channelId,

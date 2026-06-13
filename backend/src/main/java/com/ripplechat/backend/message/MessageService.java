@@ -52,6 +52,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final MessageReactionService messageReactionService;
+    private final MessageHideRepository messageHideRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final RateLimiter rateLimiter;
 
@@ -187,7 +188,9 @@ public class MessageService {
         }
         requireMember(channelId, username);
 
-        var page = messageRepository.findByChannelIdAndParentIsNull(channelId, pageable);
+        User viewer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        var page = messageRepository.findChannelFeed(channelId, viewer.getId(), pageable);
         List<UUID> ids = page.getContent().stream().map(Message::getId).toList();
         Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(ids);
         Map<UUID, ThreadSummary> threads = threadSummariesByParent(ids);
@@ -287,6 +290,25 @@ public class MessageService {
         return messageRepository.findByChannelIdAndPinnedTrueAndDeletedFalseOrderByCreatedAtDesc(channelId).stream()
                 .map(MessageResponse::from)
                 .toList();
+    }
+
+    /** "Delete for me": hides the message from this user's feed only. */
+    @Transactional
+    public void hideForMe(UUID channelId, UUID messageId, String username) {
+        requireMember(channelId, username);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
+        if (!message.getChannel().getId().equals(channelId)) {
+            throw new ResourceNotFoundException("message not found in channel: " + messageId);
+        }
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        if (!messageHideRepository.existsByMessageIdAndUserId(messageId, user.getId())) {
+            MessageHide hide = new MessageHide();
+            hide.setMessageId(messageId);
+            hide.setUserId(user.getId());
+            messageHideRepository.save(hide);
+        }
     }
 
     private Message requireOwnMessage(UUID channelId, UUID messageId, String username) {

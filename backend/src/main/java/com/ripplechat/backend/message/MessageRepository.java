@@ -45,9 +45,24 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             """)
     List<Message> findForSearchByIds(@Param("ids") Collection<UUID> ids);
 
-    /** Top-level channel messages only (thread replies are excluded from the main feed). */
+    /**
+     * Top-level channel feed for a viewer: excludes thread replies and messages
+     * the viewer has hidden ("delete for me").
+     */
     @EntityGraph(attributePaths = "sender")
-    Page<Message> findByChannelIdAndParentIsNull(UUID channelId, Pageable pageable);
+    @Query(value = """
+            select m from Message m
+            where m.channel.id = :channelId and m.parent is null
+              and not exists (select 1 from MessageHide h where h.messageId = m.id and h.userId = :userId)
+            """,
+            countQuery = """
+            select count(m) from Message m
+            where m.channel.id = :channelId and m.parent is null
+              and not exists (select 1 from MessageHide h where h.messageId = m.id and h.userId = :userId)
+            """)
+    Page<Message> findChannelFeed(@Param("channelId") UUID channelId,
+                                  @Param("userId") UUID userId,
+                                  Pageable pageable);
 
     /** Replies belonging to a thread, oldest first. */
     @EntityGraph(attributePaths = "sender")

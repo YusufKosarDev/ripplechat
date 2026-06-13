@@ -6,6 +6,7 @@ import { joinChannel } from '../features/channels/channelsSlice'
 import {
   fetchMessages,
   fetchOlderMessages,
+  messageHidden,
   messageReactionsUpdated,
   messageReceived,
   messageUpdated,
@@ -490,7 +491,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             ✓✓
           </span>
         )}
-        {(mine || canDelete) && (
+        {!msg.deleted && (
           <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
             {mine && (
               <button onClick={() => startEdit(msg)} className={`rounded-lg hover:text-fg ${focusRing}`}>
@@ -499,9 +500,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             )}
             {canDelete && (
               <button onClick={() => onDelete(msg)} className={`rounded-lg hover:text-danger ${focusRing}`}>
-                Sil
+                Herkesten sil
               </button>
             )}
+            <button onClick={() => hideForMe(msg)} className={`rounded-lg hover:text-danger ${focusRing}`}>
+              Benden sil
+            </button>
           </span>
         )}
       </div>
@@ -551,6 +555,16 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       refreshPinned(selectedId)
     } catch {
       setCmdError('Sabitleme güncellenemedi.')
+    }
+  }
+
+  const hideForMe = async (msg: Message) => {
+    if (!selectedId) return
+    try {
+      await client.post(`/api/channels/${selectedId}/messages/${msg.id}/hide`)
+      dispatch(messageHidden({ channelId: selectedId, messageId: msg.id }))
+    } catch {
+      setCmdError('Mesaj gizlenemedi.')
     }
   }
 

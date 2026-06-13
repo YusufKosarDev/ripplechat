@@ -82,6 +82,13 @@ const messagesSlice = createSlice({
         msg.reactions = reactions
       }
     },
+    // Removes a message from the local view ("delete for me").
+    messageHidden(state, action: PayloadAction<{ channelId: string; messageId: string }>) {
+      const list = state.byChannel[action.payload.channelId]
+      if (list) {
+        state.byChannel[action.payload.channelId] = list.filter((m) => m.id !== action.payload.messageId)
+      }
+    },
     // Replaces a top-level message in place (edit/delete broadcast).
     messageUpdated(state, action: PayloadAction<Message>) {
       const updated = action.payload
@@ -140,6 +147,6 @@ const messagesSlice = createSlice({
   },
 })
 
-export const { messageReceived, messageUpdated, messageReactionsUpdated, threadSummaryUpdated } =
+export const { messageReceived, messageHidden, messageUpdated, messageReactionsUpdated, threadSummaryUpdated } =
   messagesSlice.actions
 export default messagesSlice.reducer
