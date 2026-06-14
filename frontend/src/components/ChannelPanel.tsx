@@ -17,6 +17,7 @@ import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlic
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
 import { toggleMute } from '../features/muted/mutedSlice'
+import { setJumpTarget } from '../features/ui/uiSlice'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
@@ -157,6 +158,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const partnerOnline = dm?.otherUser ? onlineUserIds.includes(dm.otherUser.id) : false
   const dmPartner = dm?.otherUser ?? null
   const blockedIds = useAppSelector((state) => state.blocks.ids)
+  const jumpTargetId = useAppSelector((state) => state.ui.jumpTargetId)
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -295,6 +297,23 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   useEffect(() => {
     if (selectedId && messages.length > 0) sendRead(selectedId)
   }, [selectedId, messages.length])
+
+  // Scroll to and briefly highlight a message jumped to from search.
+  useEffect(() => {
+    if (!jumpTargetId) return
+    const el = document.getElementById(`msg-${jumpTargetId}`)
+    if (!el) {
+      dispatch(setJumpTarget(null)) // not in the loaded page
+      return
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('ring-2', 'ring-indigo-400')
+    const timer = setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-indigo-400')
+      dispatch(setJumpTarget(null))
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [jumpTargetId, messages.length, dispatch])
 
   const onMessagesScroll = () => {
     const el = scrollRef.current
@@ -774,6 +793,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                   return (
                     <div
                       key={msg.id}
+                      id={`msg-${msg.id}`}
                       className="group -mx-2 rounded-lg px-2 transition-colors hover:bg-surface-muted/50"
                     >
                       {showDate && (

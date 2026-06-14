@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -28,30 +29,57 @@ public class SearchService {
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> searchMessages(String username, String query) {
+        return searchMessages(username, query, null, null, null);
+    }
+
+    /**
+     * Full-text search with optional filters: a single channel, a sender (matched
+     * on username/display name), and a "since" date. The FTS ranking is done in
+     * one indexed query; sender/date filters are applied to the (≤50) ranked rows.
+     */
+    @Transactional(readOnly = true)
+    public List<SearchResultResponse> searchMessages(String username, String query, UUID channelId,
+                                                     String from, Instant since) {
         String tsquery = toPrefixTsQuery(query);
         if (tsquery.isEmpty()) {
             return List.of();
         }
-        List<UUID> channelIds = membershipRepository.findByUser_Username(username).stream()
-                .map(m -> m.getChannel().getId())
-                .toList();
+        List<UUID> channelIds;
+        if (channelId != null) {
+            if (!membershipRepository.existsByChannelIdAndUser_Username(channelId, username)) {
+                return List.of();
+            }
+            channelIds = List.of(channelId);
+        } else {
+            channelIds = membershipRepository.findByUser_Username(username).stream()
+                    .map(m -> m.getChannel().getId())
+                    .toList();
+        }
         if (channelIds.isEmpty()) {
             return List.of();
         }
 
-        // Two steps so the FTS ranking happens in one indexed native query, then
-        // the (≤50) rows are fetch-joined without N+1 and re-ordered by rank.
         List<UUID> rankedIds = messageRepository.searchMessageIds(channelIds, tsquery, PageRequest.of(0, LIMIT));
         if (rankedIds.isEmpty()) {
             return List.of();
         }
         Map<UUID, Message> byId = messageRepository.findForSearchByIds(rankedIds).stream()
                 .collect(Collectors.toMap(Message::getId, Function.identity()));
+        String fromLower = (from == null || from.isBlank()) ? null : from.trim().toLowerCase();
         return rankedIds.stream()
                 .map(byId::get)
                 .filter(Objects::nonNull)
+                .filter(m -> fromLower == null || matchesSender(m, fromLower))
+                .filter(m -> since == null || !m.getCreatedAt().isBefore(since))
                 .map(SearchResultResponse::from)
                 .toList();
+    }
+
+    private boolean matchesSender(Message message, String fromLower) {
+        String username = message.getSender().getUsername().toLowerCase();
+        String display = message.getSender().getDisplayName() == null
+                ? "" : message.getSender().getDisplayName().toLowerCase();
+        return username.contains(fromLower) || display.contains(fromLower);
     }
 
     /**

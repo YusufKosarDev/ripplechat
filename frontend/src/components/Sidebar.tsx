@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
+import { setJumpTarget } from '../features/ui/uiSlice'
 import { createChannel, createGroupDm, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
@@ -256,8 +257,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       {showSearch && (
         <SearchModal
-          onPick={(channelId) => {
+          onPick={(channelId, messageId) => {
             dispatch(selectChannel(channelId))
+            dispatch(setJumpTarget(messageId))
             setShowSearch(false)
             onClose()
           }}
