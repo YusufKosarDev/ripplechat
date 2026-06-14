@@ -18,6 +18,7 @@ import { closeThread, openThread, threadReplyUpdated } from '../features/threads
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
 import { toggleMute } from '../features/muted/mutedSlice'
 import { setJumpTarget } from '../features/ui/uiSlice'
+import { setCategory, toggleArchive } from '../features/channelOrg/channelOrgSlice'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
@@ -159,6 +160,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const dmPartner = dm?.otherUser ?? null
   const blockedIds = useAppSelector((state) => state.blocks.ids)
   const jumpTargetId = useAppSelector((state) => state.ui.jumpTargetId)
+  const isArchived = useAppSelector((state) => (selectedId ? !!state.channelOrg.archived[selectedId] : false))
+  const currentCategory = useAppSelector((state) => (selectedId ? (state.channelOrg.category[selectedId] ?? '') : ''))
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -671,6 +674,30 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           >
             {isMuted ? '🔕' : '🔔'}
           </Button>
+          {!dm && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                title="Kategori"
+                onClick={() => {
+                  if (!selectedId) return
+                  const name = window.prompt('Kategori adı (boş = kategorisiz):', currentCategory)
+                  if (name !== null) dispatch(setCategory({ channelId: selectedId, name: name.trim() }))
+                }}
+              >
+                📁
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                title={isArchived ? 'Arşivden çıkar' : 'Arşivle'}
+                onClick={() => selectedId && dispatch(toggleArchive(selectedId))}
+              >
+                {isArchived ? '📂' : '🗄️'}
+              </Button>
+            </>
+          )}
           {dmPartner && (
             <Button
               variant="secondary"

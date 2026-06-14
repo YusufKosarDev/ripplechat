@@ -13,6 +13,7 @@ import SettingsModal from './SettingsModal'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import type { Channel } from '../api/types'
 
 interface SidebarProps {
   open: boolean
@@ -28,6 +29,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const unreadCounts = useAppSelector((state) => state.unread.counts)
   const mentions = useAppSelector((state) => state.unread.mentions)
   const muted = useAppSelector((state) => state.muted.muted)
+  const category = useAppSelector((state) => state.channelOrg.category)
+  const archived = useAppSelector((state) => state.channelOrg.archived)
   const selfOnline = user ? onlineUserIds.includes(user.id) : false
 
   const [newName, setNewName] = useState('')
@@ -35,6 +38,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showNewDm, setShowNewDm] = useState(false)
+  const [collapsedCats, setCollapsedCats] = useState<string[]>([])
+  const [showArchived, setShowArchived] = useState(false)
 
   const onCreate = (e: FormEvent) => {
     e.preventDefault()
@@ -57,6 +62,53 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   const loadingChannels = status === 'loading' && items.length === 0
   const displayName = user?.displayName ?? user?.username ?? ''
+
+  const activeItems = items.filter((c) => !archived[c.id])
+  const archivedItems = items.filter((c) => archived[c.id])
+  const uncategorized = activeItems.filter((c) => !category[c.id])
+  const categoryNames = Array.from(
+    new Set(activeItems.map((c) => category[c.id]).filter((x): x is string => !!x)),
+  ).sort()
+  const toggleCat = (cat: string) =>
+    setCollapsedCats((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]))
+
+  const channelRow = (channel: Channel) => {
+    const unread = selectedId === channel.id ? 0 : (unreadCounts[channel.id] ?? 0)
+    return (
+      <li key={channel.id}>
+        <button
+          onClick={() => {
+            dispatch(selectChannel(channel.id))
+            onClose()
+          }}
+          className={`${focusRing} flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+            selectedId === channel.id
+              ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
+              : unread > 0
+                ? 'font-semibold text-fg hover:bg-surface-muted'
+                : 'text-fg-secondary hover:bg-surface-muted'
+          }`}
+        >
+          <span className="truncate">
+            <span className="text-fg-faint">#</span> {channel.name}
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            {muted[channel.id] && <span className="text-fg-faint" title="Sessiz">🔕</span>}
+            {mentions[channel.id] && selectedId !== channel.id && (
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
+                @
+              </span>
+            )}
+            {unread > 0 && (
+              <span className="rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
+          </span>
+        </button>
+      </li>
+    )
+  }
 
   return (
     <>
@@ -114,52 +166,48 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           )}
 
           {!loadingChannels && (
-            <ul className="mt-2 space-y-0.5">
-              {items.map((channel) => {
-                const unread = selectedId === channel.id ? 0 : (unreadCounts[channel.id] ?? 0)
+            <div className="mt-2">
+              <ul className="space-y-0.5">{uncategorized.map(channelRow)}</ul>
+
+              {categoryNames.map((cat) => {
+                const collapsed = collapsedCats.includes(cat)
                 return (
-                  <li key={channel.id}>
+                  <div key={cat} className="mt-2">
                     <button
-                      onClick={() => {
-                        dispatch(selectChannel(channel.id))
-                        onClose()
-                      }}
-                      className={`${focusRing} flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
-                        selectedId === channel.id
-                          ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
-                          : unread > 0
-                            ? 'font-semibold text-fg hover:bg-surface-muted'
-                            : 'text-fg-secondary hover:bg-surface-muted'
-                      }`}
+                      onClick={() => toggleCat(cat)}
+                      className={`flex w-full items-center gap-1 px-2 text-2xs font-semibold uppercase tracking-wider text-fg-faint transition hover:text-fg-muted ${focusRing}`}
                     >
-                      <span className="truncate">
-                        <span className="text-fg-faint">#</span> {channel.name}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1">
-                        {muted[channel.id] && <span className="text-fg-faint" title="Sessiz">🔕</span>}
-                        {mentions[channel.id] && selectedId !== channel.id && (
-                          <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
-                            @
-                          </span>
-                        )}
-                        {unread > 0 && (
-                          <span className="rounded-full bg-brand px-2 py-0.5 text-2xs font-semibold text-white">
-                            {unread > 99 ? '99+' : unread}
-                          </span>
-                        )}
-                      </span>
+                      <span className="w-2">{collapsed ? '▸' : '▾'}</span> {cat}
                     </button>
-                  </li>
+                    {!collapsed && (
+                      <ul className="mt-1 space-y-0.5">
+                        {activeItems.filter((c) => category[c.id] === cat).map(channelRow)}
+                      </ul>
+                    )}
+                  </div>
                 )
               })}
+
+              {archivedItems.length > 0 && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setShowArchived((s) => !s)}
+                    className={`flex w-full items-center gap-1 px-2 text-2xs font-semibold uppercase tracking-wider text-fg-faint transition hover:text-fg-muted ${focusRing}`}
+                  >
+                    <span className="w-2">{showArchived ? '▾' : '▸'}</span> Arşivlenenler ({archivedItems.length})
+                  </button>
+                  {showArchived && <ul className="mt-1 space-y-0.5 opacity-70">{archivedItems.map(channelRow)}</ul>}
+                </div>
+              )}
+
               {items.length === 0 && (
-                <li className="px-2 py-3 text-sm text-fg-muted">
+                <p className="px-2 py-3 text-sm text-fg-muted">
                   Henüz kanalın yok.
                   <br />
                   <span className="text-fg-faint">Aşağıdan bir tane oluştur.</span>
-                </li>
+                </p>
               )}
-            </ul>
+            </div>
           )}
 
           <div className="mt-5 flex items-center justify-between px-2">
