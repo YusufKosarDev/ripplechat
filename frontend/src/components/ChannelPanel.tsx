@@ -98,12 +98,13 @@ function makeFlyingEmoji(emoji: string): FlyingEmoji {
 // Presents a selected direct message as a channel so the panel can render it
 // with the existing message/typing/reaction machinery unchanged.
 function dmAsChannel(dm: DirectChannel): Channel {
+  const name = dm.group ? (dm.name ?? 'Grup') : (dm.otherUser?.displayName ?? dm.otherUser?.username ?? 'DM')
   return {
     id: dm.id,
-    name: dm.otherUser.displayName ?? dm.otherUser.username,
+    name,
     description: null,
     isPrivate: true,
-    createdBy: dm.otherUser,
+    createdBy: dm.otherUser ?? dm.participants[0],
     createdAt: dm.createdAt,
   }
 }
@@ -151,8 +152,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const dm = selectedId ? (dms.find((d) => d.id === selectedId) ?? null) : null
   const channel = items.find((c) => c.id === selectedId) ?? (dm ? dmAsChannel(dm) : null)
-  const otherLastRead = dm ? reads?.[dm.otherUser.id] : undefined
-  const partnerOnline = dm ? onlineUserIds.includes(dm.otherUser.id) : false
+  const otherLastRead = dm?.otherUser ? reads?.[dm.otherUser.id] : undefined
+  const partnerOnline = dm?.otherUser ? onlineUserIds.includes(dm.otherUser.id) : false
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -496,7 +497,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           </a>
         )}
         {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
-        {dm && mine && !msg.deleted && (
+        {dm && dm.otherUser && mine && !msg.deleted && (
           <span
             title={readByOther ? 'Okundu' : 'İletildi'}
             className={`ml-1.5 align-middle text-xs ${readByOther ? 'text-accent' : 'text-fg-faint'}`}
@@ -600,7 +601,17 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           <Button variant="secondary" size="sm" onClick={onOpenSidebar} className="shrink-0 md:hidden" title="Kanallar">
             ☰
           </Button>
-          {dm ? (
+          {dm && dm.group ? (
+            <>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-lg">
+                👥
+              </span>
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold tracking-tight">{channel.name}</h2>
+                <p className="truncate text-sm text-fg-muted">{dm.participants.length + 1} kişi</p>
+              </div>
+            </>
+          ) : dm && dm.otherUser ? (
             <>
               <Avatar
                 name={channel.name}
@@ -643,7 +654,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               📌 {pinned.length}
             </Button>
           )}
-          {!dm && (
+          {(!dm || dm.group) && (
             <Button variant="secondary" size="sm" onClick={() => setShowMembers(true)}>
               Üyeler ({members.length})
             </Button>

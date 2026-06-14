@@ -77,11 +77,14 @@ export interface ReadReceipt {
   lastReadAt: string
 }
 
-// A one-to-one direct message, from the current user's perspective. The id is
-// the underlying channel id (used for messages/WebSocket like any channel).
+// A direct conversation: a one-to-one DM (otherUser set) or a group (group=true,
+// name + participants). The id is the underlying channel id.
 export interface DirectChannel {
   id: string
-  otherUser: UserSummary
+  group: boolean
+  name: string | null
+  otherUser: UserSummary | null
+  participants: UserSummary[]
   createdAt: string
 }
 

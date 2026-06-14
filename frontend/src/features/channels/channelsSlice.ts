@@ -72,6 +72,15 @@ export const openDm = createAsyncThunk('channels/openDm', async (userId: string)
   return data
 })
 
+// Creates a multi-party group DM, then selects it.
+export const createGroupDm = createAsyncThunk(
+  'channels/createGroupDm',
+  async (body: { userIds: string[]; name?: string }) => {
+    const { data } = await client.post<DirectChannel>('/api/dm/group', body)
+    return data
+  },
+)
+
 export const updateChannel = createAsyncThunk(
   'channels/update',
   async ({ channelId, name, description }: { channelId: string; name: string; description?: string }) => {
@@ -127,6 +136,12 @@ const channelsSlice = createSlice({
         state.dms = action.payload
       })
       .addCase(openDm.fulfilled, (state, action) => {
+        if (!state.dms.some((d) => d.id === action.payload.id)) {
+          state.dms.unshift(action.payload)
+        }
+        state.selectedId = action.payload.id
+      })
+      .addCase(createGroupDm.fulfilled, (state, action) => {
         if (!state.dms.some((d) => d.id === action.payload.id)) {
           state.dms.unshift(action.payload)
         }

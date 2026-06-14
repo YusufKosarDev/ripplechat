@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
-import { createChannel, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
+import { createChannel, createGroupDm, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
 import NewDmModal from './NewDmModal'
@@ -175,9 +175,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
           <ul className="mt-2 space-y-0.5">
             {dms.map((d) => {
-              const name = d.otherUser.displayName ?? d.otherUser.username
+              const name = d.group ? (d.name ?? 'Grup') : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
               const unread = selectedId === d.id ? 0 : (unreadCounts[d.id] ?? 0)
-              const online = onlineUserIds.includes(d.otherUser.id)
+              const online = !d.group && d.otherUser ? onlineUserIds.includes(d.otherUser.id) : false
               return (
                 <li key={d.id}>
                   <button
@@ -194,7 +194,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <Avatar name={name} color={d.otherUser.avatarColor} imageUrl={d.otherUser.avatarUrl} online={online} size="sm" />
+                      {d.group ? (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-sm">
+                          👥
+                        </span>
+                      ) : (
+                        <Avatar name={name} color={d.otherUser?.avatarColor} imageUrl={d.otherUser?.avatarUrl} online={online} size="sm" />
+                      )}
                       <span className="truncate">{name}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1">
@@ -263,8 +269,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       {showNewDm && (
         <NewDmModal
-          onPick={(userId) => {
-            dispatch(openDm(userId))
+          onStart={(userIds, name) => {
+            if (userIds.length === 1) dispatch(openDm(userIds[0]))
+            else dispatch(createGroupDm({ userIds, name }))
             setShowNewDm(false)
             onClose()
           }}

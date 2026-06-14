@@ -46,14 +46,20 @@ export default function ForwardModal({ onPick, onClose }: ForwardModalProps) {
             </div>
           )}
           {dms.map((d) => {
-            const name = d.otherUser.displayName ?? d.otherUser.username
+            const name = d.group ? (d.name ?? 'Grup') : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
             return (
               <button
                 key={d.id}
                 onClick={() => onPick(d.id)}
                 className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition hover:bg-surface-muted ${focusRing}`}
               >
-                <Avatar name={name} color={d.otherUser.avatarColor} imageUrl={d.otherUser.avatarUrl} size="sm" />
+                {d.group ? (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-sm">
+                    👥
+                  </span>
+                ) : (
+                  <Avatar name={name} color={d.otherUser?.avatarColor} imageUrl={d.otherUser?.avatarUrl} size="sm" />
+                )}
                 <span className="truncate text-fg">{name}</span>
               </button>
             )
