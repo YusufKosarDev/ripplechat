@@ -71,6 +71,31 @@
 			<version>2.4.0</version>
 		</dependency>
 
+		<!-- Web Push (VAPID) — inactive unless VAPID keys are set. -->
+		<dependency>
+			<groupId>nl.martijndwars</groupId>
+			<artifactId>web-push</artifactId>
+			<version>5.1.2</version>
+		</dependency>
+		<!-- BouncyCastle provider, required by web-push for the VAPID/ECDH crypto. -->
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.78.1</version>
+		</dependency>
+		<!-- web-push's PushService.send returns an Apache HttpClient 4 response type. -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.5.14</version>
+		</dependency>
+		<!-- web-push's PushService.send declares a jose4j checked exception. -->
+		<dependency>
+			<groupId>org.bitbucket.b_c</groupId>
+			<artifactId>jose4j</artifactId>
+			<version>0.9.4</version>
+		</dependency>
+
 		<!-- Schema migrations (used by the prod profile; disabled in dev). -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>

@@ -15,10 +15,12 @@ import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.message.dto.ThreadSummary;
 import com.ripplechat.backend.message.dto.ThreadUpdate;
+import com.ripplechat.backend.push.MessageSentEvent;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.dto.UserSummary;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -55,6 +57,7 @@ public class MessageService {
     private final MessageHideRepository messageHideRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final RateLimiter rateLimiter;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Persists a message and broadcasts it. A top-level message goes to the main
@@ -137,6 +140,7 @@ public class MessageService {
             messagingTemplate.convertAndSend("/topic/channels/" + channelId + "/thread-updates",
                     new ThreadUpdate(parentId, threadSummary(parentId)));
         }
+        eventPublisher.publishEvent(new MessageSentEvent(channelId, saved.getId(), username));
         return response;
     }
 

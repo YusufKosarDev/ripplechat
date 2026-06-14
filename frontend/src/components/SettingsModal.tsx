@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { client } from '../api/client'
+import { disablePush, enablePush, isPushSubscribed, pushSupported } from '../push'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { changePassword, logout, updateMe } from '../features/auth/authSlice'
 import { AVATAR_COLORS } from './Avatar'
@@ -31,6 +32,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [newPassword, setNewPassword] = useState('')
   const [pwMsg, setPwMsg] = useState<string | null>(null)
   const [pwError, setPwError] = useState(false)
+
+  const [pushOn, setPushOn] = useState(false)
+  const [pushMsg, setPushMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    isPushSubscribed().then(setPushOn)
+  }, [])
 
   if (!user) return null
 
@@ -82,6 +90,18 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const onLogout = () => {
     dispatch(logout())
     navigate('/login')
+  }
+
+  const togglePush = async () => {
+    setPushMsg(null)
+    if (pushOn) {
+      await disablePush()
+      setPushOn(false)
+    } else {
+      const ok = await enablePush()
+      setPushOn(ok)
+      if (!ok) setPushMsg('Bildirim açılamadı — izin verilmedi veya sunucuda yapılandırılmamış.')
+    }
   }
 
   const previewName = displayName.trim() || user.username
@@ -156,6 +176,19 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           <span className="text-sm text-fg-secondary">Tema</span>
           <ThemeToggle />
         </div>
+
+        {/* Push notifications */}
+        {pushSupported() && (
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <div className="min-w-0">
+              <div className="text-sm text-fg-secondary">Tarayıcı bildirimleri</div>
+              {pushMsg && <div className="mt-0.5 text-xs text-fg-muted">{pushMsg}</div>}
+            </div>
+            <Button variant="secondary" size="sm" onClick={togglePush}>
+              {pushOn ? 'Kapat' : 'Aç'}
+            </Button>
+          </div>
+        )}
 
         {/* Password */}
         <div className="mt-6 border-t border-border pt-4">
