@@ -44,8 +44,9 @@ public class MessageService {
 
     private static final int MAX_LAST_REPLIERS = 3;
     private static final int MAX_MESSAGE_LENGTH = 4000;
-    // Attachment URLs must be ones we issued (Cloudinary), never arbitrary client input.
-    private static final String ALLOWED_ATTACHMENT_PREFIX = "https://res.cloudinary.com/";
+    // Attachment URLs must be ones we issued (Cloudinary uploads) or a GIF picked
+    // from Giphy — never arbitrary client input.
+    private static final String CLOUDINARY_PREFIX = "https://res.cloudinary.com/";
     // Send throttle: 10-message burst, then ~5/sec sustained per user.
     private static final double SEND_BURST = 10;
     private static final double SEND_REFILL_PER_SEC = 5;
@@ -81,7 +82,7 @@ public class MessageService {
         if (content.length() > MAX_MESSAGE_LENGTH) {
             throw new BadRequestException("content must be at most " + MAX_MESSAGE_LENGTH + " characters");
         }
-        if (hasAttachment && !attachmentUrl.startsWith(ALLOWED_ATTACHMENT_PREFIX)) {
+        if (hasAttachment && !isAllowedAttachmentUrl(attachmentUrl)) {
             throw new BadRequestException("invalid attachment url");
         }
 
@@ -385,6 +386,19 @@ public class MessageService {
     private void requireMember(UUID channelId, String username) {
         if (!membershipRepository.existsByChannelIdAndUser_Username(channelId, username)) {
             throw new ForbiddenException("not a member of channel: " + channelId);
+        }
+    }
+
+    /** Allows our own Cloudinary uploads and GIFs picked from Giphy. */
+    private boolean isAllowedAttachmentUrl(String url) {
+        if (url.startsWith(CLOUDINARY_PREFIX)) {
+            return true;
+        }
+        try {
+            String host = java.net.URI.create(url).getHost();
+            return host != null && (host.equals("giphy.com") || host.endsWith(".giphy.com"));
+        } catch (Exception e) {
+            return false;
         }
     }
 }

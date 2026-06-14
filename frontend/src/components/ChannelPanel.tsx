@@ -24,6 +24,8 @@ import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
 import MediaGalleryModal from './MediaGalleryModal'
+import EmojiPicker from './EmojiPicker'
+import GifPicker from './GifPicker'
 import {
   sendChatMessage,
   sendDeleteMessage,
@@ -152,6 +154,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [pinned, setPinned] = useState<Message[]>([])
   const [showPinned, setShowPinned] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [showGif, setShowGif] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -644,6 +648,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }
   }
 
+  const onPickGif = (url: string) => {
+    sendChatMessage(channel.id, '', undefined, url, undefined, undefined, 'image')
+    setShowGif(false)
+  }
+
   const onForward = async (targetChannelId: string) => {
     const source = forwardingMsg
     setForwardingMsg(null)
@@ -1026,11 +1035,41 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                aria-label="Görsel ekle"
-                title="Görsel ekle"
+                aria-label="Dosya ekle"
+                title="Dosya ekle"
               >
                 {uploading ? '…' : '📎'}
               </Button>
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowEmoji((s) => !s)
+                    setShowGif(false)
+                  }}
+                  title="Emoji"
+                >
+                  😀
+                </Button>
+                {showEmoji && (
+                  <EmojiPicker onPick={(e) => setDraft((d) => d + e)} onClose={() => setShowEmoji(false)} />
+                )}
+              </div>
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowGif((s) => !s)
+                    setShowEmoji(false)
+                  }}
+                  title="GIF"
+                >
+                  GIF
+                </Button>
+                {showGif && <GifPicker onPick={onPickGif} onClose={() => setShowGif(false)} />}
+              </div>
               <Textarea
                 ref={inputRef}
                 value={draft}
