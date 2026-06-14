@@ -8,7 +8,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Self-service user endpoints. A user may only read and modify their own
@@ -31,6 +35,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final BlockService blockService;
 
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal String username) {
@@ -55,5 +60,23 @@ public class UserController {
     public void changePassword(@RequestBody ChangePasswordRequest request,
                                @AuthenticationPrincipal String username) {
         userService.changePassword(username, request);
+    }
+
+    /** Users the caller has blocked. */
+    @GetMapping("/blocks")
+    public List<UserSummary> blocks(@AuthenticationPrincipal String username) {
+        return blockService.listBlocked(username);
+    }
+
+    @PostMapping("/{userId}/block")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void block(@PathVariable UUID userId, @AuthenticationPrincipal String username) {
+        blockService.block(username, userId);
+    }
+
+    @DeleteMapping("/{userId}/block")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unblock(@PathVariable UUID userId, @AuthenticationPrincipal String username) {
+        blockService.unblock(username, userId);
     }
 }

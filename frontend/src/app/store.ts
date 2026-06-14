@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from '../features/auth/authSlice'
+import blocksReducer from '../features/blocks/blocksSlice'
 import channelsReducer from '../features/channels/channelsSlice'
 import connectionReducer from '../features/connection/connectionSlice'
 import messagesReducer from '../features/messages/messagesSlice'
@@ -14,6 +15,7 @@ import unreadReducer from '../features/unread/unreadSlice'
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    blocks: blocksReducer,
     channels: channelsReducer,
     connection: connectionReducer,
     messages: messagesReducer,

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { deleteChannel, kickMember, setMemberRole, updateChannel } from '../features/channels/channelsSlice'
+import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import type { MemberResponse, MembershipRole } from '../api/types'
 import Avatar from './Avatar'
 import Button from './ui/Button'
@@ -34,6 +35,7 @@ export default function ChannelMembersModal({
 }: ChannelMembersModalProps) {
   const dispatch = useAppDispatch()
   const channel = useAppSelector((state) => state.channels.items.find((c) => c.id === channelId))
+  const blockedIds = useAppSelector((state) => state.blocks.ids)
   const isOwner = myRole === 'OWNER'
 
   const [name, setName] = useState(channel?.name ?? '')
@@ -77,29 +79,48 @@ export default function ChannelMembersModal({
                   </span>
                   <RoleBadge role={m.role} />
                 </span>
-                {canManage && (
-                  <span className="flex shrink-0 gap-2 text-xs">
-                    {m.role === 'MEMBER' ? (
+                {!isSelf && (
+                  <span className="flex shrink-0 items-center gap-2 text-xs">
+                    {canManage && (
+                      <>
+                        {m.role === 'MEMBER' ? (
+                          <button
+                            onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MODERATOR' }))}
+                            className={`rounded-lg text-accent transition hover:text-accent-hover ${focusRing}`}
+                          >
+                            Mod yap
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MEMBER' }))}
+                            className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
+                          >
+                            Mod al
+                          </button>
+                        )}
+                        <button
+                          onClick={() => dispatch(kickMember({ channelId, userId: m.user.id }))}
+                          className={`rounded-lg text-danger transition hover:text-danger-hover ${focusRing}`}
+                        >
+                          Çıkar
+                        </button>
+                      </>
+                    )}
+                    {blockedIds.includes(m.user.id) ? (
                       <button
-                        onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MODERATOR' }))}
-                        className={`rounded-lg text-accent transition hover:text-accent-hover ${focusRing}`}
+                        onClick={() => dispatch(unblockUser(m.user.id))}
+                        className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
                       >
-                        Mod yap
+                        Engeli kaldır
                       </button>
                     ) : (
                       <button
-                        onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MEMBER' }))}
-                        className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
+                        onClick={() => dispatch(blockUser(m.user.id))}
+                        className={`rounded-lg text-danger transition hover:text-danger-hover ${focusRing}`}
                       >
-                        Mod al
+                        Engelle
                       </button>
                     )}
-                    <button
-                      onClick={() => dispatch(kickMember({ channelId, userId: m.user.id }))}
-                      className={`rounded-lg text-danger transition hover:text-danger-hover ${focusRing}`}
-                    >
-                      Çıkar
-                    </button>
                   </span>
                 )}
               </li>

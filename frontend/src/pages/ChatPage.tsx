@@ -7,6 +7,7 @@ import { setConnectionStatus } from '../features/connection/connectionSlice'
 import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
 import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice'
 import { addMention, incrementUnread } from '../features/unread/unreadSlice'
+import { fetchBlocks } from '../features/blocks/blocksSlice'
 import { connectChat, disconnectChat, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
@@ -28,6 +29,7 @@ export default function ChatPage() {
   const currentUserId = useAppSelector((state) => state.auth.user?.id)
   const currentUsername = useAppSelector((state) => state.auth.user?.username)
   const muted = useAppSelector((state) => state.muted.muted)
+  const blockedIds = useAppSelector((state) => state.blocks.ids)
   const totalUnread = useAppSelector((state) =>
     Object.values(state.unread.counts).reduce((sum, n) => sum + n, 0),
   )
@@ -42,6 +44,8 @@ export default function ChatPage() {
   currentUsernameRef.current = currentUsername
   const mutedRef = useRef(muted)
   mutedRef.current = muted
+  const blockedRef = useRef(blockedIds)
+  blockedRef.current = blockedIds
 
   useEffect(() => {
     connectChat({
@@ -62,6 +66,7 @@ export default function ChatPage() {
     dispatch(fetchOnline())
     dispatch(fetchChannels())
     dispatch(fetchDms())
+    dispatch(fetchBlocks())
     return () => disconnectChat()
   }, [dispatch, navigate])
 
@@ -70,6 +75,7 @@ export default function ChatPage() {
   useEffect(() => {
     const ids = channelIds ? channelIds.split(',') : []
     watchAllChannels(ids, (msg) => {
+      if (blockedRef.current.includes(msg.sender.id)) return
       dispatch(messageReceived(msg))
       if (
         msg.channelId !== selectedIdRef.current &&

@@ -54,11 +54,13 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             select m from Message m
             where m.channel.id = :channelId and m.parent is null
               and not exists (select 1 from MessageHide h where h.messageId = m.id and h.userId = :userId)
+              and not exists (select 1 from UserBlock b where b.blockerId = :userId and b.blockedId = m.sender.id)
             """,
             countQuery = """
             select count(m) from Message m
             where m.channel.id = :channelId and m.parent is null
               and not exists (select 1 from MessageHide h where h.messageId = m.id and h.userId = :userId)
+              and not exists (select 1 from UserBlock b where b.blockerId = :userId and b.blockedId = m.sender.id)
             """)
     Page<Message> findChannelFeed(@Param("channelId") UUID channelId,
                                   @Param("userId") UUID userId,

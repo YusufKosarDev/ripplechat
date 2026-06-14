@@ -5,8 +5,10 @@ import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
 import com.ripplechat.backend.common.exception.BadRequestException;
+import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.user.User;
+import com.ripplechat.backend.user.UserBlockRepository;
 import com.ripplechat.backend.user.UserRepository;
 import com.ripplechat.backend.user.dto.UserSummary;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class DirectMessageService {
     private final ChannelRepository channelRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final UserRepository userRepository;
+    private final UserBlockRepository blockRepository;
 
     /** Returns the existing DM with the other user, creating it on first contact. */
     @Transactional
@@ -42,6 +45,11 @@ public class DirectMessageService {
         }
         User other = userRepository.findById(otherUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + otherUserId));
+
+        if (blockRepository.existsByBlockerIdAndBlockedId(me.getId(), other.getId())
+                || blockRepository.existsByBlockerIdAndBlockedId(other.getId(), me.getId())) {
+            throw new ForbiddenException("cannot message a blocked user");
+        }
 
         String key = dmKey(me.getId(), other.getId());
         Channel channel = channelRepository.findByDmKey(key).orElseGet(() -> createDm(me, other, key));

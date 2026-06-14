@@ -17,6 +17,7 @@ import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlic
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
 import { toggleMute } from '../features/muted/mutedSlice'
+import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
@@ -154,6 +155,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const channel = items.find((c) => c.id === selectedId) ?? (dm ? dmAsChannel(dm) : null)
   const otherLastRead = dm?.otherUser ? reads?.[dm.otherUser.id] : undefined
   const partnerOnline = dm?.otherUser ? onlineUserIds.includes(dm.otherUser.id) : false
+  const dmPartner = dm?.otherUser ?? null
+  const blockedIds = useAppSelector((state) => state.blocks.ids)
   const messages = selectedId ? (byChannel[selectedId] ?? []) : []
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
@@ -649,6 +652,17 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           >
             {isMuted ? '🔕' : '🔔'}
           </Button>
+          {dmPartner && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                dispatch(blockedIds.includes(dmPartner.id) ? unblockUser(dmPartner.id) : blockUser(dmPartner.id))
+              }
+            >
+              {blockedIds.includes(dmPartner.id) ? 'Engeli kaldır' : 'Engelle'}
+            </Button>
+          )}
           {pinned.length > 0 && (
             <Button variant="secondary" size="sm" onClick={() => setShowPinned(true)} title="Sabitlenenler">
               📌 {pinned.length}
