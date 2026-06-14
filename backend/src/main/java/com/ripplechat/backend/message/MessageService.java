@@ -11,6 +11,7 @@ import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
+import com.ripplechat.backend.message.dto.MediaItem;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.message.dto.ThreadSummary;
@@ -293,6 +294,15 @@ public class MessageService {
         requireMember(channelId, username);
         return messageRepository.findByChannelIdAndPinnedTrueAndDeletedFalseOrderByCreatedAtDesc(channelId).stream()
                 .map(MessageResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MediaItem> listMedia(UUID channelId, String username) {
+        requireMember(channelId, username);
+        return messageRepository.findByChannelIdAndAttachmentUrlIsNotNullAndDeletedFalseOrderByCreatedAtDesc(channelId)
+                .stream()
+                .map(MediaItem::from)
                 .toList();
     }
 

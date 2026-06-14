@@ -70,6 +70,14 @@ export interface Channel {
   createdAt: string
 }
 
+// One image attachment in a channel's media gallery.
+export interface MediaItem {
+  messageId: string
+  url: string
+  sender: UserSummary
+  createdAt: string
+}
+
 // Open Graph / page metadata for a URL preview card.
 export interface LinkPreview {
   url: string

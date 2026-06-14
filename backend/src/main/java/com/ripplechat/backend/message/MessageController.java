@@ -3,6 +3,7 @@ package com.ripplechat.backend.message;
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.ForwardRequest;
+import com.ripplechat.backend.message.dto.MediaItem;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,12 @@ public class MessageController {
     public List<MessageResponse> pinned(@PathVariable UUID channelId,
                                         @AuthenticationPrincipal String username) {
         return messageService.listPinned(channelId, username);
+    }
+
+    @GetMapping("/media")
+    public List<MediaItem> media(@PathVariable UUID channelId,
+                                 @AuthenticationPrincipal String username) {
+        return messageService.listMedia(channelId, username);
     }
 
     @PostMapping("/{messageId}/pin")

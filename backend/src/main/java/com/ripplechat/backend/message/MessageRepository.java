@@ -36,6 +36,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     @EntityGraph(attributePaths = "sender")
     List<Message> findByChannelIdAndPinnedTrueAndDeletedFalseOrderByCreatedAtDesc(UUID channelId);
 
+    /** Image attachments of a channel, newest first (for the media gallery). */
+    @EntityGraph(attributePaths = "sender")
+    List<Message> findByChannelIdAndAttachmentUrlIsNotNullAndDeletedFalseOrderByCreatedAtDesc(UUID channelId);
+
     /** Loads search hits in bulk, fetch-joining sender and channel for the result view. */
     @Query("""
             select m from Message m

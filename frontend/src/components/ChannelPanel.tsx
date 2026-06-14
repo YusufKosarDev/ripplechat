@@ -23,6 +23,7 @@ import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
+import MediaGalleryModal from './MediaGalleryModal'
 import {
   sendChatMessage,
   sendDeleteMessage,
@@ -148,6 +149,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null)
   const [pinned, setPinned] = useState<Message[]>([])
   const [showPinned, setShowPinned] = useState(false)
+  const [showGallery, setShowGallery] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -683,6 +685,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           >
             {isMuted ? '🔕' : '🔔'}
           </Button>
+          <Button variant="secondary" size="sm" title="Medya" onClick={() => setShowGallery(true)}>
+            🖼️
+          </Button>
           {!dm && (
             <>
               <Button
@@ -742,6 +747,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       )}
 
       {forwardingMsg && <ForwardModal onPick={onForward} onClose={() => setForwardingMsg(null)} />}
+
+      {showGallery && selectedId && (
+        <MediaGalleryModal channelId={selectedId} onClose={() => setShowGallery(false)} />
+      )}
 
       {showPinned && (
         <div
