@@ -11,7 +11,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class UploadService {
 
-    private static final long MAX_BYTES = 5L * 1024 * 1024; // 5 MB
+    private static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024; // 5 MB
+    private static final long MAX_FILE_BYTES = 10L * 1024 * 1024; // 10 MB
 
     private final MediaStorage mediaStorage;
 
@@ -20,7 +21,7 @@ public class UploadService {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("file is required");
         }
-        if (file.getSize() > MAX_BYTES) {
+        if (file.getSize() > MAX_IMAGE_BYTES) {
             throw new BadRequestException("image must be at most 5 MB");
         }
         String contentType = file.getContentType();
@@ -29,6 +30,21 @@ public class UploadService {
         }
         try {
             return mediaStorage.uploadImage(file.getBytes());
+        } catch (IOException e) {
+            throw new BadRequestException("could not read the uploaded file");
+        }
+    }
+
+    /** Validates and uploads any file (≤ 10 MB), returning its public URL. */
+    public String uploadFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("file is required");
+        }
+        if (file.getSize() > MAX_FILE_BYTES) {
+            throw new BadRequestException("file must be at most 10 MB");
+        }
+        try {
+            return mediaStorage.uploadFile(file.getBytes());
         } catch (IOException e) {
             throw new BadRequestException("could not read the uploaded file");
         }

@@ -9,6 +9,9 @@ public interface MediaStorage {
     /** Uploads image bytes and returns the public (secure) URL. */
     String uploadImage(byte[] bytes);
 
+    /** Uploads arbitrary file bytes (auto-detected) and returns the public URL. */
+    String uploadFile(byte[] bytes);
+
     /** Whether uploads are configured and available. */
     boolean isEnabled();
 }

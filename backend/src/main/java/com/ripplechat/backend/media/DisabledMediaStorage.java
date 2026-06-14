@@ -13,6 +13,15 @@ public class DisabledMediaStorage implements MediaStorage {
 
     @Override
     public String uploadImage(byte[] bytes) {
-        throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "image uploads are not configured");
+        throw disabled();
+    }
+
+    @Override
+    public String uploadFile(byte[] bytes) {
+        throw disabled();
+    }
+
+    private ResponseStatusException disabled() {
+        return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "uploads are not configured");
     }
 }

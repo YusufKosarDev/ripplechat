@@ -240,10 +240,12 @@ export function sendChatMessage(
   parentMessageId?: string,
   attachmentUrl?: string,
   quotedMessageId?: string,
+  attachmentName?: string,
+  attachmentType?: string,
 ) {
   client?.publish({
     destination: `/app/channels/${channelId}/send`,
-    body: JSON.stringify({ content, parentMessageId, attachmentUrl, quotedMessageId }),
+    body: JSON.stringify({ content, parentMessageId, attachmentUrl, quotedMessageId, attachmentName, attachmentType }),
   })
 }
 

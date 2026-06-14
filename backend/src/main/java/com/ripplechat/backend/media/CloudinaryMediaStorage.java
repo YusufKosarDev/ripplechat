@@ -22,12 +22,21 @@ public class CloudinaryMediaStorage implements MediaStorage {
 
     @Override
     public String uploadImage(byte[] bytes) {
+        return upload(bytes, "image");
+    }
+
+    @Override
+    public String uploadFile(byte[] bytes) {
+        return upload(bytes, "auto");
+    }
+
+    private String upload(byte[] bytes, String resourceType) {
         try {
             Map<?, ?> result = cloudinary.uploader()
-                    .upload(bytes, ObjectUtils.asMap("folder", "ripplechat", "resource_type", "image"));
+                    .upload(bytes, ObjectUtils.asMap("folder", "ripplechat", "resource_type", resourceType));
             return (String) result.get("secure_url");
         } catch (IOException e) {
-            throw new IllegalStateException("image upload failed", e);
+            throw new IllegalStateException("upload failed", e);
         }
     }
 }

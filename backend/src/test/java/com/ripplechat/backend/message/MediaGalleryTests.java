@@ -34,6 +34,21 @@ class MediaGalleryTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void fileAttachmentsAreExcludedFromGallery() {
+        createUser("owner");
+        var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
+        messageService.send(channel.id(), new CreateMessageRequest("", null, IMAGE), "owner");
+        messageService.send(channel.id(),
+                new CreateMessageRequest("", null, "https://res.cloudinary.com/demo/raw/upload/rapor.pdf",
+                        null, "rapor.pdf", "file"),
+                "owner");
+
+        var media = messageService.listMedia(channel.id(), "owner");
+        assertThat(media).hasSize(1);
+        assertThat(media.get(0).url()).isEqualTo(IMAGE);
+    }
+
+    @Test
     void nonMemberCannotListMedia() {
         createUser("owner");
         createUser("outsider");

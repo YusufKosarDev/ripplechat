@@ -14,20 +14,33 @@ public record CreateMessageRequest(
         /** When set, this message is a thread reply to that message. */
         UUID parentMessageId,
 
-        /** Optional image attachment URL (returned by POST /api/uploads/image). */
+        /** Optional attachment URL (returned by POST /api/uploads/image or /file). */
         @Size(max = 1024)
         String attachmentUrl,
 
         /** When set, this message quotes that message (inline preview). */
-        UUID quotedMessageId
+        UUID quotedMessageId,
+
+        /** Original filename of a file attachment (shown on the download card). */
+        @Size(max = 255)
+        String attachmentName,
+
+        /** Attachment kind: "image" (inline) or "file" (download card). */
+        @Size(max = 16)
+        String attachmentType
 ) {
     /** Plain text / thread message, no attachment or quote. */
     public CreateMessageRequest(String content, UUID parentMessageId) {
-        this(content, parentMessageId, null, null);
+        this(content, parentMessageId, null, null, null, null);
     }
 
     /** Message with an attachment but no quote. */
     public CreateMessageRequest(String content, UUID parentMessageId, String attachmentUrl) {
-        this(content, parentMessageId, attachmentUrl, null);
+        this(content, parentMessageId, attachmentUrl, null, null, null);
+    }
+
+    /** Message with an attachment and a quote. */
+    public CreateMessageRequest(String content, UUID parentMessageId, String attachmentUrl, UUID quotedMessageId) {
+        this(content, parentMessageId, attachmentUrl, quotedMessageId, null, null);
     }
 }

@@ -68,9 +68,17 @@ public class Message {
     @Column(name = "edited_at")
     private Instant editedAt;
 
-    /** URL of an optional image attachment (Cloudinary); null for text-only messages. */
+    /** URL of an optional attachment (Cloudinary); null for text-only messages. */
     @Column(name = "attachment_url", length = 1024)
     private String attachmentUrl;
+
+    /** Original filename of a file attachment (for the download card). */
+    @Column(name = "attachment_name")
+    private String attachmentName;
+
+    /** Attachment kind: "image" (inline) or "file" (download card). */
+    @Column(name = "attachment_type", length = 16)
+    private String attachmentType;
 
     /** Quoted message reference + denormalized preview (sender + snippet), or null. */
     @Column(name = "quoted_message_id")

@@ -143,7 +143,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
-  const [attachment, setAttachment] = useState<string | null>(null)
+  const [attachment, setAttachment] = useState<{ url: string; name: string | null; type: 'image' | 'file' } | null>(
+    null,
+  )
   const [uploading, setUploading] = useState(false)
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null)
@@ -406,7 +408,15 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       })
       if (!hadError) setDraft('')
     } else {
-      sendChatMessage(channel.id, text, undefined, attachment ?? undefined, replyingTo?.id)
+      sendChatMessage(
+        channel.id,
+        text,
+        undefined,
+        attachment?.url,
+        replyingTo?.id,
+        attachment?.name ?? undefined,
+        attachment?.type,
+      )
       setDraft('')
       setAttachment(null)
       setReplyingTo(null)
@@ -445,10 +455,15 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     try {
       const form = new FormData()
       form.append('file', file)
-      const { data } = await client.post<{ url: string }>('/api/uploads/image', form)
-      setAttachment(data.url)
+      if (file.type.startsWith('image/')) {
+        const { data } = await client.post<{ url: string }>('/api/uploads/image', form)
+        setAttachment({ url: data.url, name: file.name, type: 'image' })
+      } else {
+        const { data } = await client.post<{ url: string; name: string }>('/api/uploads/file', form)
+        setAttachment({ url: data.url, name: data.name ?? file.name, type: 'file' })
+      }
     } catch {
-      setCmdError('Görsel yüklenemedi — tür bir resim mi ve 5 MB altında mı?')
+      setCmdError('Dosya yüklenemedi — görsel ≤5MB, dosya ≤10MB olmalı.')
     } finally {
       setUploading(false)
     }
@@ -521,7 +536,18 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           </div>
         )}
         {msg.content && <MessageContent content={msg.content} />}
-        {msg.attachmentUrl && (
+        {msg.attachmentUrl && msg.attachmentType === 'file' ? (
+          <a
+            href={msg.attachmentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-flex max-w-xs items-center gap-2 rounded-lg border border-border bg-surface-muted/50 px-3 py-2 text-sm text-fg transition hover:bg-surface-muted"
+          >
+            <span className="text-lg">📄</span>
+            <span className="truncate">{msg.attachmentName ?? 'Dosya'}</span>
+            <span className="ml-auto text-xs text-fg-faint">↓</span>
+          </a>
+        ) : msg.attachmentUrl ? (
           <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
             <img
               src={msg.attachmentUrl}
@@ -530,7 +556,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               className="max-h-80 max-w-sm rounded-lg border border-border"
             />
           </a>
-        )}
+        ) : null}
         {linkUrl && <LinkPreviewCard url={linkUrl} />}
         {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
         {dm && dm.otherUser && mine && !msg.deleted && (
@@ -976,7 +1002,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             )}
             {attachment && (
               <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-muted p-1 pr-2">
-                <img src={attachment} alt="" className="h-12 w-12 rounded object-cover" />
+                {attachment.type === 'image' ? (
+                  <img src={attachment.url} alt="" className="h-12 w-12 rounded object-cover" />
+                ) : (
+                  <span className="flex items-center gap-1 px-1 text-sm text-fg">
+                    <span>📄</span>
+                    <span className="max-w-[10rem] truncate">{attachment.name ?? 'Dosya'}</span>
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => setAttachment(null)}
@@ -987,7 +1020,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               </div>
             )}
             <form onSubmit={onSend} className="flex items-end gap-3">
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={onPickFile} className="hidden" />
+              <input ref={fileInputRef} type="file" onChange={onPickFile} className="hidden" />
               <Button
                 type="button"
                 variant="secondary"

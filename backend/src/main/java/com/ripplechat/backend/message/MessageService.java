@@ -99,6 +99,8 @@ public class MessageService {
         message.setContent(content);
         if (hasAttachment) {
             message.setAttachmentUrl(attachmentUrl);
+            message.setAttachmentName(request.attachmentName());
+            message.setAttachmentType("file".equals(request.attachmentType()) ? "file" : "image");
         }
         message.setChannel(channel);
         message.setSender(sender);
@@ -259,6 +261,8 @@ public class MessageService {
         message.setDeleted(true);
         message.setContent("");
         message.setAttachmentUrl(null);
+        message.setAttachmentName(null);
+        message.setAttachmentType(null);
         messageRepository.saveAndFlush(message);
         messageReactionService.deleteAllForMessage(messageId);
         broadcastUpdate(message);
@@ -302,6 +306,7 @@ public class MessageService {
         requireMember(channelId, username);
         return messageRepository.findByChannelIdAndAttachmentUrlIsNotNullAndDeletedFalseOrderByCreatedAtDesc(channelId)
                 .stream()
+                .filter(m -> !"file".equals(m.getAttachmentType())) // images only in the gallery
                 .map(MediaItem::from)
                 .toList();
     }

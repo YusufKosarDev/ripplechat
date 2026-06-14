@@ -128,6 +128,8 @@ export interface Message {
   editedAt: string | null
   deleted: boolean
   attachmentUrl: string | null
+  attachmentName: string | null
+  attachmentType: string | null
   quotedMessageId: string | null
   quotedSender: string | null
   quotedContent: string | null

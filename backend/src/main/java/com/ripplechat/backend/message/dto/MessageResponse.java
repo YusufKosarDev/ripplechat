@@ -23,7 +23,9 @@ public record MessageResponse(
         String quotedSender,
         String quotedContent,
         boolean forwarded,
-        boolean pinned
+        boolean pinned,
+        String attachmentName,
+        String attachmentType
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -46,6 +48,8 @@ public record MessageResponse(
                 message.getQuotedSender(),
                 message.getQuotedContent(),
                 message.isForwarded(),
-                message.isPinned());
+                message.isPinned(),
+                message.getAttachmentName(),
+                message.getAttachmentType());
     }
 }

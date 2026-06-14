@@ -25,4 +25,11 @@ public class UploadController {
     public Map<String, String> uploadImage(@RequestParam("file") MultipartFile file) {
         return Map.of("url", uploadService.uploadImage(file));
     }
+
+    /** Uploads any file (PDF, etc.) for a download-card attachment. */
+    @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> uploadFile(@RequestParam("file") MultipartFile file) {
+        String name = file.getOriginalFilename();
+        return Map.of("url", uploadService.uploadFile(file), "name", name == null || name.isBlank() ? "dosya" : name);
+    }
 }
