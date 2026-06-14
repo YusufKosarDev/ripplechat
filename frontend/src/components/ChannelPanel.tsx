@@ -145,10 +145,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [flying, setFlying] = useState<FlyingEmoji[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
-  const [attachment, setAttachment] = useState<{ url: string; name: string | null; type: 'image' | 'file' } | null>(
-    null,
-  )
+  const [attachment, setAttachment] = useState<{
+    url: string
+    name: string | null
+    type: 'image' | 'file' | 'audio'
+  } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null)
   const [pinned, setPinned] = useState<Message[]>([])
@@ -551,6 +555,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             <span className="truncate">{msg.attachmentName ?? 'Dosya'}</span>
             <span className="ml-auto text-xs text-fg-faint">↓</span>
           </a>
+        ) : msg.attachmentUrl && msg.attachmentType === 'audio' ? (
+          <audio controls src={msg.attachmentUrl} className="mt-1 w-64 max-w-full" />
         ) : msg.attachmentUrl ? (
           <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
             <img
@@ -647,6 +653,41 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       setCmdError('Mesaj gizlenemedi.')
     }
   }
+
+  const startRecording = async () => {
+    setCmdError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const chunks: Blob[] = []
+      const recorder = new MediaRecorder(stream)
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        setRecording(false)
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+        setUploading(true)
+        try {
+          const form = new FormData()
+          form.append('file', new File([blob], 'sesli-mesaj.webm', { type: blob.type }))
+          const { data } = await client.post<{ url: string; name: string }>('/api/uploads/file', form)
+          setAttachment({ url: data.url, name: 'Sesli mesaj', type: 'audio' })
+        } catch {
+          setCmdError('Ses yüklenemedi.')
+        } finally {
+          setUploading(false)
+        }
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setRecording(true)
+    } catch {
+      setCmdError('Mikrofona erişilemedi.')
+    }
+  }
+
+  const stopRecording = () => mediaRecorderRef.current?.stop()
 
   const onPickGif = (url: string) => {
     sendChatMessage(channel.id, '', undefined, url, undefined, undefined, 'image')
@@ -1013,6 +1054,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-muted p-1 pr-2">
                 {attachment.type === 'image' ? (
                   <img src={attachment.url} alt="" className="h-12 w-12 rounded object-cover" />
+                ) : attachment.type === 'audio' ? (
+                  <span className="flex items-center gap-1 px-1 text-sm text-fg">
+                    <span>🎤</span>
+                    <span>Sesli mesaj</span>
+                  </span>
                 ) : (
                   <span className="flex items-center gap-1 px-1 text-sm text-fg">
                     <span>📄</span>
@@ -1070,6 +1116,16 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 </Button>
                 {showGif && <GifPicker onPick={onPickGif} onClose={() => setShowGif(false)} />}
               </div>
+              <Button
+                type="button"
+                variant={recording ? 'danger' : 'secondary'}
+                onClick={recording ? stopRecording : startRecording}
+                disabled={uploading && !recording}
+                aria-label={recording ? 'Kaydı durdur' : 'Sesli mesaj kaydet'}
+                title={recording ? 'Kaydı durdur ve gönder' : 'Sesli mesaj'}
+              >
+                {recording ? '⏹' : '🎤'}
+              </Button>
               <Textarea
                 ref={inputRef}
                 value={draft}

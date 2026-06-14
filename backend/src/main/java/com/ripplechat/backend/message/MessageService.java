@@ -101,7 +101,8 @@ public class MessageService {
         if (hasAttachment) {
             message.setAttachmentUrl(attachmentUrl);
             message.setAttachmentName(request.attachmentName());
-            message.setAttachmentType("file".equals(request.attachmentType()) ? "file" : "image");
+            String type = request.attachmentType();
+            message.setAttachmentType("file".equals(type) || "audio".equals(type) ? type : "image");
         }
         message.setChannel(channel);
         message.setSender(sender);
@@ -307,7 +308,7 @@ public class MessageService {
         requireMember(channelId, username);
         return messageRepository.findByChannelIdAndAttachmentUrlIsNotNullAndDeletedFalseOrderByCreatedAtDesc(channelId)
                 .stream()
-                .filter(m -> !"file".equals(m.getAttachmentType())) // images only in the gallery
+                .filter(m -> m.getAttachmentType() == null || "image".equals(m.getAttachmentType())) // images only
                 .map(MediaItem::from)
                 .toList();
     }
