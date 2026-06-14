@@ -39,6 +39,7 @@ import { parseCommand } from '../commands/registry'
 import type { Channel, DirectChannel, Message, Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
 import MessageContent from './MessageContent'
+import LinkPreviewCard from './LinkPreviewCard'
 import MessageReactions from './MessageReactions'
 import CommandHints from './CommandHints'
 import PollCard from './PollCard'
@@ -100,6 +101,12 @@ function makeFlyingEmoji(emoji: string): FlyingEmoji {
 
 // Presents a selected direct message as a channel so the panel can render it
 // with the existing message/typing/reaction machinery unchanged.
+// First http(s) URL in the text (trailing punctuation trimmed), for link previews.
+function extractFirstUrl(text: string): string | null {
+  const match = text.match(/https?:\/\/[^\s<>]+/)
+  return match ? match[0].replace(/[.,;:!?)\]]+$/, '') : null
+}
+
 function dmAsChannel(dm: DirectChannel): Channel {
   const name = dm.group ? (dm.name ?? 'Grup') : (dm.otherUser?.displayName ?? dm.otherUser?.username ?? 'DM')
   return {
@@ -500,6 +507,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     const canDelete = mine || canModerate
     const readByOther =
       !!otherLastRead && new Date(otherLastRead).getTime() >= new Date(msg.createdAt).getTime()
+    const linkUrl = !msg.deleted && msg.content ? extractFirstUrl(msg.content) : null
     return (
       <div>
         {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ İletildi</div>}
@@ -521,6 +529,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             />
           </a>
         )}
+        {linkUrl && <LinkPreviewCard url={linkUrl} />}
         {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
         {dm && dm.otherUser && mine && !msg.deleted && (
           <span

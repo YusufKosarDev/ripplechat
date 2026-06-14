@@ -4,6 +4,7 @@ import blocksReducer from '../features/blocks/blocksSlice'
 import channelOrgReducer from '../features/channelOrg/channelOrgSlice'
 import channelsReducer from '../features/channels/channelsSlice'
 import connectionReducer from '../features/connection/connectionSlice'
+import linkPreviewsReducer from '../features/linkPreviews/linkPreviewsSlice'
 import messagesReducer from '../features/messages/messagesSlice'
 import mutedReducer from '../features/muted/mutedSlice'
 import pollsReducer from '../features/polls/pollsSlice'
@@ -20,6 +21,7 @@ export const store = configureStore({
     channelOrg: channelOrgReducer,
     channels: channelsReducer,
     connection: connectionReducer,
+    linkPreviews: linkPreviewsReducer,
     messages: messagesReducer,
     muted: mutedReducer,
     polls: pollsReducer,

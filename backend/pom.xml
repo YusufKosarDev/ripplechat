@@ -77,6 +77,12 @@
 			<artifactId>web-push</artifactId>
 			<version>5.1.2</version>
 		</dependency>
+		<!-- HTML parsing for link-preview (Open Graph) unfurling. -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.22.2</version>
+		</dependency>
 		<!-- BouncyCastle provider, required by web-push for the VAPID/ECDH crypto. -->
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
