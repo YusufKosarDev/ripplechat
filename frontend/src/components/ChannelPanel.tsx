@@ -28,6 +28,8 @@ import { setJumpTarget } from '../features/ui/uiSlice'
 import { setCategory, toggleArchive } from '../features/channelOrg/channelOrgSlice'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
+import { setPassphrase } from '../features/e2ee/e2eeSlice'
+import { decryptText, encryptText, isEncrypted } from '../crypto/e2ee'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
 import MediaGalleryModal from './MediaGalleryModal'
@@ -112,6 +114,10 @@ function makeFlyingEmoji(emoji: string): FlyingEmoji {
 // Presents a selected direct message as a channel so the panel can render it
 // with the existing message/typing/reaction machinery unchanged.
 // First http(s) URL in the text (trailing punctuation trimmed), for link previews.
+// Sentinel stored in the decrypted-text map when decryption fails, so we don't
+// retry endlessly and can show a distinct "wrong passphrase" placeholder.
+const DECRYPT_FAILED = '__rc_decrypt_failed__'
+
 function extractFirstUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s<>]+/)
   return match ? match[0].replace(/[.,;:!?)\]]+$/, '') : null
@@ -145,6 +151,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const currentUser = useAppSelector((state) => state.auth.user)
   const reads = useAppSelector((state) => (selectedId ? state.reads.byChannel[selectedId] : undefined))
   const isMuted = useAppSelector((state) => (selectedId ? !!state.muted.muted[selectedId] : false))
+  const passphrase = useAppSelector((state) => (selectedId ? state.e2ee.passphrases[selectedId] : undefined))
 
   const [draft, setDraft] = useState('')
   const [showMembers, setShowMembers] = useState(false)
@@ -169,6 +176,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
   const [showTtl, setShowTtl] = useState(false)
+  const [decrypted, setDecrypted] = useState<Record<string, string>>({})
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -198,6 +206,34 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const members = selectedId ? (membersByChannel[selectedId] ?? []) : []
   const myRole = members.find((m) => m.user.id === currentUser?.id)?.role
   const canModerate = myRole === 'OWNER' || myRole === 'MODERATOR'
+
+  // Decrypt any E2EE messages in the open channel once a passphrase is set.
+  // Failures (wrong passphrase / corrupt payload) are left locked.
+  useEffect(() => {
+    if (!selectedId || !passphrase) return
+    let cancelled = false
+    const pending = messages.filter((m) => isEncrypted(m.content) && decrypted[m.id] === undefined)
+    if (pending.length === 0) return
+    Promise.all(
+      pending.map(async (m) => {
+        try {
+          return [m.id, await decryptText(selectedId, passphrase, m.content)] as const
+        } catch {
+          return [m.id, DECRYPT_FAILED] as const
+        }
+      }),
+    ).then((entries) => {
+      if (!cancelled) setDecrypted((prev) => ({ ...prev, ...Object.fromEntries(entries) }))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId, passphrase, messages, decrypted])
+
+  // Drop cached plaintext when the passphrase is cleared so messages re-lock.
+  useEffect(() => {
+    if (!passphrase) setDecrypted({})
+  }, [passphrase, selectedId])
 
   const handleTyping = (event: TypingEvent) => {
     if (event.userId === currentUserIdRef.current) return
@@ -400,13 +436,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }, TYPING_STOP_DELAY)
   }
 
-  const submit = () => {
+  const submit = async () => {
     const text = draft.trim()
     if (!text && !attachment) return
     setCmdError(null)
 
-    // Slash commands apply to plain text only (not with an attachment or a quote).
-    if (text.startsWith('/') && !attachment && !replyingTo) {
+    // Slash commands apply to plain text only (not with an attachment, a quote,
+    // or in an encrypted chat — there, "/..." is sent as encrypted text).
+    if (!passphrase && text.startsWith('/') && !attachment && !replyingTo) {
       const parsed = parseCommand(text)!
       if (!parsed.command) {
         setCmdError(`Bilinmeyen komut: /${parsed.name}`)
@@ -425,9 +462,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       })
       if (!hadError) setDraft('')
     } else {
+      const content = text && passphrase ? await encryptText(channel.id, passphrase, text) : text
       sendChatMessage(
         channel.id,
-        text,
+        content,
         undefined,
         attachment?.url,
         replyingTo?.id,
@@ -541,7 +579,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     const canDelete = mine || canModerate
     const readByOther =
       !!otherLastRead && new Date(otherLastRead).getTime() >= new Date(msg.createdAt).getTime()
-    const linkUrl = !msg.deleted && msg.content ? extractFirstUrl(msg.content) : null
+    const encryptedMsg = isEncrypted(msg.content)
+    const dec = encryptedMsg ? decrypted[msg.id] : undefined
+    const decryptFailed = dec === DECRYPT_FAILED
+    const shownContent = encryptedMsg ? (dec && !decryptFailed ? dec : null) : msg.content
+    const linkUrl = !msg.deleted && shownContent ? extractFirstUrl(shownContent) : null
     return (
       <div>
         {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ İletildi</div>}
@@ -552,7 +594,18 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             <span className="ml-1.5 text-fg-faint">{msg.quotedContent}</span>
           </div>
         )}
-        {msg.content && <MessageContent content={msg.content} />}
+        {encryptedMsg && shownContent === null ? (
+          <span className="inline-flex items-center gap-1 text-sm italic text-fg-faint">
+            🔒{' '}
+            {!passphrase
+              ? 'Şifreli mesaj — kilidi açmak için parola gir'
+              : decryptFailed
+                ? 'Çözülemedi (parola hatalı)'
+                : 'Çözülüyor…'}
+          </span>
+        ) : (
+          shownContent && <MessageContent content={shownContent} />
+        )}
         {msg.attachmentUrl && msg.attachmentType === 'file' ? (
           <a
             href={msg.attachmentUrl}
@@ -778,6 +831,30 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           <Button variant="secondary" size="sm" title="Medya" onClick={() => setShowGallery(true)}>
             🖼️
           </Button>
+          {dm && (
+            <Button
+              variant={passphrase ? 'primary' : 'secondary'}
+              size="sm"
+              aria-label="Uçtan uca şifreleme"
+              title={passphrase ? 'Şifreli sohbet açık' : 'Uçtan uca şifreleme'}
+              onClick={() => {
+                if (!selectedId) return
+                if (passphrase) {
+                  if (window.confirm('Şifreli sohbeti kapat? Yeni mesajlar düz metin gönderilir.')) {
+                    dispatch(setPassphrase({ channelId: selectedId, passphrase: '' }))
+                  }
+                } else {
+                  const pass = window.prompt(
+                    'Bu sohbet için ortak parola (iki taraf da aynısını girmeli, sunucuya gönderilmez):',
+                    '',
+                  )
+                  if (pass) dispatch(setPassphrase({ channelId: selectedId, passphrase: pass }))
+                }
+              }}
+            >
+              {passphrase ? '🔒' : '🔓'}
+            </Button>
+          )}
           {!dm && (
             <>
               <Button
