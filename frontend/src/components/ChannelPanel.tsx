@@ -721,7 +721,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   }
 
   return (
-    <section className="flex flex-1 flex-col">
+    <section id="main-content" aria-label="Sohbet" tabIndex={-1} className="flex flex-1 flex-col outline-none">
       <header className={`flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 ${borderC}`}>
         <div className="flex min-w-0 items-center gap-3">
           <Button variant="secondary" size="sm" onClick={onOpenSidebar} className="shrink-0 md:hidden" title="Kanallar">

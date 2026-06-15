@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { client } from '../api/client'
 import type { MediaItem } from '../api/types'
 import { focusRing } from './ui/focusRing'
+import { useDialog } from './ui/useDialog'
 
 interface MediaGalleryModalProps {
   channelId: string
@@ -11,6 +12,7 @@ interface MediaGalleryModalProps {
 export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryModalProps) {
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
+  const panelRef = useDialog<HTMLDivElement>(onClose)
 
   useEffect(() => {
     let active = true
@@ -32,12 +34,21 @@ export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryMo
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Medya"
+        tabIndex={-1}
         className="flex max-h-[75vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <span className="text-sm font-semibold tracking-tight">🖼️ Medya</span>
-          <button onClick={onClose} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
+          >
             ✕
           </button>
         </div>

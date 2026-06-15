@@ -1,6 +1,7 @@
 import { useAppSelector } from '../app/hooks'
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
+import { useDialog } from './ui/useDialog'
 
 interface ForwardModalProps {
   onPick: (channelId: string) => void
@@ -11,16 +12,26 @@ interface ForwardModalProps {
 export default function ForwardModal({ onPick, onClose }: ForwardModalProps) {
   const channels = useAppSelector((state) => state.channels.items)
   const dms = useAppSelector((state) => state.channels.dms)
+  const panelRef = useDialog<HTMLDivElement>(onClose)
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Şuraya ilet"
+        tabIndex={-1}
         className="flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <span className="text-sm font-semibold tracking-tight">Şuraya ilet</span>
-          <button onClick={onClose} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
+          >
             ✕
           </button>
         </div>

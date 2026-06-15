@@ -5,6 +5,7 @@ import Avatar from './Avatar'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import { useDialog } from './ui/useDialog'
 
 interface NewDmModalProps {
   // One user → a 1:1 DM; two or more → a group (with optional name).
@@ -18,6 +19,7 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<UserSummary[]>([])
   const [groupName, setGroupName] = useState('')
+  const panelRef = useDialog<HTMLDivElement>(onClose)
 
   useEffect(() => {
     const term = query.trim()
@@ -56,12 +58,21 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Yeni mesaj"
+        tabIndex={-1}
         className="flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <span className="text-sm font-semibold tracking-tight">Yeni mesaj</span>
-          <button onClick={onClose} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
+          >
             ✕
           </button>
         </div>

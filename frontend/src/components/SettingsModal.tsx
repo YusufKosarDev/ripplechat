@@ -11,6 +11,7 @@ import ThemeToggle from './ThemeToggle'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import { useDialog } from './ui/useDialog'
 
 interface SettingsModalProps {
   onClose: () => void
@@ -39,6 +40,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   useEffect(() => {
     isPushSubscribed().then(setPushOn)
   }, [])
+
+  const panelRef = useDialog<HTMLDivElement>(onClose)
 
   if (!user) return null
 
@@ -109,12 +112,21 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ayarlar"
+        tabIndex={-1}
         className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface-overlay p-6 shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold tracking-tight">Ayarlar</h3>
-          <button onClick={onClose} className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
+          >
             ✕
           </button>
         </div>

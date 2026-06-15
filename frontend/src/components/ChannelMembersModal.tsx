@@ -7,6 +7,7 @@ import Avatar from './Avatar'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import { useDialog } from './ui/useDialog'
 
 function RoleBadge({ role }: { role: MembershipRole }) {
   if (role === 'OWNER') {
@@ -40,6 +41,7 @@ export default function ChannelMembersModal({
 
   const [name, setName] = useState(channel?.name ?? '')
   const [description, setDescription] = useState(channel?.description ?? '')
+  const panelRef = useDialog<HTMLDivElement>(onClose)
 
   const onSaveChannel = () => {
     if (name.trim()) {
@@ -56,12 +58,21 @@ export default function ChannelMembersModal({
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Üyeler"
+        tabIndex={-1}
         className="w-full max-w-md rounded-2xl border border-border bg-surface-overlay p-6 shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold tracking-tight">Üyeler</h3>
-          <button onClick={onClose} className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
+          >
             ✕
           </button>
         </div>

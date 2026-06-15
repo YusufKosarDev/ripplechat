@@ -101,6 +101,12 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface text-fg">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-surface-overlay focus:px-3 focus:py-2 focus:text-sm focus:shadow-elevated"
+      >
+        İçeriğe geç
+      </a>
       <div className="relative flex flex-1 overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <ChannelPanel onOpenSidebar={() => setSidebarOpen(true)} />

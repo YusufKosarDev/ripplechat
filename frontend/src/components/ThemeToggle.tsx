@@ -9,9 +9,10 @@ export default function ThemeToggle() {
     <button
       onClick={() => dispatch(toggleTheme())}
       title={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
+      aria-label={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
       className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
     >
-      {theme === 'dark' ? '☀️' : '🌙'}
+      <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
     </button>
   )
 }

@@ -4,6 +4,7 @@ import { useAppSelector } from '../app/hooks'
 import type { SearchResult } from '../api/types'
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
+import { useDialog } from './ui/useDialog'
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -46,6 +47,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
   const [since, setSince] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
+  const panelRef = useDialog<HTMLDivElement>(onClose)
 
   useEffect(() => {
     const term = query.trim()
@@ -79,19 +81,29 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mesajlarda ara"
+        tabIndex={-1}
         className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-fg-faint">🔍</span>
+          <span className="text-fg-faint" aria-hidden="true">🔍</span>
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Mesajlarda ara..."
+            aria-label="Mesajlarda ara"
             className={`flex-1 rounded-lg bg-transparent text-sm text-fg placeholder:text-fg-faint ${focusRing}`}
           />
-          <button onClick={onClose} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
+          >
             ✕
           </button>
         </div>
