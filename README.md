@@ -39,36 +39,50 @@
 
 ### 💬 Messaging
 - **Channels** with membership management
-- **Direct messages** — private 1:1 conversations that reuse the same real-time pipeline
+- **Direct messages** — private 1:1 conversations, plus **group DMs** (multi-party), reusing the same real-time pipeline
 - **Threads** — keep focused reply chains off the main timeline
-- **Edit & delete** messages, with soft delete so history stays consistent
+- **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view)
+- **Quote-reply** to a specific message, **forward** messages to other chats, and **pin** important messages
 - **Markdown** formatting and **syntax-highlighted code blocks**
-- **Full-text search** (PostgreSQL `tsvector` + GIN index) across your channels and DMs
+- **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
+- **Full-text search** (PostgreSQL `tsvector` + GIN index) with filters (channel, sender, date) and **jump-to-message**
 - **Infinite scroll** — older history loads as you scroll up
 
 ### 🎉 Interaction
-- **Persistent emoji reactions** on any message
+- **Persistent emoji reactions** on any message, plus a **full emoji picker**
 - **Live flying emoji** — reactions burst across the screen in real time
+- **GIFs** — search and send GIFs from a picker (Giphy)
 - **Polls** — create and vote on polls right inside a channel (`/poll`)
 - **Slash commands** — an extensible command system (`/poll`, `/giphy`, `/shrug`)
 
-### 🔐 Security & Authorization
+### 📎 Media & attachments
+- **Image, file, and voice-message attachments** (recorded in-browser), stored on Cloudinary
+- **Per-channel media gallery** of shared images
+- **Link previews** — URLs unfurl into title/description/image cards (server-side, SSRF-guarded)
+
+### 🔔 Presence & notifications
+- **Presence** and **last-seen** timestamps · **typing indicators**
+- **Read receipts** — delivery/read ticks in direct messages
+- **Web push notifications** (VAPID) for messages while you're away
+- **Mute** channels and DMs · **unread badges** with a live count in the browser tab title
+
+### 🔐 Security & privacy
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
 - **Refresh tokens** with rotation and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
-- **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`
-- **Channel moderation** — owners and moderators manage membership and content; all checks are enforced server-side
-- **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members (or removed members) can't eavesdrop
+- **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`, with server-side moderation checks
+- **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members can't eavesdrop
+- **User blocking** — hide messages from blocked users
+- **End-to-end encryption** (opt-in) for direct messages — AES-GCM with a passphrase-derived key (PBKDF2), encrypted entirely in the browser via Web Crypto; the server only ever relays opaque ciphertext
 - **Abuse protection** — input size limits plus rate limiting on login, message sends, and reactions
 
-### 🎨 Experience
-- **Light / dark theme** toggle
-- **Responsive layout** that adapts to mobile
-- **Unread message badges** — plus a live unread count in the browser tab title
-- **User profile & settings** — display name, avatar color, and password management
-
-### 🛠️ Platform
-- **OpenAPI / Swagger UI** — interactive, always-current API docs (`/swagger-ui.html`)
-- **Health endpoint** — `/actuator/health` for uptime checks
+### 🎨 Experience & platform
+- **Light / dark theme** toggle and a **responsive** layout that adapts to mobile
+- **Installable PWA** with an offline app shell (service worker)
+- **Internationalization** — English / Turkish with a language toggle
+- **Accessibility** — accessible dialogs (focus trap, Escape, focus restore), ARIA labels, and a skip link
+- **Disappearing messages** — an optional per-channel timer auto-deletes messages after it elapses
+- **Channel organization** — categories and archiving · **profile & settings** (display name, avatar image/color, password)
+- **OpenAPI / Swagger UI** (`/swagger-ui.html`) · **health endpoint** (`/actuator/health`)
 - **Tested** — backend integration tests on a real PostgreSQL (Testcontainers), frontend unit tests (Vitest), and end-to-end tests (Playwright), all wired into CI
 
 ---
@@ -81,7 +95,8 @@
 - Spring Security (JWT access + rotating refresh tokens, HS256)
 - Spring Data JPA
 - Spring WebSocket (STOMP messaging)
-- PostgreSQL (full-text search)
+- PostgreSQL (full-text search) · Flyway migrations
+- Cloudinary (media uploads) · web-push/VAPID (notifications) · jsoup (link unfurling) · Giphy (GIF search)
 - springdoc-openapi (Swagger UI) · Spring Boot Actuator
 
 **Frontend**
@@ -90,6 +105,7 @@
 - Redux Toolkit
 - Tailwind CSS
 - STOMP.js / SockJS
+- Web Crypto (E2EE) · service worker (PWA + push)
 
 **Testing**
 - JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests
@@ -109,8 +125,8 @@
 **Modular monolith backend.** The codebase is organized by domain, each package owning its own controllers, services, and persistence:
 
 ```
-auth · user · channel (+ membership · direct messages) · message
-presence · typing · reaction · poll · search (full-text) · websocket
+auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards)
+presence · typing · reaction · poll · search (full-text) · read receipts · push · link previews · media · gif · websocket
 ```
 
 **WebSocket layer.** Clients open a single STOMP connection authenticated with a JWT on `CONNECT`. The server broadcasts to `/topic/...` destinations (e.g. `/topic/channels/{id}`); clients publish via `/app/...`. Messages, reactions, presence, typing, and polls all travel over this channel for instant fan-out.
@@ -189,7 +205,9 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V5__direct_messages`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V17__disappearing_messages`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+
+Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), and `GIPHY_API_KEY` (GIF search). End-to-end encryption is entirely client-side and needs no server configuration.
 
 ---
 
@@ -200,27 +218,34 @@ ripplechat/
 ├── backend/                     # Spring Boot application
 │   ├── src/main/java/com/ripplechat/backend/
 │   │   ├── auth/                # Registration, login, JWT, security config
-│   │   ├── user/                # Profiles, settings, password (self-service)
-│   │   ├── channel/             # Channels, membership & roles, direct messages
-│   │   ├── message/             # Messages, threads, edit/delete
+│   │   ├── user/                # Profiles, settings, password, avatars, blocking
+│   │   ├── channel/             # Channels, membership & roles, direct/group messages
+│   │   ├── message/             # Messages, threads, edit/delete, pins, forwards, quotes
 │   │   ├── reaction/            # Emoji reactions
 │   │   ├── poll/                # Polls (REST + WebSocket, persisted)
-│   │   ├── presence/            # Online status
+│   │   ├── presence/            # Online status & last seen
 │   │   ├── typing/              # Typing indicators
+│   │   ├── read/                # Read receipts
 │   │   ├── search/              # Full-text message search (tsvector)
+│   │   ├── push/                # Web push (VAPID) subscriptions & sending
+│   │   ├── link/                # Link-preview unfurling (jsoup, SSRF-guarded)
+│   │   ├── media/ · gif/        # Cloudinary uploads · Giphy GIF search
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, rate limiter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V17 (prod schema)
 ├── frontend/                    # React + TypeScript app
+│   ├── public/                  # PWA manifest + service worker (sw.js)
 │   └── src/
 │       ├── api/                 # HTTP client & types
 │       ├── app/                 # Redux store & hooks
-│       ├── features/            # auth, channels, messages, threads,
-│       │                        #   polls, presence, unread, connection, ui
+│       ├── features/            # auth, channels, messages, threads, polls, presence,
+│       │                        #   reads, blocks, muted, e2ee, unread, connection, ui …
 │       ├── realtime/            # STOMP socket lifecycle
+│       ├── crypto/              # Client-side E2EE (Web Crypto)
+│       ├── i18n/                # EN/TR translations + provider
 │       ├── commands/            # Slash-command registry
-│       ├── components/          # UI components (+ ui/ Button/Input primitives)
+│       ├── components/          # UI components (+ ui/ primitives & useDialog)
 │       ├── pages/               # Route-level views
 │       └── ../e2e/              # Playwright end-to-end tests
 ├── docker-compose.yml           # PostgreSQL service
@@ -255,7 +280,7 @@ That's the right choice for one instance. To scale **horizontally** (multiple ba
 
 Both are intentionally deferred: they add operational dependencies that bring no benefit at single-instance scale, and can't be meaningfully exercised without a multi-replica deployment. Sticky sessions at the load balancer are a lighter interim option for the WebSocket layer.
 
-Other possible next steps: read receipts, push notifications, message pagination for search results, and group (multi-party) direct messages.
+Other possible next steps: paginating search results, reaction notifications, and extending internationalization coverage across the in-app chat surfaces.
 
 ---
 
