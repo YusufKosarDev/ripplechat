@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { login } from '../features/auth/authSlice'
+import { useT } from '../i18n'
 import Button from '../components/ui/Button'
+import LanguageToggle from '../components/LanguageToggle'
 import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
 
 // Public demo account (seeded server-side). Credentials are intentionally
@@ -10,12 +12,12 @@ import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
 const DEMO = { login: 'demo', password: 'demo1234' }
 
 const FEATURES = [
-  { icon: '⚡', title: 'Gerçek zamanlı', desc: 'Mesajlar, “yazıyor” göstergesi ve çevrimiçi durum anında akar.' },
-  { icon: '🎉', title: 'Reaksiyonlar', desc: 'Kalıcı emoji tepkileri ve ekranda uçan canlı reaksiyonlar.' },
-  { icon: '📊', title: 'Anketler', desc: 'Kanal içinde /poll ile saniyeler içinde oylama başlatın.' },
-  { icon: '🧵', title: 'Thread’ler', desc: 'Yanıt zincirleriyle tartışmalar ana akışı dağıtmaz.' },
-  { icon: '💻', title: 'Kod paylaşımı', desc: 'Markdown ve sözdizimi vurgulu kod blokları desteklenir.' },
-  { icon: '🌗', title: 'Açık / koyu tema', desc: 'Responsive arayüz, iki temada da şık ve okunaklı.' },
+  { icon: '⚡', key: 'realtime' },
+  { icon: '🎉', key: 'reactions' },
+  { icon: '📊', key: 'polls' },
+  { icon: '🧵', key: 'threads' },
+  { icon: '💻', key: 'code' },
+  { icon: '🌗', key: 'theme' },
 ]
 
 const ctaClass = 'px-5 py-2.5 text-base'
@@ -23,6 +25,7 @@ const ctaClass = 'px-5 py-2.5 text-base'
 export default function LandingPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { t } = useT()
   const token = useAppSelector((state) => state.auth.token)
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoError, setDemoError] = useState<string | null>(null)
@@ -37,7 +40,7 @@ export default function LandingPage() {
     const result = await dispatch(login(DEMO))
     setDemoLoading(false)
     if (login.fulfilled.match(result)) navigate('/chat')
-    else setDemoError('Demo girişi şu an yapılamadı, lütfen tekrar dene.')
+    else setDemoError(t('landing.demoError'))
   }
 
   return (
@@ -45,9 +48,13 @@ export default function LandingPage() {
       {/* Ambient brand glow */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(99,102,241,0.20),transparent)]" />
 
+      <div className="absolute right-4 top-4 z-20">
+        <LanguageToggle />
+      </div>
+
       <div className="relative z-10 w-full max-w-3xl text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-3 py-1 text-xs font-medium text-fg-muted shadow-card">
-          🌊 Gerçek zamanlı sohbet platformu
+          {t('landing.badge')}
         </span>
 
         <h1 className="mt-5 text-5xl font-bold tracking-tight sm:text-6xl">
@@ -58,37 +65,36 @@ export default function LandingPage() {
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-fg-secondary">
-          Kanallar, thread’ler, reaksiyonlar ve anketler — Slack/Discord tarzı, topluluk odaklı bir
-          sohbet deneyimi. Hepsi canlı, hepsi tek yerde.
+          {t('landing.tagline')}
         </p>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button onClick={onDemo} disabled={demoLoading} className={ctaClass}>
-            {demoLoading ? 'Giriş yapılıyor…' : '🚀 Demo’yu Dene'}
+            {demoLoading ? t('landing.demoLoading') : t('landing.demo')}
           </Button>
           <Button variant="secondary" onClick={() => navigate('/login')} className={ctaClass}>
-            Giriş Yap
+            {t('landing.login')}
           </Button>
           <Button variant="secondary" onClick={() => navigate('/register')} className={ctaClass}>
-            Kayıt Ol
+            {t('landing.register')}
           </Button>
         </div>
 
         <WakeNotice show={waking} />
         {demoError && <p className="mt-3 text-sm text-danger">{demoError}</p>}
-        {!waking && <p className="mt-3 text-xs text-fg-faint">Demo’yu Dene: hazır bir hesapla tek tıkla, kayıt gerekmez.</p>}
+        {!waking && <p className="mt-3 text-xs text-fg-faint">{t('landing.demoHint')}</p>}
 
         <div className="mt-14 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div
-              key={f.title}
+              key={f.key}
               className="rounded-2xl border border-border bg-surface-raised p-5 shadow-card transition duration-200 hover:-translate-y-0.5 hover:shadow-elevated"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-xl">
                 {f.icon}
               </div>
-              <div className="mt-3 font-semibold tracking-tight text-fg">{f.title}</div>
-              <div className="mt-1 text-sm leading-relaxed text-fg-muted">{f.desc}</div>
+              <div className="mt-3 font-semibold tracking-tight text-fg">{t(`feat.${f.key}.title`)}</div>
+              <div className="mt-1 text-sm leading-relaxed text-fg-muted">{t(`feat.${f.key}.desc`)}</div>
             </div>
           ))}
         </div>

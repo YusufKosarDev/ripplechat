@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import LanguageToggle from './LanguageToggle'
 
 interface AuthShellProps {
   title: string
@@ -9,6 +10,9 @@ export default function AuthShell({ title, children }: AuthShellProps) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(99,102,241,0.18),transparent)]" />
+      <div className="absolute right-4 top-4 z-20">
+        <LanguageToggle />
+      </div>
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-surface-overlay p-8 shadow-elevated backdrop-blur">
         <div className="mb-6 text-center">
           <span className="text-2xl font-semibold tracking-tight">

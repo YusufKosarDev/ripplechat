@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { login } from '../features/auth/authSlice'
+import { useT } from '../i18n'
 import AuthShell from '../components/AuthShell'
 import Button from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
@@ -11,6 +12,7 @@ import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { t } = useT()
   const { status, error } = useAppSelector((state) => state.auth)
   const waking = useWakeNotice(status === 'loading')
 
@@ -22,7 +24,7 @@ export default function LoginPage() {
     e.preventDefault()
     setFormError(null)
     if (!loginValue.trim() || !password) {
-      setFormError('Kullanıcı adı/e-posta ve şifre zorunludur.')
+      setFormError(t('auth.login.required'))
       return
     }
     const result = await dispatch(login({ login: loginValue.trim(), password }))
@@ -32,10 +34,10 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Giriş yap">
+    <AuthShell title={t('auth.login.title')}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-fg-muted">Kullanıcı adı veya e-posta</label>
+          <label className="mb-1 block text-sm text-fg-muted">{t('auth.usernameOrEmail')}</label>
           <Input
             value={loginValue}
             onChange={(e) => setLoginValue(e.target.value)}
@@ -44,7 +46,7 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-fg-muted">Şifre</label>
+          <label className="mb-1 block text-sm text-fg-muted">{t('auth.password')}</label>
           <Input
             type="password"
             value={password}
@@ -59,15 +61,15 @@ export default function LoginPage() {
         )}
 
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Giriş yapılıyor...' : 'Giriş yap'}
+          {status === 'loading' ? t('auth.login.submitting') : t('auth.login.submit')}
         </Button>
         <WakeNotice show={waking} />
       </form>
 
       <p className="mt-6 text-center text-sm text-fg-muted">
-        Hesabın yok mu?{' '}
+        {t('auth.login.noAccount')}{' '}
         <Link to="/register" className="text-accent hover:text-accent-hover">
-          Kayıt ol
+          {t('auth.login.registerLink')}
         </Link>
       </p>
     </AuthShell>
