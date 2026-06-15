@@ -68,6 +68,8 @@ export interface Channel {
   isPrivate: boolean
   createdBy: UserSummary
   createdAt: string
+  // Disappearing-messages timer in seconds; null means off.
+  messageTtlSeconds: number | null
 }
 
 // One image attachment in a channel's media gallery.
@@ -135,6 +137,8 @@ export interface Message {
   quotedContent: string | null
   forwarded: boolean
   pinned: boolean
+  // Set when the channel has a disappearing-messages timer; auto-deleted after this instant.
+  expiresAt: string | null
 }
 
 export interface MessageReactionUpdate {

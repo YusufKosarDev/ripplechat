@@ -25,6 +25,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -106,6 +107,12 @@ public class MessageService {
         }
         message.setChannel(channel);
         message.setSender(sender);
+
+        // Disappearing messages: stamp an expiry if the channel has a timer set.
+        Integer ttl = channel.getMessageTtlSeconds();
+        if (ttl != null && ttl > 0) {
+            message.setExpiresAt(Instant.now().plusSeconds(ttl));
+        }
 
         if (request.parentMessageId() != null) {
             Message parent = messageRepository.findById(request.parentMessageId())
@@ -329,6 +336,27 @@ public class MessageService {
             hide.setMessageId(messageId);
             hide.setUserId(user.getId());
             messageHideRepository.save(hide);
+        }
+    }
+
+    /**
+     * Sweeps disappearing messages whose expiry has passed: soft-deletes them
+     * (clearing content/attachment, dropping reactions) and notifies clients so
+     * they update to the "deleted" placeholder. Runs on a fixed delay.
+     */
+    @Scheduled(fixedDelayString = "${ripplechat.disappearing.sweep-ms:30000}")
+    @Transactional
+    public void purgeExpired() {
+        List<Message> expired = messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(Instant.now());
+        for (Message message : expired) {
+            message.setDeleted(true);
+            message.setContent("");
+            message.setAttachmentUrl(null);
+            message.setAttachmentName(null);
+            message.setAttachmentType(null);
+            messageRepository.saveAndFlush(message);
+            messageReactionService.deleteAllForMessage(message.getId());
+            broadcastUpdate(message);
         }
     }
 

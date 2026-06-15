@@ -104,4 +104,8 @@ public class Message {
     @Column(nullable = false)
     @ColumnDefault("false")
     private boolean deleted = false;
+
+    /** When set, the message is auto-deleted once this instant passes (disappearing messages). */
+    @Column(name = "expires_at")
+    private Instant expiresAt;
 }

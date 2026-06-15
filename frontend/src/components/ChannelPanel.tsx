@@ -12,7 +12,14 @@ import {
   messageUpdated,
   threadSummaryUpdated,
 } from '../features/messages/messagesSlice'
-import { channelRemoved, fetchMembers, selectChannel } from '../features/channels/channelsSlice'
+import {
+  channelRemoved,
+  fetchMembers,
+  selectChannel,
+  setDisappearing,
+  ttlLabel,
+  TTL_OPTIONS,
+} from '../features/channels/channelsSlice'
 import { fetchPolls, pollUpserted, setMyVote } from '../features/polls/pollsSlice'
 import { closeThread, openThread, threadReplyUpdated } from '../features/threads/threadsSlice'
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
@@ -119,6 +126,7 @@ function dmAsChannel(dm: DirectChannel): Channel {
     isPrivate: true,
     createdBy: dm.otherUser ?? dm.participants[0],
     createdAt: dm.createdAt,
+    messageTtlSeconds: null,
   }
 }
 
@@ -160,6 +168,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [showGallery, setShowGallery] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
+  const [showTtl, setShowTtl] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -569,6 +578,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         ) : null}
         {linkUrl && <LinkPreviewCard url={linkUrl} />}
         {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
+        {msg.expiresAt && !msg.deleted && (
+          <span className="text-xs text-fg-faint" title={`Kaybolacak: ${new Date(msg.expiresAt).toLocaleString()}`}>
+            ⏲️
+          </span>
+        )}
         {dm && dm.otherUser && mine && !msg.deleted && (
           <span
             title={readByOther ? 'Okundu' : 'İletildi'}
@@ -786,6 +800,35 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               >
                 {isArchived ? '📂' : '🗄️'}
               </Button>
+              <div className="relative">
+                <Button
+                  variant={channel.messageTtlSeconds ? 'primary' : 'secondary'}
+                  size="sm"
+                  title="Kaybolan mesajlar"
+                  onClick={() => setShowTtl((s) => !s)}
+                >
+                  {channel.messageTtlSeconds ? `⏲️ ${ttlLabel(channel.messageTtlSeconds)}` : '⏲️'}
+                </Button>
+                {showTtl && (
+                  <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface-overlay py-1 shadow-elevated">
+                    <p className="px-3 py-1 text-xs text-fg-faint">Mesajlar şu süre sonra silinsin:</p>
+                    {TTL_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          if (selectedId) dispatch(setDisappearing({ channelId: selectedId, ttlSeconds: opt.value }))
+                          setShowTtl(false)
+                        }}
+                        className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-fg transition hover:bg-surface-muted ${focusRing}`}
+                      >
+                        <span>{opt.label}</span>
+                        {(channel.messageTtlSeconds ?? null) === opt.value && <span className="text-brand">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
           {dmPartner && (

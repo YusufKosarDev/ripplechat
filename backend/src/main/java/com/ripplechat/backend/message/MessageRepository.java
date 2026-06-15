@@ -77,4 +77,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /** Replies for several threads at once (for batch thread summaries). */
     @EntityGraph(attributePaths = "sender")
     List<Message> findByParent_IdInOrderByCreatedAtAsc(Collection<UUID> parentIds);
+
+    /** Disappearing messages whose expiry has passed and aren't soft-deleted yet. */
+    List<Message> findByExpiresAtLessThanEqualAndDeletedFalse(java.time.Instant cutoff);
 }

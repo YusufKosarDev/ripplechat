@@ -66,4 +66,12 @@ public class Channel {
     @Column(nullable = false)
     @ColumnDefault("false")
     private boolean deleted = false;
+
+    /**
+     * Disappearing-messages timer in seconds. When set (and &gt; 0), each new
+     * message gets an expires_at = now + this, after which it is auto-deleted.
+     * Null means the feature is off for this channel.
+     */
+    @Column(name = "message_ttl_seconds")
+    private Integer messageTtlSeconds;
 }

@@ -84,6 +84,20 @@ public class ChannelService {
         return ChannelResponse.from(channelRepository.saveAndFlush(channel));
     }
 
+    /**
+     * Sets (or clears) the disappearing-messages timer. Any member can change it;
+     * a null/0 timer turns the feature off. Only affects messages sent afterward.
+     */
+    @Transactional
+    public ChannelResponse setDisappearing(UUID channelId, String username, Integer ttlSeconds) {
+        Channel channel = getActiveChannel(channelId);
+        if (!membershipRepository.existsByChannelIdAndUser_Username(channelId, username)) {
+            throw new ForbiddenException("not a member of channel: " + channelId);
+        }
+        channel.setMessageTtlSeconds(ttlSeconds == null || ttlSeconds <= 0 ? null : ttlSeconds);
+        return ChannelResponse.from(channelRepository.saveAndFlush(channel));
+    }
+
     @Transactional
     public void delete(UUID channelId, String username) {
         Channel channel = getActiveChannel(channelId);

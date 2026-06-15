@@ -89,6 +89,14 @@ export const updateChannel = createAsyncThunk(
   },
 )
 
+export const setDisappearing = createAsyncThunk(
+  'channels/setDisappearing',
+  async ({ channelId, ttlSeconds }: { channelId: string; ttlSeconds: number | null }) => {
+    const { data } = await client.put<Channel>(`/api/channels/${channelId}/disappearing`, { ttlSeconds })
+    return data
+  },
+)
+
 export const deleteChannel = createAsyncThunk('channels/delete', async (channelId: string) => {
   await client.delete(`/api/channels/${channelId}`)
   return channelId
@@ -154,12 +162,32 @@ const channelsSlice = createSlice({
         const idx = state.items.findIndex((c) => c.id === action.payload.id)
         if (idx >= 0) state.items[idx] = action.payload
       })
+      .addCase(setDisappearing.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((c) => c.id === action.payload.id)
+        if (idx >= 0) state.items[idx] = action.payload
+      })
       .addCase(deleteChannel.fulfilled, (state, action) => {
         state.items = state.items.filter((c) => c.id !== action.payload)
         if (state.selectedId === action.payload) state.selectedId = null
       })
   },
 })
+
+export const TTL_OPTIONS: { label: string; value: number | null }[] = [
+  { label: 'Kapalı', value: null },
+  { label: '1 saat', value: 3600 },
+  { label: '1 gün', value: 86400 },
+  { label: '1 hafta', value: 604800 },
+]
+
+// Human-readable label for a disappearing-timer value in seconds.
+export function ttlLabel(seconds: number | null | undefined): string | null {
+  if (!seconds) return null
+  if (seconds % 604800 === 0) return `${seconds / 604800} hafta`
+  if (seconds % 86400 === 0) return `${seconds / 86400} gün`
+  if (seconds % 3600 === 0) return `${seconds / 3600} saat`
+  return `${seconds} sn`
+}
 
 export const { selectChannel, channelRemoved } = channelsSlice.actions
 export default channelsSlice.reducer

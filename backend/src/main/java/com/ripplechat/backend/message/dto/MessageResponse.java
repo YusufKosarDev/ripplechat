@@ -25,7 +25,8 @@ public record MessageResponse(
         boolean forwarded,
         boolean pinned,
         String attachmentName,
-        String attachmentType
+        String attachmentType,
+        Instant expiresAt
 ) {
     public static MessageResponse from(Message message) {
         return from(message, List.of(), ThreadSummary.empty());
@@ -50,6 +51,7 @@ public record MessageResponse(
                 message.isForwarded(),
                 message.isPinned(),
                 message.getAttachmentName(),
-                message.getAttachmentType());
+                message.getAttachmentType(),
+                message.getExpiresAt());
     }
 }

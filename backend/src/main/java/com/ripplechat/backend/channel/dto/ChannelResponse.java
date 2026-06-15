@@ -12,7 +12,8 @@ public record ChannelResponse(
         String description,
         boolean isPrivate,
         UserSummary createdBy,
-        Instant createdAt
+        Instant createdAt,
+        Integer messageTtlSeconds
 ) {
     public static ChannelResponse from(Channel channel) {
         return new ChannelResponse(
@@ -21,7 +22,8 @@ public record ChannelResponse(
                 channel.getDescription(),
                 channel.isPrivate(),
                 UserSummary.from(channel.getCreatedBy()),
-                channel.getCreatedAt()
+                channel.getCreatedAt(),
+                channel.getMessageTtlSeconds()
         );
     }
 }

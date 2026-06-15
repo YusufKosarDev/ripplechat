@@ -2,6 +2,7 @@ package com.ripplechat.backend.channel;
 
 import com.ripplechat.backend.channel.dto.ChannelResponse;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
+import com.ripplechat.backend.channel.dto.DisappearingRequest;
 import com.ripplechat.backend.channel.dto.UpdateChannelRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,13 @@ public class ChannelController {
                                   @Valid @RequestBody UpdateChannelRequest request,
                                   @AuthenticationPrincipal String username) {
         return channelService.update(id, username, request);
+    }
+
+    @PutMapping("/{id}/disappearing")
+    public ChannelResponse setDisappearing(@PathVariable UUID id,
+                                           @Valid @RequestBody DisappearingRequest request,
+                                           @AuthenticationPrincipal String username) {
+        return channelService.setDisappearing(id, username, request.ttlSeconds());
     }
 
     @DeleteMapping("/{id}")
