@@ -11,6 +11,14 @@ import './index.css'
 // Apply the persisted/system theme before first paint to avoid a flash.
 applyTheme(getInitialTheme())
 
+// Register the service worker for PWA install + offline app shell. Production
+// only, so dev never serves stale cached assets. Same worker also powers push.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
