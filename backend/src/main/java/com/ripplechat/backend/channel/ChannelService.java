@@ -18,9 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,15 +51,8 @@ public class ChannelService {
      */
     @Transactional(readOnly = true)
     public List<ChannelResponse> findAll(String username) {
-        Set<UUID> memberChannelIds = membershipRepository.findByUser_Username(username).stream()
-                .map(membership -> membership.getChannel().getId())
-                .collect(Collectors.toSet());
-
-        return channelRepository.findAll().stream()
-                .filter(channel -> !channel.isDeleted())
-                // Direct messages are listed separately (GET /api/dm), not here.
-                .filter(channel -> channel.getType() == ChannelType.CHANNEL)
-                .filter(channel -> !channel.isPrivate() || memberChannelIds.contains(channel.getId()))
+        // Direct messages are listed separately (GET /api/dm), not here.
+        return channelRepository.findVisibleChannels(username).stream()
                 .map(ChannelResponse::from)
                 .toList();
     }
