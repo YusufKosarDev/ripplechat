@@ -1,10 +1,12 @@
 package com.ripplechat.backend.link;
 
+import com.ripplechat.backend.common.CacheConfig;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -17,15 +19,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fetches Open Graph / page metadata for a URL to render a preview card.
  *
  * <p>SSRF-guarded: only http/https, redirects followed manually with the target
  * re-validated each hop, and private/loopback/link-local addresses rejected.
- * Results are cached in memory.
+ * Successful previews are cached (Caffeine, with a TTL) keyed by URL.
  */
 @Service
 public class LinkPreviewService {
@@ -33,31 +33,20 @@ public class LinkPreviewService {
     private static final Logger log = LoggerFactory.getLogger(LinkPreviewService.class);
     private static final int MAX_BODY_BYTES = 512 * 1024;
     private static final int MAX_REDIRECTS = 3;
-    private static final int CACHE_CAP = 500;
 
     private final HttpClient http = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(5))
             .build();
-    private final Map<String, LinkPreview> cache = new ConcurrentHashMap<>();
 
+    @Cacheable(cacheNames = CacheConfig.LINK_PREVIEWS, key = "#rawUrl.trim()",
+            condition = "#rawUrl != null && !#rawUrl.isBlank()",
+            unless = "#result == null")
     public LinkPreview preview(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
             return null;
         }
-        String key = rawUrl.trim();
-        LinkPreview cached = cache.get(key);
-        if (cached != null) {
-            return cached;
-        }
-        LinkPreview result = fetch(key);
-        if (result != null) {
-            if (cache.size() >= CACHE_CAP) {
-                cache.clear();
-            }
-            cache.put(key, result);
-        }
-        return result;
+        return fetch(rawUrl.trim());
     }
 
     private LinkPreview fetch(String rawUrl) {

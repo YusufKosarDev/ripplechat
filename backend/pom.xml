@@ -64,6 +64,16 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Caching abstraction with Caffeine as the provider (link-preview cache). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
 		<!-- OpenAPI / Swagger UI (served at /swagger-ui.html, /v3/api-docs). -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
