@@ -39,4 +39,19 @@ class JwtServiceTest {
         String token = jwt.generateToken("alice");
         assertThatThrownBy(() -> jwt.extractUsername(token)).isInstanceOf(Exception.class);
     }
+
+    @Test
+    void rejectsTooShortSecret() {
+        assertThatThrownBy(() -> new JwtService("too-short", 3_600_000L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("32 bytes");
+    }
+
+    @Test
+    void rejectsExamplePlaceholderSecret() {
+        assertThatThrownBy(
+                () -> new JwtService("replace-with-a-long-random-secret-at-least-32-bytes", 3_600_000L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("placeholder");
+    }
 }
