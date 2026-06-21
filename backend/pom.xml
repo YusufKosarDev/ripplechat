@@ -209,6 +209,15 @@
 						</exclude>
 					</excludes>
 				</configuration>
+				<executions>
+					<!-- Generate META-INF/build-info.properties so /actuator/info
+					     reports the version and build time. -->
+					<execution>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
