@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { client } from '../api/client'
@@ -33,8 +33,10 @@ import { decryptText, encryptText, isEncrypted } from '../crypto/e2ee'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
 import MediaGalleryModal from './MediaGalleryModal'
-import EmojiPicker from './EmojiPicker'
-import GifPicker from './GifPicker'
+// Pickers are heavy (emoji dataset / GIF search UI) and only shown on demand,
+// so load them lazily instead of bundling them into the chat page.
+const EmojiPicker = lazy(() => import('./EmojiPicker'))
+const GifPicker = lazy(() => import('./GifPicker'))
 import {
   sendChatMessage,
   sendDeleteMessage,
@@ -1219,7 +1221,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                   😀
                 </Button>
                 {showEmoji && (
-                  <EmojiPicker onPick={(e) => setDraft((d) => d + e)} onClose={() => setShowEmoji(false)} />
+                  <Suspense fallback={null}>
+                    <EmojiPicker onPick={(e) => setDraft((d) => d + e)} onClose={() => setShowEmoji(false)} />
+                  </Suspense>
                 )}
               </div>
               <div className="relative">
@@ -1234,7 +1238,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 >
                   GIF
                 </Button>
-                {showGif && <GifPicker onPick={onPickGif} onClose={() => setShowGif(false)} />}
+                {showGif && (
+                  <Suspense fallback={null}>
+                    <GifPicker onPick={onPickGif} onClose={() => setShowGif(false)} />
+                  </Suspense>
+                )}
               </div>
               <Button
                 type="button"
