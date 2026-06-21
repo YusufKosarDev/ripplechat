@@ -30,6 +30,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final RateLimiter rateLimiter;
+    private final SecurityAuditLogger audit;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -47,6 +48,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
 
         User saved = userRepository.saveAndFlush(user);
+        audit.registered(saved.getUsername());
         String accessToken = jwtService.generateToken(saved.getUsername());
         String refreshToken = refreshTokenService.issue(saved);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(saved));
@@ -57,19 +59,25 @@ public class AuthService {
         // Brute-force throttle, keyed by the attempted login identifier. The
         // public "demo" account is exempt — its password is intentionally known,
         // so throttling it would only block the one-click demo for real visitors.
-        boolean isDemo = "demo".equalsIgnoreCase(request.login().trim());
-        if (!isDemo && !rateLimiter.tryAcquire("login:" + request.login().toLowerCase(), LOGIN_BURST, LOGIN_REFILL_PER_SEC)) {
+        String login = request.login();
+        boolean isDemo = "demo".equalsIgnoreCase(login.trim());
+        if (!isDemo && !rateLimiter.tryAcquire("login:" + login.toLowerCase(), LOGIN_BURST, LOGIN_REFILL_PER_SEC)) {
+            audit.loginThrottled(login);
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "too many login attempts, please wait a moment and try again");
         }
 
-        User user = userRepository.findByUsernameOrEmail(request.login(), request.login())
-                .orElseThrow(() -> new InvalidCredentialsException("invalid username/email or password"));
-
+        User user = userRepository.findByUsernameOrEmail(login, login).orElse(null);
+        if (user == null) {
+            audit.loginFailed(login, "unknown_account");
+            throw new InvalidCredentialsException("invalid username/email or password");
+        }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            audit.loginFailed(login, "bad_password");
             throw new InvalidCredentialsException("invalid username/email or password");
         }
 
+        audit.loginSucceeded(user.getUsername());
         String accessToken = jwtService.generateToken(user.getUsername());
         String refreshToken = refreshTokenService.issue(user);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(user));
@@ -82,7 +90,14 @@ public class AuthService {
      */
     @Transactional
     public TokenResponse refresh(String refreshToken) {
-        User user = refreshTokenService.rotate(refreshToken);
+        User user;
+        try {
+            user = refreshTokenService.rotate(refreshToken);
+        } catch (RuntimeException e) {
+            audit.refreshRejected();
+            throw e;
+        }
+        audit.tokenRefreshed(user.getUsername());
         String accessToken = jwtService.generateToken(user.getUsername());
         String newRefreshToken = refreshTokenService.issue(user);
         return TokenResponse.of(accessToken, newRefreshToken);
@@ -92,5 +107,6 @@ public class AuthService {
     @Transactional
     public void logout(String refreshToken) {
         refreshTokenService.revoke(refreshToken);
+        audit.loggedOut();
     }
 }
