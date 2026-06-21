@@ -123,6 +123,8 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests
 - Vitest + React Testing Library — frontend unit tests
 - Playwright — end-to-end tests
+- ArchUnit — architecture/boundary tests · PITest — mutation testing (`mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage`)
+- k6 — load test for the read-heavy API path (`k6 run loadtest/messaging.js` against a local instance)
 
 **DevOps**
 - Docker Compose (PostgreSQL)
