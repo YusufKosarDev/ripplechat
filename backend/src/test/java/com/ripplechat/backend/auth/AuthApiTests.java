@@ -12,6 +12,7 @@ import static org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -52,6 +53,18 @@ class AuthApiTests extends AbstractIntegrationTest {
     @Test
     void protectedEndpointRequiresToken() throws Exception {
         mvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void throttledLoginReturns429WithRetryAfter() throws Exception {
+        String body = "{\"login\":\"nobody-throttle\",\"password\":\"x\"}";
+        // The login burst is 5; the 6th attempt for the same identifier is throttled.
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(post("/api/auth/login").contentType(APPLICATION_JSON).content(body));
+        }
+        mvc.perform(post("/api/auth/login").contentType(APPLICATION_JSON).content(body))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"));
     }
 
     @Test

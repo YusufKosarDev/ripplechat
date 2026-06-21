@@ -6,8 +6,11 @@ import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,6 +29,9 @@ import java.util.List;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // Back-off hint (seconds) sent with rate-limit (429) responses.
+    private static final int RETRY_AFTER_SECONDS = 5;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
@@ -65,9 +71,15 @@ public class GlobalExceptionHandler {
      * comes back as a problem detail.
      */
     @ExceptionHandler(ResponseStatusException.class)
-    public ProblemDetail handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetail> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
-        return problem(status, ex.getReason(), request, null);
+        ProblemDetail body = problem(status, ex.getReason(), request, null);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON);
+        if (status == HttpStatus.TOO_MANY_REQUESTS) {
+            builder.header(HttpHeaders.RETRY_AFTER, String.valueOf(RETRY_AFTER_SECONDS));
+        }
+        return builder.body(body);
     }
 
     @ExceptionHandler(Exception.class)
