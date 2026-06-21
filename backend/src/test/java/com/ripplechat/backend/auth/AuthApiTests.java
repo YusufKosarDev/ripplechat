@@ -8,8 +8,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -33,6 +35,18 @@ class AuthApiTests extends AbstractIntegrationTest {
         mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON)
                         .content("{\"username\":\"\",\"email\":\"not-an-email\",\"password\":\"short\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void validationErrorIsAnRfc7807ProblemWithFieldErrors() throws Exception {
+        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON)
+                        .content("{\"username\":\"\",\"email\":\"not-an-email\",\"password\":\"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Validation failed"))
+                .andExpect(jsonPath("$.instance").value("/api/auth/register"))
+                .andExpect(jsonPath("$.fieldErrors").isNotEmpty());
     }
 
     @Test

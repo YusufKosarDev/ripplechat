@@ -35,12 +35,16 @@ export interface RegisterRequest {
 }
 
 // Matches the backend's consistent error body.
+// RFC 7807 problem+json body returned by the API on errors. `message` is kept
+// optional for backwards compatibility with any non-problem error response.
 export interface ApiError {
-  timestamp: string
+  type?: string
+  title?: string
   status: number
-  error: string
-  message: string
-  path: string
+  detail?: string
+  instance?: string
+  timestamp?: string
+  message?: string
   fieldErrors?: { field: string; message: string }[]
 }
 

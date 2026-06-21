@@ -12,6 +12,11 @@ function extractError(e: unknown): string {
     if (data.fieldErrors && data.fieldErrors.length > 0) {
       return data.fieldErrors.map((f) => f.message).join(', ')
     }
+    // RFC 7807 problem responses carry the message in `detail`; keep `message`
+    // as a fallback for any non-problem error body.
+    if (data.detail) {
+      return data.detail
+    }
     if (data.message) {
       return data.message
     }
