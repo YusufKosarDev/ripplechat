@@ -139,7 +139,9 @@ presence · typing · reaction · poll · search (full-text) · read receipts ·
 
 **Security is enforced on the backend.** Authentication and every role/permission check (channel membership, moderation, profile ownership) run server-side — the frontend never holds the authority, only reflects it.
 
-**Dev vs. production.** Development favours fast iteration: Hibernate auto-updates the schema (`ddl-auto=update`) and SQL logging is on. The `prod` profile is hardened instead — schema is owned by **Flyway** migrations and only *validated* by Hibernate, SQL logging is off, and CORS / WebSocket origins come from an explicit, environment-configured allowlist (no wildcards).
+**Dev vs. production.** Development favours fast iteration: Hibernate auto-updates the schema (`ddl-auto=update`) and SQL logging is on. The `prod` profile is hardened instead — schema is owned by **Flyway** migrations and only *validated* by Hibernate, SQL logging is off, and CORS / WebSocket origins come from an explicit, environment-configured allowlist (no wildcards). Responses also carry hardening headers (HSTS, `Referrer-Policy`, frame-deny, a `frame-ancestors` CSP).
+
+> **Note on the Swagger UI.** It's left publicly reachable on this demo on purpose, as a showcase of the API surface — the exposure is low since every mutating endpoint requires a JWT and no secrets are returned. In a real production deployment you'd gate it behind authentication or disable it (`springdoc.api-docs.enabled=false`) to avoid publishing the API map.
 
 ---
 
