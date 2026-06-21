@@ -9,6 +9,10 @@ import java.util.Map;
 /** Cloudinary-backed media storage. Active when CLOUDINARY_URL is configured. */
 public class CloudinaryMediaStorage implements MediaStorage {
 
+    // Bound the outbound upload so a slow/unresponsive Cloudinary can't hold a
+    // request thread indefinitely (the SDK otherwise waits far longer).
+    private static final int UPLOAD_TIMEOUT_MS = 15_000;
+
     private final Cloudinary cloudinary;
 
     public CloudinaryMediaStorage(Cloudinary cloudinary) {
@@ -33,7 +37,10 @@ public class CloudinaryMediaStorage implements MediaStorage {
     private String upload(byte[] bytes, String resourceType) {
         try {
             Map<?, ?> result = cloudinary.uploader()
-                    .upload(bytes, ObjectUtils.asMap("folder", "ripplechat", "resource_type", resourceType));
+                    .upload(bytes, ObjectUtils.asMap(
+                            "folder", "ripplechat",
+                            "resource_type", resourceType,
+                            "timeout", UPLOAD_TIMEOUT_MS));
             return (String) result.get("secure_url");
         } catch (IOException e) {
             throw new IllegalStateException("upload failed", e);

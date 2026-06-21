@@ -282,15 +282,17 @@ ripplechat/
 
 ## 📈 Scaling & Roadmap
 
-RippleChat runs as a single backend instance, which keeps two things in-process:
+RippleChat runs as a single backend instance, which keeps a few things in-process:
 
 - **Rate limiting** is in-memory (per-instance token buckets).
 - **WebSocket fan-out** uses Spring's in-memory `SimpleBroker`.
+- **The disappearing-message sweep** is a `@Scheduled` task running on every instance.
 
-That's the right choice for one instance. To scale **horizontally** (multiple backend replicas behind a load balancer), two pieces would move to shared infrastructure:
+That's the right choice for one instance. To scale **horizontally** (multiple backend replicas behind a load balancer), a few pieces would move to shared infrastructure:
 
 1. **Distributed rate limiting** — back the limiter with **Redis** (e.g. atomic `INCR` + TTL, or a token-bucket library) so limits hold across replicas instead of per-instance.
 2. **External STOMP relay** — replace the in-memory broker with a real message broker (**RabbitMQ** or **Redis**) via `enableStompBrokerRelay`, so a message published on one replica reaches subscribers connected to another.
+3. **Single-runner scheduling** — the expiry sweep is naturally idempotent (it only ever touches not-yet-deleted rows), but on multiple replicas it would run redundantly and could double-broadcast a deletion; a lock (e.g. **ShedLock**) would elect one runner.
 
 Both are intentionally deferred: they add operational dependencies that bring no benefit at single-instance scale, and can't be meaningfully exercised without a multi-replica deployment. Sticky sessions at the load balancer are a lighter interim option for the WebSocket layer.
 
