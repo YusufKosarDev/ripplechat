@@ -16,6 +16,10 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
+[![Backend tests](https://github.com/YusufKosarDev/ripplechat/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/YusufKosarDev/ripplechat/actions/workflows/backend-tests.yml)
+[![Frontend tests](https://github.com/YusufKosarDev/ripplechat/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/YusufKosarDev/ripplechat/actions/workflows/frontend-tests.yml)
+[![E2E tests](https://github.com/YusufKosarDev/ripplechat/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/YusufKosarDev/ripplechat/actions/workflows/e2e-tests.yml)
+
 ---
 
 ## 🔗 Live Demo
