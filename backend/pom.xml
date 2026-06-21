@@ -258,4 +258,48 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<!-- Opt-in mutation testing (not in the default build/CI, which would be
+		     slow). Scoped to logic-rich classes with fast pure-unit coverage:
+		     run with  mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage
+		     Report: target/pit-reports/index.html -->
+		<profile>
+			<id>pitest</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>1.19.1</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>1.2.2</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<targetClasses>
+								<param>com.ripplechat.backend.common.RateLimiter</param>
+								<param>com.ripplechat.backend.common.RequestIdFilter</param>
+								<param>com.ripplechat.backend.auth.JwtService</param>
+								<param>com.ripplechat.backend.poll.Poll</param>
+							</targetClasses>
+							<targetTests>
+								<param>com.ripplechat.backend.common.RateLimiterTest</param>
+								<param>com.ripplechat.backend.common.RequestIdFilterTest</param>
+								<param>com.ripplechat.backend.auth.JwtServiceTest</param>
+								<param>com.ripplechat.backend.poll.PollTest</param>
+							</targetTests>
+							<outputFormats>
+								<param>HTML</param>
+								<param>XML</param>
+							</outputFormats>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>
