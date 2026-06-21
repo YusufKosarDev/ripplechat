@@ -29,6 +29,14 @@
 
 > Hosted on free tiers, so the backend may take ~30–60s to wake on the first request (the UI shows a "waking up" notice). On the landing page, click **“Demo’yu Dene”** for a one-click guided account — no signup needed.
 
+**Demo account** (or log in manually):
+
+| Username | Password |
+|----------|----------|
+| `demo`   | `demo1234` |
+
+It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sample messages, reactions, a thread and a poll.
+
 ![RippleChat](docs/screenshots/landing.png)
 
 ---
