@@ -1,7 +1,9 @@
 package com.ripplechat.backend.support;
 
+import com.ripplechat.backend.common.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +39,18 @@ public abstract class AbstractIntegrationTest {
     protected UserRepository userRepository;
     @Autowired
     protected PasswordEncoder passwordEncoder;
+    @Autowired
+    private RateLimiter rateLimiter;
+
+    /**
+     * Reset the in-memory rate limiter before each test. The limiter is a
+     * singleton shared across the whole test context, so without this its
+     * token-bucket state leaks between tests and eventually trips the limit.
+     */
+    @BeforeEach
+    void resetRateLimiter() {
+        rateLimiter.reset();
+    }
 
     /** Persists a test user with a known password ("password123"). */
     protected User createUser(String username) {

@@ -51,4 +51,13 @@ public class RateLimiter {
             return false;
         }
     }
+
+    /**
+     * Discards all buckets, so every key starts fresh again. Intended for tests,
+     * which share a single application context: without this, in-memory bucket
+     * state leaks across test methods and exhausts limits.
+     */
+    public void reset() {
+        buckets.clear();
+    }
 }
