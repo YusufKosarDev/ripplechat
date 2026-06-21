@@ -6,6 +6,8 @@ import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,6 +31,8 @@ import java.util.List;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // Back-off hint (seconds) sent with rate-limit (429) responses.
     private static final int RETRY_AFTER_SECONDS = 5;
@@ -84,6 +88,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex, HttpServletRequest request) {
+        // Log the cause (the response body stays generic to avoid leaking internals).
+        log.error("Unexpected error handling {} {}", request.getMethod(), request.getRequestURI(), ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request, null);
     }
 
