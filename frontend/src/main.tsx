@@ -4,6 +4,7 @@ import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 import { store } from './app/store'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 import { LanguageProvider, getInitialLang } from './i18n'
 import { applyTheme, getInitialTheme } from './theme'
 import '@fontsource-variable/inter/index.css'
@@ -25,9 +26,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <LanguageProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ErrorBoundary>
       </LanguageProvider>
     </Provider>
   </StrictMode>,

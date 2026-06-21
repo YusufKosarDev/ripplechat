@@ -51,6 +51,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     'auth.register.submitting': 'Oluşturuluyor...',
     'auth.register.haveAccount': 'Zaten hesabın var mı?',
     'auth.register.loginLink': 'Giriş yap',
+
+    'error.title': 'Bir şeyler ters gitti',
+    'error.body': 'Beklenmeyen bir hata oluştu. Sayfayı yenilemeyi deneyebilirsin.',
+    'error.retry': 'Yeniden dene',
   },
   en: {
     'lang.switch': 'Switch language',
@@ -99,5 +103,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'auth.register.submitting': 'Creating...',
     'auth.register.haveAccount': 'Already have an account?',
     'auth.register.loginLink': 'Log in',
+
+    'error.title': 'Something went wrong',
+    'error.body': 'An unexpected error occurred. Try reloading the page.',
+    'error.retry': 'Try again',
   },
 }
