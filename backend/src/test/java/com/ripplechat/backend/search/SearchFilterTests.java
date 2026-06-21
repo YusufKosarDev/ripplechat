@@ -46,4 +46,22 @@ class SearchFilterTests extends AbstractIntegrationTest {
         assertThat(searchService.searchMessages("owner", "ortak")).hasSize(2);
         assertThat(searchService.searchMessages("owner", "ortak", null, "bob", null)).hasSize(1);
     }
+
+    @Test
+    void pagesThroughResultsAndReportsHasMore() {
+        createUser("owner");
+        var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
+        // Three matching messages, paged two at a time (kept under the send rate limit).
+        messageService.send(channel.id(), new CreateMessageRequest("ara birinci", null), "owner");
+        messageService.send(channel.id(), new CreateMessageRequest("ara ikinci", null), "owner");
+        messageService.send(channel.id(), new CreateMessageRequest("ara üçüncü", null), "owner");
+
+        var first = searchService.searchPage("owner", "ara", null, null, null, 0, 2);
+        assertThat(first.results()).hasSize(2);
+        assertThat(first.hasMore()).isTrue();
+
+        var second = searchService.searchPage("owner", "ara", null, null, null, 1, 2);
+        assertThat(second.results()).hasSize(1);
+        assertThat(second.hasMore()).isFalse();
+    }
 }

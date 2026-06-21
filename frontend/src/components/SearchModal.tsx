@@ -1,7 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { client } from '../api/client'
 import { useAppSelector } from '../app/hooks'
 import type { SearchResult } from '../api/types'
+
+const PAGE_SIZE = 20
+
+interface SearchPage {
+  results: SearchResult[]
+  hasMore: boolean
+}
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
@@ -47,32 +54,59 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
   const [since, setSince] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const pageRef = useRef(0)
   const panelRef = useDialog<HTMLDivElement>(onClose)
+
+  const buildParams = (page: number): Record<string, string> => {
+    const params: Record<string, string> = { q: query.trim(), page: String(page), size: String(PAGE_SIZE) }
+    if (channelId) params.channelId = channelId
+    if (from.trim()) params.from = from.trim()
+    if (since) params.since = since
+    return params
+  }
 
   useEffect(() => {
     const term = query.trim()
     if (!term) {
       setResults([])
+      setHasMore(false)
       setLoading(false)
       return
     }
     setLoading(true)
     const timer = setTimeout(async () => {
       try {
-        const params: Record<string, string> = { q: term }
-        if (channelId) params.channelId = channelId
-        if (from.trim()) params.from = from.trim()
-        if (since) params.since = since
-        const { data } = await client.get<SearchResult[]>('/api/search/messages', { params })
-        setResults(data)
+        const { data } = await client.get<SearchPage>('/api/search/messages', { params: buildParams(0) })
+        setResults(data.results)
+        setHasMore(data.hasMore)
+        pageRef.current = 0
       } catch {
         setResults([])
+        setHasMore(false)
       } finally {
         setLoading(false)
       }
     }, 300)
     return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, channelId, from, since])
+
+  const loadMore = async () => {
+    const next = pageRef.current + 1
+    setLoadingMore(true)
+    try {
+      const { data } = await client.get<SearchPage>('/api/search/messages', { params: buildParams(next) })
+      setResults((prev) => [...prev, ...data.results])
+      setHasMore(data.hasMore)
+      pageRef.current = next
+    } catch {
+      setHasMore(false)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const trimmed = query.trim()
   const dmLabel = (d: (typeof dms)[number]) =>
@@ -174,6 +208,16 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
                 </div>
               </button>
             ))}
+
+          {!loading && hasMore && (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className={`w-full px-4 py-3 text-center text-sm font-medium text-accent transition hover:bg-surface-muted disabled:opacity-60 ${focusRing}`}
+            >
+              {loadingMore ? 'Yükleniyor...' : 'Daha fazla yükle'}
+            </button>
+          )}
         </div>
       </div>
     </div>

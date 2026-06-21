@@ -26,7 +26,8 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
               and m.deleted = false
               and to_tsvector('simple', m.content) @@ to_tsquery('simple', :tsquery)
             order by ts_rank(to_tsvector('simple', m.content), to_tsquery('simple', :tsquery)) desc,
-                     m.created_at desc
+                     m.created_at desc,
+                     m.id desc
             """, nativeQuery = true)
     List<UUID> searchMessageIds(@Param("channelIds") Collection<UUID> channelIds,
                                 @Param("tsquery") String tsquery,
