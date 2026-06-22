@@ -1,0 +1,14 @@
+name: Ping Backend (Keep Alive)
+
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render free tier cold starts
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend API
+        run: curl -sSf https://ripplechat-backend.onrender.com/actuator/health || echo "Ping failed but continuing"

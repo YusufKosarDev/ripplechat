@@ -45,6 +45,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ### ⚡ Real-time
 - **Live messaging** over WebSocket / STOMP — messages fan out instantly to every subscriber of a channel
+- **Optimistic UI** — instant UI updates for messages and channels before server confirmation, with seamless fallback/error handling
 - **Presence** — see who's online at a glance
 - **Typing indicators** — know when someone in the channel is composing a message
 - **Automatic reconnection** — the client recovers transparently from dropped connections, with a visible connection banner
@@ -69,6 +70,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ### 📎 Media & attachments
 - **Image, file, and voice-message attachments** (recorded in-browser), stored on Cloudinary
+- **Automatic Storage Cleanup** — media files hosted on Cloudinary are reliably and automatically purged when the owning message is deleted
 - **Per-channel media gallery** of shared images
 - **Link previews** — URLs unfurl into title/description/image cards (server-side, SSRF-guarded)
 
