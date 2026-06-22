@@ -27,6 +27,9 @@ interface RippleChatDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<RippleChatDB>> | null = null
 
 export function getDB() {
+  if (typeof indexedDB === 'undefined') {
+    return null
+  }
   if (!dbPromise) {
     dbPromise = openDB<RippleChatDB>('ripplechat-db', 1, {
       upgrade(db) {
@@ -49,14 +52,18 @@ export function getDB() {
 
 // Helpers
 export async function saveMessagesToDB(messages: Message[]) {
+  if (typeof indexedDB === 'undefined') return
   const db = await getDB()
+  if (!db) return
   const tx = db.transaction('messages', 'readwrite')
   await Promise.all(messages.map((m) => tx.store.put(m)))
   await tx.done
 }
 
 export async function getMessagesFromDB(channelId: string): Promise<Message[]> {
+  if (typeof indexedDB === 'undefined') return []
   const db = await getDB()
+  if (!db) return []
   const tx = db.transaction('messages', 'readonly')
   const index = tx.store.index('by-channel')
   const all = await index.getAll(channelId)
@@ -65,16 +72,22 @@ export async function getMessagesFromDB(channelId: string): Promise<Message[]> {
 }
 
 export async function addPendingMessage(msg: PendingMessage) {
+  if (typeof indexedDB === 'undefined') return
   const db = await getDB()
+  if (!db) return
   await db.put('pending_messages', msg)
 }
 
 export async function removePendingMessage(tempId: string) {
+  if (typeof indexedDB === 'undefined') return
   const db = await getDB()
+  if (!db) return
   await db.delete('pending_messages', tempId)
 }
 
 export async function getPendingMessages(): Promise<PendingMessage[]> {
+  if (typeof indexedDB === 'undefined') return []
   const db = await getDB()
+  if (!db) return []
   return await db.getAll('pending_messages')
 }
