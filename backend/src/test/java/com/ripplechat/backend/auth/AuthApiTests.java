@@ -56,6 +56,16 @@ class AuthApiTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void unauthenticatedRequestReturnsRfc7807Problem() throws Exception {
+        mvc.perform(get("/api/users/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail").value("Authentication required"))
+                .andExpect(jsonPath("$.instance").value("/api/users/me"));
+    }
+
+    @Test
     void throttledLoginReturns429WithRetryAfter() throws Exception {
         String body = "{\"login\":\"nobody-throttle\",\"password\":\"x\"}";
         // The login burst is 5; the 6th attempt for the same identifier is throttled.

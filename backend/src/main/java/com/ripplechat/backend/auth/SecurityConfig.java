@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -12,12 +14,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -59,7 +63,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(handling -> handling
-                        .authenticationEntryPoint(unauthorizedEntryPoint()))
+                        .authenticationEntryPoint(unauthorizedEntryPoint())
+                        .accessDeniedHandler(accessDeniedHandler()))
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -96,17 +101,28 @@ public class SecurityConfig {
     }
 
     /**
-     * Returns a 401 with a JSON body consistent with the rest of the API
-     * instead of the default container error page.
+     * 401 for unauthenticated requests, as an RFC 7807 problem+json body so it
+     * matches the shape produced by the global exception handler.
      */
     private AuthenticationEntryPoint unauthorizedEntryPoint() {
-        return (request, response, authException) -> {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            String body = String.format(
-                    "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication required\",\"path\":\"%s\"}",
-                    request.getRequestURI());
-            response.getWriter().write(body);
-        };
+        return (request, response, authException) ->
+                writeProblem(response, HttpStatus.UNAUTHORIZED, "Authentication required", request.getRequestURI());
+    }
+
+    /** 403 for authenticated-but-forbidden requests, also as problem+json. */
+    private AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, ex) ->
+                writeProblem(response, HttpStatus.FORBIDDEN, "Access denied", request.getRequestURI());
+    }
+
+    private static void writeProblem(HttpServletResponse response, HttpStatus status, String detail, String instance)
+            throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        // The request URI is the (already-encoded) path, so it is JSON-safe here.
+        String body = String.format(
+                "{\"type\":\"about:blank\",\"title\":\"%s\",\"status\":%d,\"detail\":\"%s\",\"instance\":\"%s\"}",
+                status.getReasonPhrase(), status.value(), detail, instance);
+        response.getWriter().write(body);
     }
 }
