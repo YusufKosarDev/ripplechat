@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+// Async-light build: the highlighter core is small and each language grammar is
+// loaded on demand, instead of the full Prism build bundling every language.
+import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter'
+import oneDark from 'react-syntax-highlighter/dist/esm/styles/prism/one-dark'
+import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light'
 import { useAppSelector } from '../app/hooks'
 import { focusRing } from './ui/focusRing'
 
