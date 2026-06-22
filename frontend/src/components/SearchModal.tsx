@@ -67,15 +67,22 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
     return params
   }
 
+  // Derived state: clear results when query is empty
+  const trimmedQ = query.trim()
+  if (!trimmedQ && (results.length > 0 || hasMore || loading)) {
+    setResults([])
+    setHasMore(false)
+    setLoading(false)
+  }
+
+  // Set loading during render when query is present
+  if (trimmedQ && !loading) {
+    setLoading(true)
+  }
+
   useEffect(() => {
     const term = query.trim()
-    if (!term) {
-      setResults([])
-      setHasMore(false)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
+    if (!term) return
     const timer = setTimeout(async () => {
       try {
         const { data } = await client.get<SearchPage>('/api/search/messages', { params: buildParams(0) })

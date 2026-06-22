@@ -16,7 +16,6 @@ export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryMo
 
   useEffect(() => {
     let active = true
-    setLoading(true)
     client
       .get<MediaItem[]>(`/api/channels/${channelId}/media`)
       .then((r) => {

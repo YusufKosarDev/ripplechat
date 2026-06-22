@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Color keys → Tailwind bg classes (listed so the picker and avatars agree).
 export const AVATAR_COLORS = [
   'rose',

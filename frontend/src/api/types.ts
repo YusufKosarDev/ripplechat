@@ -219,5 +219,5 @@ export interface CallSignal {
   type: CallSignalType
   senderId: string
   receiverId: string | null
-  payload: any
+  payload: unknown
 }

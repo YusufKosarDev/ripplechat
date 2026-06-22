@@ -21,14 +21,23 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
   const [groupName, setGroupName] = useState('')
   const panelRef = useDialog<HTMLDivElement>(onClose)
 
+  // Derived state: clear results when query is too short
+  const trimmedSearch = query.trim()
+  if (trimmedSearch.length < 2 && results.length > 0) {
+    setResults([])
+  }
+  if (trimmedSearch.length < 2 && loading) {
+    setLoading(false)
+  }
+
+  // Set loading during render when query is long enough
+  if (trimmedSearch.length >= 2 && !loading) {
+    setLoading(true)
+  }
+
   useEffect(() => {
     const term = query.trim()
-    if (term.length < 2) {
-      setResults([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
+    if (term.length < 2) return
     const timer = setTimeout(async () => {
       try {
         const { data } = await client.get<UserSummary[]>('/api/users/search', { params: { q: term } })

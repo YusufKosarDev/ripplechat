@@ -118,8 +118,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       setQrCodeUri(data.qrCodeUri)
       setTwoFaMsg('Google Authenticator ile QR kodu taratın ve kodu girin.')
       setTwoFaError(false)
-    } catch (e: any) {
-      setTwoFaMsg(e.response?.data?.message || 'Kurulum başlatılamadı.')
+    } catch (e: unknown) {
+      const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
+      setTwoFaMsg(msg || 'Kurulum başlatılamadı.')
       setTwoFaError(true)
     }
   }
@@ -132,8 +133,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       setTwoFaCode('')
       setTwoFaMsg('2FA başarıyla etkinleştirildi ✓')
       setTwoFaError(false)
-    } catch (e: any) {
-      setTwoFaMsg(e.response?.data?.message || 'Geçersiz kod.')
+    } catch (e: unknown) {
+      const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
+      setTwoFaMsg(msg || 'Geçersiz kod.')
       setTwoFaError(true)
     }
   }
@@ -145,8 +147,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       setTwoFaCode('')
       setTwoFaMsg('2FA devre dışı bırakıldı.')
       setTwoFaError(false)
-    } catch (e: any) {
-      setTwoFaMsg(e.response?.data?.message || 'Geçersiz kod.')
+    } catch (e: unknown) {
+      const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
+      setTwoFaMsg(msg || 'Geçersiz kod.')
       setTwoFaError(true)
     }
   }

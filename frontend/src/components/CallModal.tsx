@@ -45,7 +45,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
     if (activeCall && !activeCall.isIncoming) {
       startCall()
     }
-  }, [activeCall])
+  }, [activeCall, startCall])
 
   const handleAccept = async () => {
     if (incomingCall) {

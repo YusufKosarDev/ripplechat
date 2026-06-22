@@ -55,7 +55,7 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
     }
   }, [])
 
-  const startLocalMedia = async () => {
+  const startLocalMedia = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       setLocalStream(stream)
@@ -68,16 +68,16 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
       console.error('Error accessing media devices.', err)
       return null
     }
-  }
+  }, [initializePeerConnection])
 
-  const stopLocalMedia = () => {
+  const stopLocalMedia = useCallback(() => {
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop())
       setLocalStream(null)
     }
-  }
+  }, [localStream])
 
-  const toggleMic = () => {
+  const toggleMic = useCallback(() => {
     if (localStream) {
       const audioTrack = localStream.getAudioTracks()[0]
       if (audioTrack) {
@@ -85,9 +85,9 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
         setIsMicMuted(!audioTrack.enabled)
       }
     }
-  }
+  }, [localStream])
 
-  const toggleVideo = () => {
+  const toggleVideo = useCallback(() => {
     if (localStream) {
       const videoTrack = localStream.getVideoTracks()[0]
       if (videoTrack) {
@@ -95,9 +95,9 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
         setIsVideoMuted(!videoTrack.enabled)
       }
     }
-  }
+  }, [localStream])
 
-  const startCall = async () => {
+  const startCall = useCallback(async () => {
     if (!user || !peerId || !channelId) return
     await startLocalMedia()
     const pc = initializePeerConnection()
@@ -109,9 +109,9 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
       receiverId: peerId,
       payload: offer,
     })
-  }
+  }, [user, peerId, channelId, startLocalMedia, initializePeerConnection])
 
-  const handleIncomingSignal = async (signal: CallSignal) => {
+  const handleIncomingSignal = useCallback(async (signal: CallSignal) => {
     if (signal.senderId === user?.id || !channelId) return
 
     const pc = initializePeerConnection()
@@ -143,9 +143,9 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
          pcRef.current = null
        }
     }
-  }
+  }, [user, channelId, initializePeerConnection, startLocalMedia, stopLocalMedia])
 
-  const endCall = () => {
+  const endCall = useCallback(() => {
     stopLocalMedia()
     setRemoteStream(null)
     if (pcRef.current) {
@@ -160,7 +160,7 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
           payload: null
        })
     }
-  }
+  }, [user, peerId, channelId, stopLocalMedia])
 
   return {
     localStream,

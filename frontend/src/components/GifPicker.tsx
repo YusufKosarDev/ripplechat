@@ -18,13 +18,20 @@ export default function GifPicker({ onPick, onClose }: GifPickerProps) {
   const [enabled, setEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
 
+  // Reset results when query is cleared — derived state, handled during render.
+  const trimmedQuery = query.trim()
+  if (!trimmedQuery && results.length > 0) {
+    setResults([])
+  }
+
+  // Set loading state during render when a query is present
+  if (trimmedQuery && !loading) {
+    setLoading(true)
+  }
+
   useEffect(() => {
     const term = query.trim()
-    if (!term) {
-      setResults([])
-      return
-    }
-    setLoading(true)
+    if (!term) return
     const timer = setTimeout(async () => {
       try {
         const { data } = await client.get<{ enabled: boolean; results: Gif[] }>('/api/gifs/search', {
@@ -39,7 +46,7 @@ export default function GifPicker({ onPick, onClose }: GifPickerProps) {
       }
     }, 350)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query])  
 
   return (
     <div className="absolute bottom-full right-0 z-20 mb-2 w-80 rounded-xl border border-border bg-surface-overlay p-2 shadow-elevated">

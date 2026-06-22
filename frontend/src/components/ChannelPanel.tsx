@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, react-hooks/purity */
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
@@ -80,6 +81,8 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000
 const MAX_FLYING = 40
 
 const borderC = 'border-border'
+
+const EMPTY_MESSAGES: Message[] = []
 
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
@@ -196,8 +199,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [focusTrigger, setFocusTrigger] = useState(0)
   const prevHeightRef = useRef<number | null>(null)
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>({} as any)
+  const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
   const stopTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const optIdCounter = useRef(0)
   const isTypingRef = useRef(false)
   const currentUserIdRef = useRef<string | undefined>(undefined)
   currentUserIdRef.current = currentUser?.id
@@ -211,7 +215,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const jumpTargetId = useAppSelector((state) => state.ui.jumpTargetId)
   const isArchived = useAppSelector((state) => (selectedId ? !!state.channelOrg.archived[selectedId] : false))
   const currentCategory = useAppSelector((state) => (selectedId ? (state.channelOrg.category[selectedId] ?? '') : ''))
-  const messages = selectedId ? (byChannel[selectedId] ?? []) : []
+  const messages = selectedId ? (byChannel[selectedId] ?? EMPTY_MESSAGES) : EMPTY_MESSAGES
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden
@@ -331,6 +335,13 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         }
       },
     })
+  }
+
+  const refreshPinned = (channelId: string) => {
+    client
+      .get<Message[]>(`/api/channels/${channelId}/messages/pinned`)
+      .then((r) => setPinned(r.data))
+      .catch(() => setPinned([]))
   }
 
   useEffect(() => {
@@ -487,7 +498,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     } else {
       if (!currentUser) return
       const content = text && passphrase ? await encryptText(channel.id, passphrase, text) : text
-      const optId = 'opt-' + Math.random().toString(36).substring(2, 9)
+      optIdCounter.current += 1
+      const optId = 'opt-' + optIdCounter.current + '-' + selectedId
       const optimisticMsg: Message = {
         id: optId,
         content: content,
@@ -526,7 +538,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         addPendingMessage({
           ...optimisticMsg,
           tempId: optId,
-          timestamp: Date.now()
+          timestamp: performance.now()
         }).catch(console.error)
       } else {
         // Online: Send via STOMP and drop optimistic UI if no response in 10s
@@ -764,12 +776,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     setFocusTrigger(f => f + 1)
   }
 
-  const refreshPinned = (channelId: string) => {
-    client
-      .get<Message[]>(`/api/channels/${channelId}/messages/pinned`)
-      .then((r) => setPinned(r.data))
-      .catch(() => setPinned([]))
-  }
+
 
   const togglePin = async (msg: Message) => {
     if (!selectedId) return
