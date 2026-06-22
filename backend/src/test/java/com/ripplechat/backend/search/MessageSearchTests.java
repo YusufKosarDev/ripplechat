@@ -41,15 +41,15 @@ class MessageSearchTests extends AbstractIntegrationTest {
     }
 
     @Test
-    void matchesFullWord() throws InterruptedException {
+    void matchesByPrefix() throws InterruptedException {
         createUser("owner");
         var channel = channelService.create(new CreateChannelRequest("genel", null, false), "owner");
         messageService.send(channel.id(), new CreateMessageRequest("deployment pipeline hazır", null), "owner");
 
         Thread.sleep(1500); // Wait for ES to index and refresh
 
-        // Full word query "deployment" matches the token "deployment".
-        assertThat(searchService.searchMessages("owner", "deployment")).hasSize(1);
+        // Prefix query "deploy" should now match the ngram token "deployment"
+        assertThat(searchService.searchMessages("owner", "deploy")).hasSize(1);
     }
 
     @Test

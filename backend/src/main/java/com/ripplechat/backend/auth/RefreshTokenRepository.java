@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
+
+    void deleteAllByUser(com.ripplechat.backend.user.User user);
 }

@@ -54,7 +54,16 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new InvalidCredentialsException("invalid refresh token"));
         User user = token.getUser();
         boolean expired = token.getExpiresAt().isBefore(Instant.now());
-        repository.delete(token);
+        
+        if (token.isRevoked()) {
+            // Replay attack detected: token was already used!
+            repository.deleteAllByUser(user);
+            throw new InvalidCredentialsException("refresh token replay detected; all sessions revoked");
+        }
+        
+        token.setRevoked(true);
+        repository.save(token);
+        
         if (expired) {
             throw new InvalidCredentialsException("refresh token expired");
         }

@@ -1,15 +1,25 @@
-package com.ripplechat.backend.common;
+package com.ripplechat.backend.redis;
 
+import com.ripplechat.backend.support.AbstractIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Pure unit tests for the token-bucket limiter. Uses refill=0 for determinism. */
-class RateLimiterTest {
+/** Integration tests for the Redis token-bucket limiter. Uses refill=0 for determinism. */
+class RateLimiterTest extends AbstractIntegrationTest {
+
+    @Autowired
+    private RateLimiter limiter;
+
+    @BeforeEach
+    void setUp() {
+        limiter.reset();
+    }
 
     @Test
     void allowsUpToCapacityThenBlocks() {
-        RateLimiter limiter = new RateLimiter();
         assertThat(limiter.tryAcquire("k", 3, 0)).isTrue();
         assertThat(limiter.tryAcquire("k", 3, 0)).isTrue();
         assertThat(limiter.tryAcquire("k", 3, 0)).isTrue();
@@ -18,7 +28,6 @@ class RateLimiterTest {
 
     @Test
     void bucketsAreIndependentPerKey() {
-        RateLimiter limiter = new RateLimiter();
         assertThat(limiter.tryAcquire("a", 1, 0)).isTrue();
         assertThat(limiter.tryAcquire("a", 1, 0)).isFalse();
         assertThat(limiter.tryAcquire("b", 1, 0)).isTrue(); // separate key, fresh bucket

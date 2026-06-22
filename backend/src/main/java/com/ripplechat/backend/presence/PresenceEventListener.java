@@ -35,7 +35,8 @@ public class PresenceEventListener {
     @EventListener
     public void onConnected(SessionConnectedEvent event) {
         String username = usernameOf(event.getUser());
-        if (username != null && presenceService.connected(username)) {
+        String sessionId = (String) event.getMessage().getHeaders().get(org.springframework.messaging.simp.SimpMessageHeaderAccessor.SESSION_ID_HEADER);
+        if (username != null && sessionId != null && presenceService.connected(username, sessionId)) {
             broadcast(username, PresenceStatus.ONLINE);
         }
     }
@@ -43,7 +44,7 @@ public class PresenceEventListener {
     @EventListener
     public void onDisconnect(SessionDisconnectEvent event) {
         String username = usernameOf(event.getUser());
-        if (username != null && presenceService.disconnected(username)) {
+        if (username != null && event.getSessionId() != null && presenceService.disconnected(username, event.getSessionId())) {
             broadcast(username, PresenceStatus.OFFLINE);
         }
     }

@@ -1,7 +1,7 @@
 package com.ripplechat.backend.reaction;
 
 import com.ripplechat.backend.channel.membership.ChannelMembershipService;
-import com.ripplechat.backend.common.RateLimiter;
+import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.reaction.dto.ReactionEvent;

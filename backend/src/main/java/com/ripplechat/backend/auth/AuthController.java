@@ -6,6 +6,7 @@ import com.ripplechat.backend.auth.dto.RefreshRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
 import com.ripplechat.backend.auth.dto.TokenResponse;
 import com.ripplechat.backend.auth.dto.Verify2FaRequest;
+import com.ripplechat.backend.redis.RateLimiter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

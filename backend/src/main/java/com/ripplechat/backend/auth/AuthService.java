@@ -5,7 +5,7 @@ import com.ripplechat.backend.auth.dto.LoginRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
 import com.ripplechat.backend.auth.dto.TokenResponse;
 import com.ripplechat.backend.auth.dto.Verify2FaRequest;
-import com.ripplechat.backend.common.RateLimiter;
+import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
 import com.ripplechat.backend.user.User;

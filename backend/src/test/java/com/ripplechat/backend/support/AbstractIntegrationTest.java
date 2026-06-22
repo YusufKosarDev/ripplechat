@@ -1,6 +1,6 @@
 package com.ripplechat.backend.support;
 
-import com.ripplechat.backend.common.RateLimiter;
+import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;

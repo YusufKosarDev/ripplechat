@@ -9,6 +9,8 @@ import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
+import org.springframework.data.elasticsearch.annotations.Setting;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,6 +19,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(indexName = "messages")
+@Setting(settingPath = "/es-settings.json")
 public class MessageDocument {
 
     @Id
@@ -25,7 +28,7 @@ public class MessageDocument {
     @Field(type = FieldType.Keyword)
     private String channelId;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @Field(type = FieldType.Text, analyzer = "ngram_analyzer", searchAnalyzer = "standard")
     private String content;
 
     @Field(type = FieldType.Keyword)

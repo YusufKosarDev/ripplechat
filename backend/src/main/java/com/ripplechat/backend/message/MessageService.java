@@ -5,7 +5,7 @@ import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
-import com.ripplechat.backend.common.RateLimiter;
+import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;

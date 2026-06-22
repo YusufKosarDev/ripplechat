@@ -44,8 +44,13 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    /** When the token expires. */
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
+
+    /** If true, the token has been consumed or invalidated. */
+    @Column(nullable = false)
+    private boolean revoked = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
