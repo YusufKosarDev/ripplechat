@@ -44,7 +44,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
     },
     onUpdate: ({ editor }) => {
       // Get markdown output
-      const storage = editor.storage as Record<string, { getMarkdown: () => string }>
+      const storage = (editor.storage as unknown) as Record<string, { getMarkdown: () => string }>
       const markdown = storage.markdown.getMarkdown()
       onChange(markdown)
     },
@@ -53,7 +53,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
   // Sync external value to internal state when external changes (e.g. cleared draft)
   useEffect(() => {
     if (editor) {
-      const storage = editor.storage as Record<string, { getMarkdown: () => string }>
+      const storage = (editor.storage as unknown) as Record<string, { getMarkdown: () => string }>
       if (value !== storage.markdown.getMarkdown()) {
         editor.commands.setContent(value)
       }

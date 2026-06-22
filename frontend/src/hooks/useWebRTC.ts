@@ -118,7 +118,7 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
 
     if (signal.type === 'OFFER') {
       await startLocalMedia()
-      await pc.setRemoteDescription(new RTCSessionDescription(signal.payload))
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.payload as RTCSessionDescriptionInit))
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
       sendCallSignal(channelId, {
@@ -128,10 +128,10 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
         payload: answer,
       })
     } else if (signal.type === 'ANSWER') {
-      await pc.setRemoteDescription(new RTCSessionDescription(signal.payload))
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.payload as RTCSessionDescriptionInit))
     } else if (signal.type === 'ICE_CANDIDATE') {
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(signal.payload))
+        await pc.addIceCandidate(new RTCIceCandidate(signal.payload as RTCLocalIceCandidateInit))
       } catch (e) {
         console.error('Error adding received ice candidate', e)
       }

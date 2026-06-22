@@ -5,7 +5,8 @@ import { login } from '../features/auth/authSlice'
 import { useT } from '../i18n'
 import Button from '../components/ui/Button'
 import LanguageToggle from '../components/LanguageToggle'
-import WakeNotice, { useWakeNotice } from '../components/ui/WakeNotice'
+import WakeNotice from '../components/ui/WakeNotice'
+import { useWakeNotice } from '../hooks/useWakeNotice'
 
 // Public demo account (seeded server-side). Credentials are intentionally
 // public — one click signs in through the normal auth flow and gets a real token.

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '../app/hooks'
 import { oauth2LoginSuccess } from '../features/auth/authSlice'
-import { setToken } from '../services/api'
+import { setTokens } from '../api/token'
 import AuthShell from '../components/AuthShell'
 
 export default function OAuth2RedirectHandler() {
@@ -23,8 +23,7 @@ export default function OAuth2RedirectHandler() {
 
     if (accessToken && refreshToken) {
       // Backend'den gelen tokenları API client'a ve Redux'a kaydet
-      setToken(accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
+      setTokens(accessToken, refreshToken)
       
       dispatch(oauth2LoginSuccess())
       navigate('/chat', { replace: true })

@@ -230,13 +230,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   useEffect(() => {
     setAsymmetricKey(null)
-    if (!selectedId || !dmPartner || !dmPartner.publicKey) return
+    const partnerPublicKey = dmPartner?.publicKey
+    if (!selectedId || !partnerPublicKey) return
 
     const deriveKey = async () => {
       try {
         const ourKeyPair = await getAsymmetricKeyPair()
         if (ourKeyPair) {
-          const sharedKey = await deriveSharedKey(ourKeyPair.privateKey, dmPartner.publicKey)
+          const sharedKey = await deriveSharedKey(ourKeyPair.privateKey, partnerPublicKey)
           setAsymmetricKey(sharedKey)
         }
       } catch (err) {
