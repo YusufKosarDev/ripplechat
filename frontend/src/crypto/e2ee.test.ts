@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decryptText, encryptText, isEncrypted } from './e2ee'
+import { decryptText, encryptText, isEncrypted, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from './e2ee'
 
 const CHANNEL = '11111111-1111-1111-1111-111111111111'
 
@@ -26,5 +26,32 @@ describe('e2ee', () => {
   it('treats plain text as not encrypted and passes it through', async () => {
     expect(isEncrypted('hello')).toBe(false)
     expect(await decryptText(CHANNEL, 'p', 'hello')).toBe('hello')
+  })
+
+  it('round-trips asymmetric encryption with ECDH key agreement', async () => {
+    const aliceKeyPair = await window.crypto.subtle.generateKey(
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      ['deriveKey', 'deriveBits']
+    )
+    const bobKeyPair = await window.crypto.subtle.generateKey(
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      ['deriveKey', 'deriveBits']
+    )
+
+    const alicePublicJwk = JSON.stringify(await window.crypto.subtle.exportKey('jwk', aliceKeyPair.publicKey))
+    const bobPublicJwk = JSON.stringify(await window.crypto.subtle.exportKey('jwk', bobKeyPair.publicKey))
+
+    const aliceSharedKey = await deriveSharedKey(aliceKeyPair.privateKey, bobPublicJwk)
+    const bobSharedKey = await deriveSharedKey(bobKeyPair.privateKey, alicePublicJwk)
+
+    const plainText = 'Hi Bob, this is a secret!'
+    const cipherText = await encryptTextAsymmetric(aliceSharedKey, plainText)
+
+    expect(isEncrypted(cipherText)).toBe(true)
+
+    const decrypted = await decryptTextAsymmetric(bobSharedKey, cipherText)
+    expect(decrypted).toBe(plainText)
   })
 })

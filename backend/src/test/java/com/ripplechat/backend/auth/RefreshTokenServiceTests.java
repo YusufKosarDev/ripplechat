@@ -62,4 +62,20 @@ class RefreshTokenServiceTests extends AbstractIntegrationTest {
         assertThatThrownBy(() -> authService.refresh("not-a-valid-refresh-token"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
+
+    @Test
+    void activeSessionsTrackMetadataAndCanBeRevoked() {
+        var regRequest = new RegisterRequest("sammy", "sammy@test.io", null, "password123");
+        AuthResponse res = authService.register(regRequest, "12.34.56.78", "Mozilla/Firefox");
+
+        var sessions = authService.getActiveSessions("sammy");
+        assertThat(sessions).hasSize(1);
+        var session = sessions.get(0);
+        assertThat(session.ipAddress()).isEqualTo("12.34.56.78");
+        assertThat(session.userAgent()).isEqualTo("Mozilla/Firefox");
+
+        authService.revokeSession("sammy", session.id());
+
+        assertThat(authService.getActiveSessions("sammy")).isEmpty();
+    }
 }

@@ -16,7 +16,8 @@ public record UserResponse(
         String avatarColor,
         String avatarUrl,
         Instant createdAt,
-        boolean isTwoFactorEnabled
+        boolean isTwoFactorEnabled,
+        String publicKey
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -27,7 +28,8 @@ public record UserResponse(
                 user.getAvatarColor(),
                 user.getAvatarUrl(),
                 user.getCreatedAt(),
-                user.isTwoFactorEnabled()
+                user.isTwoFactorEnabled(),
+                user.getPublicKey()
         );
     }
 }

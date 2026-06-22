@@ -22,6 +22,10 @@ interface RippleChatDB extends DBSchema {
     value: PendingMessage
     indexes: { 'by-channel': string }
   }
+  crypto_keys: {
+    key: string
+    value: { publicKey: CryptoKey; privateKey: CryptoKey }
+  }
 }
 
 let dbPromise: Promise<IDBPDatabase<RippleChatDB>> | null = null
@@ -31,23 +35,38 @@ export function getDB() {
     return null
   }
   if (!dbPromise) {
-    dbPromise = openDB<RippleChatDB>('ripplechat-db', 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('messages')) {
+    dbPromise = openDB<RippleChatDB>('ripplechat-db', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
           const messageStore = db.createObjectStore('messages', { keyPath: 'id' })
           messageStore.createIndex('by-channel', 'channelId')
-        }
-        if (!db.objectStoreNames.contains('channels')) {
           db.createObjectStore('channels', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('pending_messages')) {
           const pendingStore = db.createObjectStore('pending_messages', { keyPath: 'tempId' })
           pendingStore.createIndex('by-channel', 'channelId')
+        }
+        if (oldVersion < 2) {
+          if (!db.objectStoreNames.contains('crypto_keys')) {
+            db.createObjectStore('crypto_keys')
+          }
         }
       },
     })
   }
   return dbPromise
+}
+
+export async function getAsymmetricKeyPair(): Promise<{ publicKey: CryptoKey; privateKey: CryptoKey } | null> {
+  if (typeof indexedDB === 'undefined') return null
+  const db = await getDB()
+  if (!db) return null
+  return (await db.get('crypto_keys', 'asymmetric_keypair')) || null
+}
+
+export async function saveAsymmetricKeyPair(keyPair: { publicKey: CryptoKey; privateKey: CryptoKey }) {
+  if (typeof indexedDB === 'undefined') return
+  const db = await getDB()
+  if (!db) return
+  await db.put('crypto_keys', keyPair, 'asymmetric_keypair')
 }
 
 // Helpers

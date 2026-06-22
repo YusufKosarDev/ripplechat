@@ -5,6 +5,7 @@ import com.ripplechat.backend.auth.dto.LoginRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
 import com.ripplechat.backend.auth.dto.TokenResponse;
 import com.ripplechat.backend.auth.dto.Verify2FaRequest;
+import com.ripplechat.backend.auth.dto.ActiveSessionResponse;
 import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
@@ -36,6 +37,11 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        return register(request, null, null);
+    }
+
+    @Transactional
+    public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
         if (userRepository.existsByUsername(request.username())) {
             throw new DuplicateResourceException("username already taken: " + request.username());
         }
@@ -52,12 +58,17 @@ public class AuthService {
         User saved = userRepository.saveAndFlush(user);
         audit.registered(saved.getUsername());
         String accessToken = jwtService.generateToken(saved.getUsername());
-        String refreshToken = refreshTokenService.issue(saved);
+        String refreshToken = refreshTokenService.issue(saved, ipAddress, userAgent);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(saved));
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        return login(request, null, null);
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
         // Brute-force throttle, keyed by the attempted login identifier. The
         // public "demo" account is exempt — its password is intentionally known,
         // so throttling it would only block the one-click demo for real visitors.
@@ -87,12 +98,17 @@ public class AuthService {
 
         audit.loginSucceeded(user.getUsername());
         String accessToken = jwtService.generateToken(user.getUsername());
-        String refreshToken = refreshTokenService.issue(user);
+        String refreshToken = refreshTokenService.issue(user, ipAddress, userAgent);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(user));
     }
 
     @Transactional
     public AuthResponse verify2FaLogin(Verify2FaRequest request) {
+        return verify2FaLogin(request, null, null);
+    }
+
+    @Transactional
+    public AuthResponse verify2FaLogin(Verify2FaRequest request, String ipAddress, String userAgent) {
         String username = jwtService.extractUsernameFromPreAuthToken(request.preAuthToken());
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid token"));
@@ -108,8 +124,13 @@ public class AuthService {
 
         audit.loginSucceeded(username + " (2FA passed)");
         String accessToken = jwtService.generateToken(user.getUsername());
-        String refreshToken = refreshTokenService.issue(user);
+        String refreshToken = refreshTokenService.issue(user, ipAddress, userAgent);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(user));
+    }
+
+    @Transactional
+    public TokenResponse refresh(String refreshToken) {
+        return refresh(refreshToken, null, null);
     }
 
     /**
@@ -118,7 +139,7 @@ public class AuthService {
      * expired or revoked.
      */
     @Transactional
-    public TokenResponse refresh(String refreshToken) {
+    public TokenResponse refresh(String refreshToken, String ipAddress, String userAgent) {
         User user;
         try {
             user = refreshTokenService.rotate(refreshToken);
@@ -128,7 +149,7 @@ public class AuthService {
         }
         audit.tokenRefreshed(user.getUsername());
         String accessToken = jwtService.generateToken(user.getUsername());
-        String newRefreshToken = refreshTokenService.issue(user);
+        String newRefreshToken = refreshTokenService.issue(user, ipAddress, userAgent);
         return TokenResponse.of(accessToken, newRefreshToken);
     }
 
@@ -137,5 +158,21 @@ public class AuthService {
     public void logout(String refreshToken) {
         refreshTokenService.revoke(refreshToken);
         audit.loggedOut();
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<ActiveSessionResponse> getActiveSessions(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return refreshTokenService.getActiveSessions(user).stream()
+                .map(ActiveSessionResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public void revokeSession(String username, java.util.UUID sessionId) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        refreshTokenService.revokeSession(user, sessionId);
     }
 }

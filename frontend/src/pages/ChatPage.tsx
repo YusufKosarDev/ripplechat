@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { logout } from '../features/auth/authSlice'
+import { logout, fetchCurrentUser } from '../features/auth/authSlice'
 import { fetchChannels, fetchDms } from '../features/channels/channelsSlice'
 import { setConnectionStatus } from '../features/connection/connectionSlice'
 import { fetchMessages, loadOfflineMessages, messageReceived } from '../features/messages/messagesSlice'
@@ -12,6 +12,8 @@ import { connectChat, disconnectChat, setPresenceHandler, watchAllChannels } fro
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
+import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
+import { client } from '../api/client'
 
 // True if the message text @mentions the given username (standalone token).
 function mentionsUser(content: string, username: string): boolean {
@@ -22,6 +24,7 @@ function mentionsUser(content: string, username: string): boolean {
 export default function ChatPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const user = useAppSelector((state) => state.auth.user)
   const selectedId = useAppSelector((state) => state.channels.selectedId)
   const channelIds = useAppSelector((state) =>
     [...state.channels.items.map((c) => c.id), ...state.channels.dms.map((d) => d.id)].join(','),
@@ -95,6 +98,42 @@ export default function ChatPage() {
       }
     })
   }, [channelIds, dispatch])
+
+  // Automatically generate and upload asymmetric E2EE key pair if missing
+  useEffect(() => {
+    if (!user) return
+
+    const initKeys = async () => {
+      try {
+        let keys = await getAsymmetricKeyPair()
+        if (!keys) {
+          const keyPair = await window.crypto.subtle.generateKey(
+            { name: 'ECDH', namedCurve: 'P-256' },
+            true,
+            ['deriveKey', 'deriveBits']
+          )
+          keys = {
+            publicKey: keyPair.publicKey,
+            privateKey: keyPair.privateKey
+          }
+          await saveAsymmetricKeyPair(keys)
+        }
+
+        if (!user.publicKey) {
+          const publicJwk = await window.crypto.subtle.exportKey('jwk', keys.publicKey)
+          const publicJwkString = JSON.stringify(publicJwk)
+          await client.post('/api/users/me/public-key', publicJwkString, {
+            headers: { 'Content-Type': 'text/plain' }
+          })
+          dispatch(fetchCurrentUser())
+        }
+      } catch (err) {
+        console.error('Failed to initialize or upload asymmetric key pair:', err)
+      }
+    }
+
+    initKeys()
+  }, [user, dispatch])
 
   // Reflect total unread in the tab title (e.g. "(3) RippleChat").
   useEffect(() => {

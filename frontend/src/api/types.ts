@@ -7,6 +7,7 @@ export interface User {
   avatarUrl: string | null
   createdAt: string
   isTwoFactorEnabled: boolean
+  publicKey?: string | null
 }
 
 export interface AuthResponse {
@@ -58,6 +59,7 @@ export interface UserSummary {
   avatarColor: string | null
   avatarUrl: string | null
   lastSeenAt: string | null
+  publicKey?: string | null
 }
 
 export type MembershipRole = 'OWNER' | 'MODERATOR' | 'MEMBER'
@@ -220,4 +222,12 @@ export interface CallSignal {
   senderId: string
   receiverId: string | null
   payload: unknown
+}
+
+export interface ActiveSession {
+  id: string
+  ipAddress: string | null
+  userAgent: string | null
+  createdAt: string
+  expiresAt: string
 }

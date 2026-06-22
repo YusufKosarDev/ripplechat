@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { client } from '../api/client'
+import type { ActiveSession } from '../api/types'
 import { disablePush, enablePush, isPushSubscribed, pushSupported } from '../push'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { changePassword, fetchCurrentUser, logout, updateMe } from '../features/auth/authSlice'
@@ -45,6 +46,42 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   useEffect(() => {
     isPushSubscribed().then(setPushOn)
   }, [])
+
+  const [sessions, setSessions] = useState<ActiveSession[]>([])
+
+  useEffect(() => {
+    client.get<ActiveSession[]>('/api/auth/sessions')
+      .then((r) => setSessions(r.data))
+      .catch(console.error)
+  }, [])
+
+  const onRevokeSession = async (id: string) => {
+    try {
+      await client.delete(`/api/auth/sessions/${id}`)
+      setSessions((prev) => prev.filter((s) => s.id !== id))
+    } catch (err) {
+      console.error('Session revoke failed:', err)
+    }
+  }
+
+  const parseUA = (uaString: string | null): string => {
+    if (!uaString) return 'Bilinmeyen Cihaz'
+    
+    let os = 'Bilinmeyen İşletim Sistemi'
+    if (uaString.includes('Windows')) os = 'Windows'
+    else if (uaString.includes('Macintosh') || uaString.includes('Mac OS')) os = 'macOS'
+    else if (uaString.includes('Linux')) os = 'Linux'
+    else if (uaString.includes('Android')) os = 'Android'
+    else if (uaString.includes('iPhone') || uaString.includes('iPad')) os = 'iOS'
+
+    let browser = 'Bilinmeyen Tarayıcı'
+    if (uaString.includes('Firefox')) browser = 'Firefox'
+    else if (uaString.includes('Chrome') && !uaString.includes('Edg')) browser = 'Chrome'
+    else if (uaString.includes('Edg')) browser = 'Edge'
+    else if (uaString.includes('Safari') && !uaString.includes('Chrome')) browser = 'Safari'
+
+    return `${browser} (${os})`
+  }
 
   const panelRef = useDialog<HTMLDivElement>(onClose)
 
@@ -325,6 +362,34 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           {twoFaMsg && (
             <div className={`mt-2 text-xs ${twoFaError ? 'text-danger' : 'text-fg-muted'}`}>{twoFaMsg}</div>
           )}
+        </div>
+
+        {/* Active Sessions */}
+        <div className="mt-6 border-t border-border pt-4">
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">Aktif Oturumlar</h4>
+          <div className="space-y-3">
+            {sessions.map((s) => (
+              <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-surface-muted/40 p-3 text-xs">
+                <div className="min-w-0 flex-1 pr-2">
+                  <div className="font-semibold text-fg">{parseUA(s.userAgent)}</div>
+                  <div className="text-fg-faint mt-0.5">IP: {s.ipAddress || 'Bilinmeyen'}</div>
+                  <div className="text-fg-faint">
+                    Son Aktivite: {new Date(s.createdAt).toLocaleString('tr-TR')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRevokeSession(s.id)}
+                  className="shrink-0 text-red-500 hover:text-red-600 font-medium cursor-pointer"
+                >
+                  Sonlandır
+                </button>
+              </div>
+            ))}
+            {sessions.length === 0 && (
+              <div className="text-xs text-fg-faint italic">Aktif oturum bulunamadı.</div>
+            )}
+          </div>
         </div>
 
         {/* Logout */}

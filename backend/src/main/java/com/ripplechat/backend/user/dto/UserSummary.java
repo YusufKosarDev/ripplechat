@@ -15,10 +15,11 @@ public record UserSummary(
         String displayName,
         String avatarColor,
         String avatarUrl,
-        Instant lastSeenAt
+        Instant lastSeenAt,
+        String publicKey
 ) {
     public static UserSummary from(User user) {
         return new UserSummary(user.getId(), user.getUsername(), user.getDisplayName(),
-                user.getAvatarColor(), user.getAvatarUrl(), user.getLastSeenAt());
+                user.getAvatarColor(), user.getAvatarUrl(), user.getLastSeenAt(), user.getPublicKey());
     }
 }

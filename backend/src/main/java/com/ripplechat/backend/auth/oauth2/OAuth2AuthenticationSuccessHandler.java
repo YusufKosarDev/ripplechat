@@ -50,7 +50,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
 
         String accessToken = jwtService.generateToken(username);
-        String rawRefreshToken = refreshTokenService.issue(user);
+
+        String ipAddress = request.getRemoteAddr();
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            ipAddress = xForwardedFor.split(",")[0].trim();
+        }
+        String userAgent = request.getHeader("User-Agent");
+        String rawRefreshToken = refreshTokenService.issue(user, ipAddress, userAgent);
 
         return UriComponentsBuilder.fromUriString(targetUrl)
                 .queryParam("accessToken", accessToken)

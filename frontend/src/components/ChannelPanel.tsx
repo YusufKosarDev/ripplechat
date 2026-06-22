@@ -37,7 +37,8 @@ import { CallModal } from './CallModal'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import { setPassphrase } from '../features/e2ee/e2eeSlice'
-import { decryptText, encryptText, isEncrypted } from '../crypto/e2ee'
+import { decryptText, encryptText, isEncrypted, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from '../crypto/e2ee'
+import { getAsymmetricKeyPair } from '../db'
 import ChannelMembersModal from './ChannelMembersModal'
 import ForwardModal from './ForwardModal'
 import MediaGalleryModal from './MediaGalleryModal'
@@ -168,6 +169,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const reads = useAppSelector((state) => (selectedId ? state.reads.byChannel[selectedId] : undefined))
   const isMuted = useAppSelector((state) => (selectedId ? !!state.muted.muted[selectedId] : false))
   const passphrase = useAppSelector((state) => (selectedId ? state.e2ee.passphrases[selectedId] : undefined))
+  const [asymmetricKey, setAsymmetricKey] = useState<CryptoKey | null>(null)
 
   const [draft, setDraft] = useState('')
   const [showMembers, setShowMembers] = useState(false)
@@ -226,17 +228,40 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const { incomingCall } = useAppSelector((state) => state.call)
 
-  // Decrypt any E2EE messages in the open channel once a passphrase is set.
-  // Failures (wrong passphrase / corrupt payload) are left locked.
   useEffect(() => {
-    if (!selectedId || !passphrase) return
+    setAsymmetricKey(null)
+    if (!selectedId || !dmPartner || !dmPartner.publicKey) return
+
+    const deriveKey = async () => {
+      try {
+        const ourKeyPair = await getAsymmetricKeyPair()
+        if (ourKeyPair) {
+          const sharedKey = await deriveSharedKey(ourKeyPair.privateKey, dmPartner.publicKey)
+          setAsymmetricKey(sharedKey)
+        }
+      } catch (err) {
+        console.error('Failed to derive shared key for channel:', err)
+      }
+    }
+
+    deriveKey()
+  }, [selectedId, dmPartner])
+
+  // Decrypt any E2EE messages in the open channel once a passphrase or asymmetric key is set.
+  // Failures (wrong key / corrupt payload) are left locked.
+  useEffect(() => {
+    if (!selectedId || (!passphrase && !asymmetricKey)) return
     let cancelled = false
     const pending = messages.filter((m) => isEncrypted(m.content) && decrypted[m.id] === undefined)
     if (pending.length === 0) return
     Promise.all(
       pending.map(async (m) => {
         try {
-          return [m.id, await decryptText(selectedId, passphrase, m.content)] as const
+          if (asymmetricKey) {
+            return [m.id, await decryptTextAsymmetric(asymmetricKey, m.content)] as const
+          } else {
+            return [m.id, await decryptText(selectedId, passphrase!, m.content)] as const
+          }
         } catch {
           return [m.id, DECRYPT_FAILED] as const
         }
@@ -247,12 +272,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     return () => {
       cancelled = true
     }
-  }, [selectedId, passphrase, messages, decrypted])
+  }, [selectedId, passphrase, asymmetricKey, messages, decrypted])
 
-  // Drop cached plaintext when the passphrase is cleared so messages re-lock.
+  // Drop cached plaintext when both keys are cleared so messages re-lock.
   useEffect(() => {
-    if (!passphrase) setDecrypted({})
-  }, [passphrase, selectedId])
+    if (!passphrase && !asymmetricKey) setDecrypted({})
+  }, [passphrase, asymmetricKey, selectedId])
 
   const handleTyping = (event: TypingEvent) => {
     if (event.userId === currentUserIdRef.current) return
@@ -477,7 +502,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
     // Slash commands apply to plain text only (not with an attachment, a quote,
     // or in an encrypted chat — there, "/..." is sent as encrypted text).
-    if (!passphrase && text.startsWith('/') && !attachment && !replyingTo) {
+    if (!passphrase && !asymmetricKey && text.startsWith('/') && !attachment && !replyingTo) {
       const parsed = parseCommand(text)!
       if (!parsed.command) {
         setCmdError(`Bilinmeyen komut: /${parsed.name}`)
@@ -497,7 +522,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       if (!hadError) setDraft('')
     } else {
       if (!currentUser) return
-      const content = text && passphrase ? await encryptText(channel.id, passphrase, text) : text
+      let content = text
+      if (text) {
+        if (asymmetricKey) {
+          content = await encryptTextAsymmetric(asymmetricKey, text)
+        } else if (passphrase) {
+          content = await encryptText(channel.id, passphrase, text)
+        }
+      }
       optIdCounter.current += 1
       const optId = 'opt-' + optIdCounter.current + '-' + selectedId
       const optimisticMsg: Message = {
@@ -675,10 +707,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         {encryptedMsg && shownContent === null ? (
           <span className="inline-flex items-center gap-1 text-sm italic text-fg-faint">
             🔒{' '}
-            {!passphrase
-              ? 'Şifreli mesaj — kilidi açmak için parola gir'
+            {!passphrase && !asymmetricKey
+              ? 'Şifreli mesaj — kilidi açmak için parola gir veya anahtar oluştur'
               : decryptFailed
-                ? 'Çözülemedi (parola hatalı)'
+                ? 'Çözülemedi (şifre çözme hatası)'
                 : 'Çözülüyor…'}
           </span>
         ) : (
@@ -911,28 +943,34 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             🖼️
           </Button>
           {dm && (
-            <Button
-              variant={passphrase ? 'primary' : 'secondary'}
-              size="sm"
-              aria-label="Uçtan uca şifreleme"
-              title={passphrase ? 'Şifreli sohbet açık' : 'Uçtan uca şifreleme'}
-              onClick={() => {
-                if (!selectedId) return
-                if (passphrase) {
-                  if (window.confirm('Şifreli sohbeti kapat? Yeni mesajlar düz metin gönderilir.')) {
-                    dispatch(setPassphrase({ channelId: selectedId, passphrase: '' }))
+            dmPartner?.publicKey ? (
+              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-500 bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 rounded" title="Bu sohbet otomatik olarak uçtan uca asimetrik anahtarla (P-256 ECDH) şifrelenmektedir.">
+                🔒 E2EE Aktif
+              </div>
+            ) : (
+              <Button
+                variant={passphrase ? 'primary' : 'secondary'}
+                size="sm"
+                aria-label="Uçtan uca şifreleme"
+                title={passphrase ? 'Şifreli sohbet açık' : 'Uçtan uca şifreleme'}
+                onClick={() => {
+                  if (!selectedId) return
+                  if (passphrase) {
+                    if (window.confirm('Şifreli sohbeti kapat? Yeni mesajlar düz metin gönderilir.')) {
+                      dispatch(setPassphrase({ channelId: selectedId, passphrase: '' }))
+                    }
+                  } else {
+                    const pass = window.prompt(
+                      'Bu sohbet için ortak parola (iki taraf da aynısını girmeli, sunucuya gönderilmez):',
+                      '',
+                    )
+                    if (pass) dispatch(setPassphrase({ channelId: selectedId, passphrase: pass }))
                   }
-                } else {
-                  const pass = window.prompt(
-                    'Bu sohbet için ortak parola (iki taraf da aynısını girmeli, sunucuya gönderilmez):',
-                    '',
-                  )
-                  if (pass) dispatch(setPassphrase({ channelId: selectedId, passphrase: pass }))
-                }
-              }}
-            >
-              {passphrase ? '🔒' : '🔓'}
-            </Button>
+                }}
+              >
+                {passphrase ? '🔒' : '🔓'}
+              </Button>
+            )
           )}
           {!dm && (
             <>

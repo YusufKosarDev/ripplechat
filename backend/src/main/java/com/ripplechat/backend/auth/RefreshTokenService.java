@@ -34,13 +34,35 @@ public class RefreshTokenService {
     /** Mints a new refresh token for the user and returns the raw value. */
     @Transactional
     public String issue(User user) {
+        return issue(user, null, null);
+    }
+
+    /** Mints a new refresh token for the user with session metadata and returns the raw value. */
+    @Transactional
+    public String issue(User user, String ipAddress, String userAgent) {
         RefreshToken token = new RefreshToken();
         String raw = randomToken();
         token.setTokenHash(hash(raw));
         token.setUser(user);
+        token.setIpAddress(ipAddress);
+        token.setUserAgent(userAgent);
         token.setExpiresAt(Instant.now().plusMillis(refreshExpirationMillis));
         repository.save(token);
         return raw;
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<RefreshToken> getActiveSessions(User user) {
+        return repository.findAllByUserAndRevokedFalseAndExpiresAtAfter(user, Instant.now());
+    }
+
+    @Transactional
+    public void revokeSession(User user, java.util.UUID sessionId) {
+        repository.findById(sessionId).ifPresent(token -> {
+            if (token.getUser().getId().equals(user.getId())) {
+                repository.delete(token);
+            }
+        });
     }
 
     /**

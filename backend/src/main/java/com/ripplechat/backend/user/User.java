@@ -74,6 +74,9 @@ public class User {
     @Column(name = "is_two_factor_enabled", nullable = false)
     private boolean isTwoFactorEnabled = false;
 
+    @Column(name = "public_key")
+    private String publicKey;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -96,4 +96,12 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
     }
+
+    @Transactional
+    public void registerPublicKey(String username, String publicKey) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        user.setPublicKey(publicKey);
+        userRepository.save(user);
+    }
 }

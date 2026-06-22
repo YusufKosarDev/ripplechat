@@ -79,4 +79,11 @@ public class UserController {
     public void unblock(@PathVariable UUID userId, @AuthenticationPrincipal String username) {
         blockService.unblock(username, userId);
     }
+
+    @PostMapping("/me/public-key")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void registerPublicKey(@RequestBody String publicKey,
+                                  @AuthenticationPrincipal String username) {
+        userService.registerPublicKey(username, publicKey);
+    }
 }
