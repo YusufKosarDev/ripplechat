@@ -84,7 +84,7 @@ export default function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-fg-muted">
         {t('auth.register.haveAccount')}{' '}
-        <Link to="/login" className="text-accent hover:text-accent-hover">
+        <Link to="/login" className="text-accent underline hover:text-accent-hover">
           {t('auth.register.loginLink')}
         </Link>
       </p>
