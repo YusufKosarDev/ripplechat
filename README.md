@@ -85,17 +85,27 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members can't eavesdrop
 - **User blocking** — hide messages from blocked users
 - **End-to-end encryption** (opt-in) for direct messages — AES-GCM with a passphrase-derived key (PBKDF2), encrypted entirely in the browser via Web Crypto; the server only ever relays opaque ciphertext
-- **Abuse protection** — input size limits plus rate limiting on login, message sends, and reactions
+- **Abuse protection** — input size limits plus rate limiting on login, message sends, and reactions (rate-limited responses carry a `Retry-After` hint)
+- **Security headers** — HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a `frame-ancestors` CSP on every response
+- **Hardened secrets** — the JWT secret is validated at startup (rejects a too-short or placeholder value); SSRF guard on link unfurling; outbound calls (Cloudinary, link/GIF) are timeout-bounded
+- **Security audit log** — authentication events (login success/failure/throttle, registration, refresh, logout) on a dedicated logger, correlated by request id
 
 ### 🎨 Experience & platform
 - **Light / dark theme** toggle and a **responsive** layout that adapts to mobile
 - **Installable PWA** with an offline app shell (service worker)
 - **Internationalization** — English / Turkish with a language toggle
-- **Accessibility** — accessible dialogs (focus trap, Escape, focus restore), ARIA labels, and a skip link
+- **Accessibility** — accessible dialogs (focus trap, Escape, focus restore), ARIA labels, a skip link, and **automated axe checks** in CI
+- **Resilient UI** — an error boundary keeps a component crash from blanking the app, and a toast layer surfaces transient successes/errors
+- **Fast first load** — route-level code splitting and on-demand chunks (pickers, syntax highlighter), plus gzip-compressed API responses
 - **Disappearing messages** — an optional per-channel timer auto-deletes messages after it elapses
 - **Channel organization** — categories and archiving · **profile & settings** (display name, avatar image/color, password)
-- **OpenAPI / Swagger UI** (`/swagger-ui.html`) · **health endpoint** (`/actuator/health`)
-- **Tested** — backend integration tests on a real PostgreSQL (Testcontainers), frontend unit tests (Vitest), and end-to-end tests (Playwright), all wired into CI
+- **Tested** — backend integration tests on real PostgreSQL (Testcontainers) incl. a STOMP realtime test, frontend unit tests (Vitest), end-to-end + accessibility tests (Playwright), architecture tests (ArchUnit) and mutation testing (PITest) — all wired into CI
+
+### 📊 Observability & operations
+- **RFC 7807 problem responses** — every error (validation, auth 401/403, framework) returns a consistent `application/problem+json` body
+- **Prometheus metrics** at `/actuator/prometheus` and **build info** (version, build time) at `/actuator/info`
+- **Request correlation** — each request gets an `X-Request-Id` that is echoed back and stamped on every log line for that request
+- **OpenAPI / Swagger UI** (`/swagger-ui.html`, with a Bearer "Authorize") · **health endpoint** (`/actuator/health`)
 
 ---
 
@@ -107,9 +117,10 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Spring Security (JWT access + rotating refresh tokens, HS256)
 - Spring Data JPA
 - Spring WebSocket (STOMP messaging)
-- PostgreSQL (full-text search) · Flyway migrations
+- PostgreSQL (full-text search) · Flyway migrations · HikariCP (tuned pool)
 - Cloudinary (media uploads) · web-push/VAPID (notifications) · jsoup (link unfurling) · Giphy (GIF search)
-- springdoc-openapi (Swagger UI) · Spring Boot Actuator
+- Caffeine (link-preview cache) · RFC 7807 ProblemDetail · gzip compression
+- springdoc-openapi (Swagger UI) · Spring Boot Actuator · Micrometer + Prometheus
 
 **Frontend**
 - React + TypeScript
@@ -118,19 +129,21 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Tailwind CSS
 - STOMP.js / SockJS
 - Web Crypto (E2EE) · service worker (PWA + push)
+- TypeScript strict mode · error boundary + in-house toast layer · route-level code splitting
 
 **Testing**
 - JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests
 - Vitest + React Testing Library — frontend unit tests
 - Playwright — end-to-end tests
 - ArchUnit — architecture/boundary tests · PITest — mutation testing (`mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage`)
+- axe (`@axe-core/playwright`) — automated accessibility checks
 - k6 — load test for the read-heavy API path (`k6 run loadtest/messaging.js` against a local instance)
 
 **DevOps**
 - Docker Compose (PostgreSQL)
 - Flyway (production schema migrations)
 - Maven · Spring profiles (dev / prod)
-- GitHub Actions CI (backend, frontend, e2e)
+- GitHub Actions CI (backend, frontend, e2e) · Dependabot (Maven, npm, Actions)
 
 ---
 
