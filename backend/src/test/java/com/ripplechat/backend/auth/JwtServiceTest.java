@@ -21,7 +21,7 @@ class JwtServiceTest {
     void rejectsTamperedToken() {
         JwtService jwt = new JwtService(SECRET, 3_600_000L);
         String token = jwt.generateToken("alice");
-        String tampered = token.substring(0, token.length() - 1) + (token.endsWith("a") ? "b" : "a");
+        String tampered = "x" + token.substring(1);
         assertThatThrownBy(() -> jwt.extractUsername(tampered)).isInstanceOf(Exception.class);
     }
 

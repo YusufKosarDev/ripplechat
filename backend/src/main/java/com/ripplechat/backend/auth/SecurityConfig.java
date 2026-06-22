@@ -77,8 +77,8 @@ public class SecurityConfig {
 
     /**
      * CORS allowlist from {@code app.allowed-origins} (env APP_ALLOWED_ORIGINS).
-     * Explicit origins only — no wildcard. Credentials are off because the API
-     * authenticates with a Bearer token (Authorization header), not cookies.
+     * Explicit origins only — no wildcard. Credentials are on to allow cross-origin
+     * SockJS WebSocket connections.
      * In dev the frontend is same-origin via the Vite proxy, so CORS is inert.
      */
     @Bean
@@ -93,6 +93,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

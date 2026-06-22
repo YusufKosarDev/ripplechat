@@ -234,6 +234,18 @@ export function watchChannel(channelId: string, channelHandlers: ChannelHandlers
   resolveChannelSubs()
 }
 
+function safePublish(params: { destination: string; body: string }) {
+  try {
+    if (client && client.connected) {
+      client.publish(params)
+    } else {
+      console.warn('STOMP client is not connected. Cannot publish to:', params.destination)
+    }
+  } catch (err) {
+    console.error('Failed to publish STOMP message:', err)
+  }
+}
+
 export function sendChatMessage(
   channelId: string,
   content: string,
@@ -243,21 +255,21 @@ export function sendChatMessage(
   attachmentName?: string,
   attachmentType?: string,
 ) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/send`,
     body: JSON.stringify({ content, parentMessageId, attachmentUrl, quotedMessageId, attachmentName, attachmentType }),
   })
 }
 
 export function sendEditMessage(channelId: string, messageId: string, content: string) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/messages/${messageId}/edit`,
     body: JSON.stringify({ content }),
   })
 }
 
 export function sendDeleteMessage(channelId: string, messageId: string) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/messages/${messageId}/delete`,
     body: JSON.stringify({}),
   })
@@ -282,7 +294,7 @@ export function watchAllChannels(channelIds: string[], onMessage: MessageHandler
 }
 
 export function sendTyping(channelId: string, typing: boolean) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/typing`,
     body: JSON.stringify({ typing }),
   })
@@ -290,32 +302,32 @@ export function sendTyping(channelId: string, typing: boolean) {
 
 // Marks the channel read up to now (the server broadcasts the receipt).
 export function sendRead(channelId: string) {
-  client?.publish({ destination: `/app/channels/${channelId}/read`, body: '{}' })
+  safePublish({ destination: `/app/channels/${channelId}/read`, body: '{}' })
 }
 
 export function sendReaction(channelId: string, emoji: string) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/reaction`,
     body: JSON.stringify({ emoji }),
   })
 }
 
 export function sendPoll(channelId: string, question: string, options: string[]) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/poll`,
     body: JSON.stringify({ question, options }),
   })
 }
 
 export function sendPollVote(channelId: string, pollId: string, optionId: string) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/poll/${pollId}/vote`,
     body: JSON.stringify({ optionId }),
   })
 }
 
 export function sendMessageReaction(channelId: string, messageId: string, emoji: string) {
-  client?.publish({
+  safePublish({
     destination: `/app/channels/${channelId}/messages/${messageId}/reaction`,
     body: JSON.stringify({ emoji }),
   })
