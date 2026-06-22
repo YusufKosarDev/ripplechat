@@ -13,6 +13,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage'))
 const ChatPage = lazy(() => import('./pages/ChatPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const OAuth2RedirectHandler = lazy(() => import('./pages/OAuth2RedirectHandler'))
 
 export default function App() {
   const dispatch = useAppDispatch()
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
           <Route element={<PrivateRoute />}>
             <Route path="/chat" element={<ChatPage />} />
           </Route>

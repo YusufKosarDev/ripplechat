@@ -22,6 +22,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     /** Looks up a user by either username or email (used for login). */
     Optional<User> findByUsernameOrEmail(String username, String email);
 
+    Optional<User> findByEmail(String email);
+
     /** Looks up a user by username (used to resolve the current principal). */
     Optional<User> findByUsername(String username);
 

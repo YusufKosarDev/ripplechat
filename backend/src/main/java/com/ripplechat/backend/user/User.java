@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Enumerated;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -56,9 +57,16 @@ public class User {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
-    /** BCrypt-hashed password. Never stored or exposed in plain text. */
-    @Column(nullable = false)
+    /** BCrypt-hashed password. Nullable because OAuth2 users do not have a local password. */
+    @Column
     private String password;
+
+    @Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Column(name = "provider_id")
+    private String providerId;
 
     @Column(name = "totp_secret")
     private String totpSecret;

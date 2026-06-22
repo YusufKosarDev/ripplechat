@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 
 /**
  * Accessible modal-dialog behavior for a panel element:
@@ -13,7 +13,10 @@ import { useEffect, useRef } from 'react'
 export function useDialog<T extends HTMLElement>(onClose: () => void) {
   const panelRef = useRef<T>(null)
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null

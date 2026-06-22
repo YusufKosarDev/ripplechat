@@ -380,7 +380,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     } else {
       el.scrollTop = el.scrollHeight
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [selectedId, messages.length])
 
   // Mark the channel read while it's open (on load and as new messages arrive).

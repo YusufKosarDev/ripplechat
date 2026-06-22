@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
@@ -35,17 +35,19 @@ export default function ChatPage() {
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Keep the latest values available to the (stable) realtime handlers.
   const selectedIdRef = useRef(selectedId)
-  selectedIdRef.current = selectedId
   const currentUserIdRef = useRef(currentUserId)
-  currentUserIdRef.current = currentUserId
   const currentUsernameRef = useRef(currentUsername)
-  currentUsernameRef.current = currentUsername
   const mutedRef = useRef(muted)
-  mutedRef.current = muted
   const blockedRef = useRef(blockedIds)
-  blockedRef.current = blockedIds
+
+  useLayoutEffect(() => {
+    selectedIdRef.current = selectedId
+    currentUserIdRef.current = currentUserId
+    currentUsernameRef.current = currentUsername
+    mutedRef.current = muted
+    blockedRef.current = blockedIds
+  }, [selectedId, currentUserId, currentUsername, muted, blockedIds])
 
   useEffect(() => {
     connectChat({

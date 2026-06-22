@@ -135,6 +135,13 @@ const authSlice = createSlice({
     clearError(state) {
       state.error = null
     },
+    oauth2LoginSuccess(state) {
+      state.token = getToken()
+      state.status = 'idle'
+      state.error = null
+      state.requires2Fa = false
+      state.preAuthToken = null
+    },
   },
   extraReducers: (builder) => {
     const onAuthSuccess = (state: AuthState, action: PayloadAction<AuthResponse>) => {
@@ -206,5 +213,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { clearError } = authSlice.actions
+export const { clearError, oauth2LoginSuccess } = authSlice.actions
 export default authSlice.reducer
