@@ -43,8 +43,10 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ## ✨ Features
 
-### ⚡ Real-time
+### ⚡ Real-time & Communication
 - **Live messaging** over WebSocket / STOMP — messages fan out instantly to every subscriber of a channel
+- **Distributed Pub/Sub (Redis)** — horizontally scalable WebSockets; messages published on any node are reliably broadcasted to users connected to other nodes via Redis Pub/Sub
+- **Voice & Video Calls (WebRTC)** — peer-to-peer secure WebRTC video calls with local/remote stream rendering, mute/video toggles, and signaling via STOMP
 - **Optimistic UI** — instant UI updates for messages and channels before server confirmation, with seamless fallback/error handling
 - **Presence** — see who's online at a glance
 - **Typing indicators** — know when someone in the channel is composing a message
@@ -56,9 +58,9 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Threads** — keep focused reply chains off the main timeline
 - **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view)
 - **Quote-reply** to a specific message, **forward** messages to other chats, and **pin** important messages
-- **Markdown** formatting and **syntax-highlighted code blocks**
+- **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
-- **Full-text search** (PostgreSQL `tsvector` + GIN index) with filters (channel, sender, date) and **jump-to-message**
+- **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying
 - **Infinite scroll** — older history loads as you scroll up
 
 ### 🎉 Interaction
@@ -81,6 +83,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Mute** channels and DMs · **unread badges** with a live count in the browser tab title
 
 ### 🔐 Security & privacy
+- **Two-Factor Authentication (2FA)** — TOTP-based multi-factor authentication via Google Authenticator/Authy using a secure Pre-Auth JWT handshake
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
 - **Refresh tokens** with rotation and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
 - **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`, with server-side moderation checks
@@ -94,7 +97,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ### 🎨 Experience & platform
 - **Light / dark theme** toggle and a **responsive** layout that adapts to mobile
-- **Installable PWA** with an offline app shell (service worker)
+- **Offline-First PWA** — progressive web app with a service worker (`vite-plugin-pwa`) that caches UI assets and uses **IndexedDB** (`idb`) to store messages locally. Users can read history and send "pending" messages while offline, which automatically sync to the backend when the network recovers.
 - **Internationalization** — English / Turkish with a language toggle
 - **Accessibility** — accessible dialogs (focus trap, Escape, focus restore), ARIA labels, a skip link, and **automated axe checks** in CI
 - **Resilient UI** — an error boundary keeps a component crash from blanking the app, and a toast layer surfaces transient successes/errors
@@ -117,10 +120,10 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Java 21
 - Spring Boot 3.5
 - Spring Security (JWT access + rotating refresh tokens, HS256)
-- Spring Data JPA
+- Spring Data JPA · Spring Data Redis · Spring Data Elasticsearch
 - Spring WebSocket (STOMP messaging)
-- PostgreSQL (full-text search) · Flyway migrations · HikariCP (tuned pool)
-- Cloudinary (media uploads) · web-push/VAPID (notifications) · jsoup (link unfurling) · Giphy (GIF search)
+- PostgreSQL (primary datastore) · Redis (distributed Pub/Sub & caching) · Elasticsearch (message search engine)
+- Cloudinary (media uploads) · web-push/VAPID (notifications) · dev.samstevens.totp (2FA) · Giphy (GIF search)
 - Caffeine (link-preview cache) · RFC 7807 ProblemDetail · gzip compression
 - springdoc-openapi (Swagger UI) · Spring Boot Actuator · Micrometer + Prometheus
 
@@ -130,7 +133,9 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Redux Toolkit
 - Tailwind CSS
 - STOMP.js / SockJS
-- Web Crypto (E2EE) · service worker (PWA + push)
+- TipTap (Rich Text Editor)
+- WebRTC (P2P Video/Audio Calls)
+- Web Crypto (E2EE) · Service Worker (PWA + push) · IndexedDB (Offline sync via idb)
 - TypeScript strict mode · error boundary + in-house toast layer · route-level code splitting
 
 **Testing**
