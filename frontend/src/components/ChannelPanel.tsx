@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
+import { showToast } from '../features/toast/toastSlice'
+import { useT } from '../i18n'
 import { client } from '../api/client'
 import { joinChannel } from '../features/channels/channelsSlice'
 import {
@@ -144,6 +146,7 @@ interface ChannelPanelProps {
 
 export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const dispatch = useAppDispatch()
+  const { t } = useT()
   const { items, dms, selectedId } = useAppSelector((state) => state.channels)
   const { byChannel, paging, loadError, status: messagesStatus } = useAppSelector((state) => state.messages)
   const pollsByChannel = useAppSelector((state) => state.polls.byChannel)
@@ -770,8 +773,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     try {
       await client.post(`/api/channels/${targetChannelId}/messages/forward`, { sourceMessageId: source.id })
       dispatch(selectChannel(targetChannelId))
+      dispatch(showToast({ message: t('toast.forward.success'), variant: 'success' }))
     } catch {
-      setCmdError('Mesaj iletilemedi.')
+      dispatch(showToast({ message: t('toast.forward.error'), variant: 'error' }))
     }
   }
 

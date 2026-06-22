@@ -55,6 +55,10 @@ export const translations: Record<Lang, Record<string, string>> = {
     'error.title': 'Bir şeyler ters gitti',
     'error.body': 'Beklenmeyen bir hata oluştu. Sayfayı yenilemeyi deneyebilirsin.',
     'error.retry': 'Yeniden dene',
+
+    'toast.dismiss': 'Bildirimi kapat',
+    'toast.forward.success': 'Mesaj iletildi',
+    'toast.forward.error': 'Mesaj iletilemedi',
   },
   en: {
     'lang.switch': 'Switch language',
@@ -107,5 +111,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'error.title': 'Something went wrong',
     'error.body': 'An unexpected error occurred. Try reloading the page.',
     'error.retry': 'Try again',
+
+    'toast.dismiss': 'Dismiss notification',
+    'toast.forward.success': 'Message forwarded',
+    'toast.forward.error': 'Could not forward the message',
   },
 }

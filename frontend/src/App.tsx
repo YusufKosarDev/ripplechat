@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from './app/hooks'
 import { fetchCurrentUser } from './features/auth/authSlice'
 import { applyTheme } from './theme'
 import PrivateRoute from './components/PrivateRoute'
+import ToastViewport from './components/ToastViewport'
 
 // Route-level code splitting: each page (and the heavy chat bundle it pulls in —
 // STOMP, emoji/GIF pickers, syntax highlighting) loads only when its route is
@@ -31,16 +32,19 @@ export default function App() {
   }, [token, user, dispatch])
 
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route element={<PrivateRoute />}>
-          <Route path="/chat" element={<ChatPage />} />
-        </Route>
-      </Routes>
-    </Suspense>
+    <>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route element={<PrivateRoute />}>
+            <Route path="/chat" element={<ChatPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+      <ToastViewport />
+    </>
   )
 }
 

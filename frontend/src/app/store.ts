@@ -12,6 +12,7 @@ import pollsReducer from '../features/polls/pollsSlice'
 import presenceReducer from '../features/presence/presenceSlice'
 import readsReducer from '../features/reads/readsSlice'
 import threadsReducer from '../features/threads/threadsSlice'
+import toastReducer from '../features/toast/toastSlice'
 import uiReducer from '../features/ui/uiSlice'
 import unreadReducer from '../features/unread/unreadSlice'
 
@@ -30,6 +31,7 @@ export const store = configureStore({
     presence: presenceReducer,
     reads: readsReducer,
     threads: threadsReducer,
+    toast: toastReducer,
     ui: uiReducer,
     unread: unreadReducer,
   },
