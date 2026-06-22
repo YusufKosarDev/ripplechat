@@ -6,7 +6,14 @@ import { getToken } from '../../api/token'
 const makeStore = () => configureStore({ reducer: { auth: authReducer } })
 const authSuccess = {
   type: login.fulfilled.type,
-  payload: { accessToken: 'tok123', tokenType: 'Bearer', user: { id: '1', username: 'demo' } },
+  payload: {
+    accessToken: 'tok123',
+    refreshToken: 'ref456',
+    tokenType: 'Bearer',
+    user: { id: '1', username: 'demo' },
+    requires2Fa: false,
+    preAuthToken: null,
+  },
 }
 
 describe('authSlice', () => {

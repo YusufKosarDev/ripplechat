@@ -49,7 +49,7 @@ export async function mockApi(page: Page, opts: { loginStatus?: number } = {}) {
           path: pathname,
         })
       }
-      return json(200, { accessToken: 'access-1', refreshToken: 'refresh-1', tokenType: 'Bearer', user: USER })
+      return json(200, { accessToken: 'access-1', refreshToken: 'refresh-1', tokenType: 'Bearer', user: USER, requires2Fa: false, preAuthToken: null })
     }
     if (pathname.endsWith('/api/users/me')) return json(200, USER)
     if (pathname.endsWith('/api/channels') && method === 'GET') return json(200, [CHANNEL])

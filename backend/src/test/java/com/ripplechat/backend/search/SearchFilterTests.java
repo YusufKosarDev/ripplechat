@@ -31,7 +31,7 @@ class SearchFilterTests extends AbstractIntegrationTest {
         messageService.send(b.id(), new CreateMessageRequest("merhaba evren", null), "owner");
 
         assertThat(searchService.searchMessages("owner", "merhaba")).hasSize(2);
-        assertThat(searchService.searchMessages("owner", "merhaba", a.id(), null, null)).hasSize(1);
+        assertThat(searchService.searchPage("owner", "merhaba", a.id(), null, null, 0, 50).results()).hasSize(1);
     }
 
     @Test
@@ -44,7 +44,7 @@ class SearchFilterTests extends AbstractIntegrationTest {
         messageService.send(channel.id(), new CreateMessageRequest("ortak kelime", null), "bob");
 
         assertThat(searchService.searchMessages("owner", "ortak")).hasSize(2);
-        assertThat(searchService.searchMessages("owner", "ortak", null, "bob", null)).hasSize(1);
+        assertThat(searchService.searchPage("owner", "ortak", null, "bob", null, 0, 50).results()).hasSize(1);
     }
 
     @Test

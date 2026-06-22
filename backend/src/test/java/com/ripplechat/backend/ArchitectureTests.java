@@ -53,7 +53,8 @@ class ArchitectureTests {
                     .should().dependOnClassesThat().resideInAnyPackage(
                             "..auth..", "..channel..", "..message..", "..user..", "..poll..",
                             "..reaction..", "..search..", "..presence..", "..typing..", "..read..",
-                            "..push..", "..link..", "..media..", "..gif..", "..websocket..", "..demo..");
+                            "..push..", "..link..", "..media..", "..gif..", "..websocket..", "..demo..",
+                            "..redis..", "..call..");
 
     @ArchTest
     static final ArchRule fields_are_not_injected =
