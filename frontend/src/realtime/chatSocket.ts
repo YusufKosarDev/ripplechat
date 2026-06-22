@@ -14,6 +14,7 @@ import type {
   ReadReceipt,
   ThreadUpdate,
   TypingEvent,
+  CallSignal,
 } from '../api/types'
 
 type MessageHandler = (message: Message) => void
@@ -27,6 +28,7 @@ type ReplyHandler = (reply: Message) => void
 type PollHandler = (poll: Poll) => void
 type ReadHandler = (receipt: ReadReceipt) => void
 type PresenceHandler = (event: PresenceEvent) => void
+type CallSignalHandler = (signal: CallSignal) => void
 
 interface ChatHandlers {
   onStatus?: (status: ConnectionStatus) => void
@@ -44,6 +46,7 @@ interface ChannelHandlers {
   onChannelDeleted: ChannelDeletedHandler
   onPoll: PollHandler
   onRead: ReadHandler
+  onCallSignal: CallSignalHandler
 }
 
 let client: Client | null = null
@@ -57,6 +60,7 @@ let channelDeletedSub: StompSubscription | null = null
 let pollSub: StompSubscription | null = null
 let readSub: StompSubscription | null = null
 let presenceSub: StompSubscription | null = null
+let callSignalSub: StompSubscription | null = null
 
 // Separate single subscription for the currently open thread's replies.
 let threadSub: StompSubscription | null = null
@@ -85,6 +89,7 @@ function resolveChannelSubs() {
   channelDeletedSub?.unsubscribe()
   pollSub?.unsubscribe()
   readSub?.unsubscribe()
+  callSignalSub?.unsubscribe()
   const {
     channelId,
     onMessage,
@@ -96,6 +101,7 @@ function resolveChannelSubs() {
     onChannelDeleted,
     onPoll,
     onRead,
+    onCallSignal,
   } = desired
   messageSub = client.subscribe(`/topic/channels/${channelId}`, (frame) => {
     onMessage(JSON.parse(frame.body) as Message)
@@ -123,6 +129,9 @@ function resolveChannelSubs() {
   })
   readSub = client.subscribe(`/topic/channels/${channelId}/reads`, (frame) => {
     onRead(JSON.parse(frame.body) as ReadReceipt)
+  })
+  callSignalSub = client.subscribe(`/topic/channels/${channelId}/calls`, (frame) => {
+    onCallSignal(JSON.parse(frame.body) as CallSignal)
   })
 }
 
@@ -188,6 +197,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       pollSub = null
       readSub = null
       presenceSub = null
+      callSignalSub = null
       threadSub = null
       allChannelSubs = []
       resolvePresence()
@@ -244,6 +254,10 @@ function safePublish(params: { destination: string; body: string }) {
   } catch (err) {
     console.error('Failed to publish STOMP message:', err)
   }
+}
+
+export function isStompConnected() {
+  return client?.connected ?? false
 }
 
 export function sendChatMessage(
@@ -330,6 +344,13 @@ export function sendMessageReaction(channelId: string, messageId: string, emoji:
   safePublish({
     destination: `/app/channels/${channelId}/messages/${messageId}/reaction`,
     body: JSON.stringify({ emoji }),
+  })
+}
+
+export function sendCallSignal(channelId: string, signal: CallSignal) {
+  safePublish({
+    destination: `/app/channels/${channelId}/call`,
+    body: JSON.stringify(signal),
   })
 }
 

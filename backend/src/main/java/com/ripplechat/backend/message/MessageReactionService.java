@@ -8,7 +8,7 @@ import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +30,7 @@ public class MessageReactionService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ChannelMembershipService membershipService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
 
     @Transactional
     public void toggle(UUID channelId, UUID messageId, String username, String emoji) {
@@ -53,8 +53,8 @@ public class MessageReactionService {
         reactionRepository.flush();
 
         List<ReactionSummary> summary = summarize(reactionRepository.findByMessage_Id(messageId));
-        messagingTemplate.convertAndSend(
-                "/topic/channels/" + channelId + "/message-reactions",
+        redisBroadcastService.broadcast(
+                "/topic/channels/" + message.getChannel().getId() + "/message-reactions",
                 new MessageReactionUpdate(messageId, summary));
     }
 

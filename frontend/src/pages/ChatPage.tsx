@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
 import { fetchChannels, fetchDms } from '../features/channels/channelsSlice'
 import { setConnectionStatus } from '../features/connection/connectionSlice'
-import { fetchMessages, messageReceived } from '../features/messages/messagesSlice'
+import { fetchMessages, loadOfflineMessages, messageReceived } from '../features/messages/messagesSlice'
 import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice'
 import { addMention, incrementUnread } from '../features/unread/unreadSlice'
 import { fetchBlocks } from '../features/blocks/blocksSlice'
@@ -55,7 +55,10 @@ export default function ChatPage() {
         // (dedup keeps any messages missed while offline from duplicating).
         dispatch(fetchOnline())
         const id = selectedIdRef.current
-        if (id) dispatch(fetchMessages(id))
+        if (id) {
+          dispatch(loadOfflineMessages(id))
+          dispatch(fetchMessages(id))
+        }
       },
       onAuthError: () => {
         dispatch(logout())

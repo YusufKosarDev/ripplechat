@@ -13,7 +13,7 @@ import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +28,7 @@ public class ChannelService {
     private final UserRepository userRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final ChannelMembershipService membershipService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
 
     @Transactional
     public ChannelResponse create(CreateChannelRequest request, String username) {
@@ -95,7 +95,7 @@ public class ChannelService {
         requireOwner(channelId, username);
         channel.setDeleted(true);
         channelRepository.saveAndFlush(channel);
-        messagingTemplate.convertAndSend(
+        redisBroadcastService.broadcast(
                 "/topic/channels/" + channelId + "/deleted", new ChannelDeletedEvent(channelId));
     }
 

@@ -8,7 +8,7 @@ import com.ripplechat.backend.reaction.dto.ReactionEvent;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -28,7 +28,7 @@ public class ReactionService {
 
     private final ChannelMembershipService membershipService;
     private final UserRepository userRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
     private final RateLimiter rateLimiter;
 
     public void relayReaction(UUID channelId, String username, String emoji) {
@@ -44,7 +44,7 @@ public class ReactionService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
-        messagingTemplate.convertAndSend("/topic/channels/" + channelId + "/reactions",
+        redisBroadcastService.broadcast("/topic/channels/" + channelId + "/reactions",
                 new ReactionEvent(user.getId(), user.getUsername(), emoji));
     }
 }

@@ -6,7 +6,7 @@ import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.poll.dto.CreatePollRequest;
 import com.ripplechat.backend.poll.dto.PollResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +23,7 @@ public class PollService {
 
     private final PollRepository pollRepository;
     private final ChannelMembershipService membershipService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
 
     @Transactional
     public void createPoll(UUID channelId, String username, CreatePollRequest request) {
@@ -73,7 +73,7 @@ public class PollService {
     }
 
     private void broadcast(Poll poll) {
-        messagingTemplate.convertAndSend(
+        redisBroadcastService.broadcast(
                 "/topic/channels/" + poll.getChannelId() + "/polls", PollResponse.from(poll));
     }
 

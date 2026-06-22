@@ -7,7 +7,7 @@ import com.ripplechat.backend.read.dto.ReadReceipt;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +22,7 @@ public class ReadReceiptService {
     private final ChannelReadRepository readRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final UserRepository userRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
 
     /** Marks the channel read up to now for the user and broadcasts the receipt. */
     @Transactional
@@ -42,8 +42,9 @@ public class ReadReceiptService {
         read.setLastReadAt(now);
         readRepository.save(read);
 
-        messagingTemplate.convertAndSend(
-                "/topic/channels/" + channelId + "/reads", new ReadReceipt(channelId, user.getId(), now));
+        redisBroadcastService.broadcast(
+                "/topic/channels/" + channelId + "/reads",
+                new ReadReceipt(channelId, user.getId(), now));
     }
 
     /** Read positions of all members in the channel (to render receipts on load). */

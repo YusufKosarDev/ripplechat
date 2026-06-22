@@ -29,6 +29,8 @@ interface AuthState {
   user: User | null
   status: 'idle' | 'loading'
   error: string | null
+  requires2Fa: boolean
+  preAuthToken: string | null
 }
 
 const initialState: AuthState = {
@@ -36,6 +38,8 @@ const initialState: AuthState = {
   user: null,
   status: 'idle',
   error: null,
+  requires2Fa: false,
+  preAuthToken: null,
 }
 
 export const login = createAsyncThunk(
@@ -43,6 +47,18 @@ export const login = createAsyncThunk(
   async (body: LoginRequest, { rejectWithValue }) => {
     try {
       const { data } = await withColdStartRetry(() => client.post<AuthResponse>('/api/auth/login', body))
+      return data
+    } catch (e) {
+      return rejectWithValue(extractError(e))
+    }
+  },
+)
+
+export const verify2Fa = createAsyncThunk(
+  'auth/verify2Fa',
+  async (body: { preAuthToken: string; code: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await client.post<AuthResponse>('/api/auth/2fa/verify', body)
       return data
     } catch (e) {
       return rejectWithValue(extractError(e))
@@ -124,9 +140,20 @@ const authSlice = createSlice({
     const onAuthSuccess = (state: AuthState, action: PayloadAction<AuthResponse>) => {
       state.status = 'idle'
       state.error = null
-      state.token = action.payload.accessToken
-      state.user = action.payload.user
-      setTokens(action.payload.accessToken, action.payload.refreshToken)
+      
+      if (action.payload.requires2Fa) {
+        state.requires2Fa = true
+        state.preAuthToken = action.payload.preAuthToken ?? null
+        return
+      }
+
+      state.requires2Fa = false
+      state.preAuthToken = null
+      state.token = action.payload.accessToken ?? null
+      state.user = action.payload.user ?? null
+      if (action.payload.accessToken && action.payload.refreshToken) {
+        setTokens(action.payload.accessToken, action.payload.refreshToken)
+      }
     }
     builder
       .addCase(login.pending, (state) => {
@@ -135,6 +162,15 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, onAuthSuccess)
       .addCase(login.rejected, (state, action) => {
+        state.status = 'idle'
+        state.error = action.payload as string
+      })
+      .addCase(verify2Fa.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(verify2Fa.fulfilled, onAuthSuccess)
+      .addCase(verify2Fa.rejected, (state, action) => {
         state.status = 'idle'
         state.error = action.payload as string
       })
@@ -164,6 +200,8 @@ const authSlice = createSlice({
         state.token = null
         state.user = null
         state.error = null
+        state.requires2Fa = false
+        state.preAuthToken = null
       })
   },
 })

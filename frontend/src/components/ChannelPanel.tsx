@@ -7,6 +7,7 @@ import { client } from '../api/client'
 import { joinChannel } from '../features/channels/channelsSlice'
 import {
   fetchMessages,
+  loadOfflineMessages,
   fetchOlderMessages,
   messageHidden,
   messageReactionsUpdated,
@@ -29,7 +30,9 @@ import { closeThread, openThread, threadReplyUpdated } from '../features/threads
 import { fetchReads, readReceived } from '../features/reads/readsSlice'
 import { toggleMute } from '../features/muted/mutedSlice'
 import { setJumpTarget } from '../features/ui/uiSlice'
-import { setCategory, toggleArchive } from '../features/channelOrg/channelOrgSlice'
+import { toggleArchive, setCategory } from '../features/channelOrg/channelOrgSlice'
+import { setActiveCall, setIncomingCall, clearCall } from '../features/call/callSlice'
+import { CallModal } from './CallModal'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import { setPassphrase } from '../features/e2ee/e2eeSlice'
@@ -42,6 +45,7 @@ import MediaGalleryModal from './MediaGalleryModal'
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
 import {
+  isStompConnected,
   sendChatMessage,
   sendDeleteMessage,
   sendEditMessage,
@@ -53,6 +57,7 @@ import {
   sendTyping,
   watchChannel,
 } from '../realtime/chatSocket'
+import { addPendingMessage } from '../db'
 import { parseCommand } from '../commands/registry'
 import type { Channel, DirectChannel, Message, Poll, ReactionEvent, TypingEvent } from '../api/types'
 import Avatar from './Avatar'
@@ -65,7 +70,7 @@ import ReactionBar from './ReactionBar'
 import ReactionOverlay from './ReactionOverlay'
 import type { FlyingEmoji } from './ReactionOverlay'
 import Button from './ui/Button'
-import { Textarea } from './ui/Field'
+import { RichTextEditor } from './ui/RichTextEditor'
 import { focusRing } from './ui/focusRing'
 import SkeletonLoader from './ui/SkeletonLoader'
 
@@ -188,10 +193,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [focusTrigger, setFocusTrigger] = useState(0)
   const prevHeightRef = useRef<number | null>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+  const reactionTimers = useRef<Set<ReturnType<typeof setTimeout>>>({} as any)
   const stopTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isTypingRef = useRef(false)
   const currentUserIdRef = useRef<string | undefined>(undefined)
@@ -212,8 +217,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden
   const loadingMessages = messagesStatus === 'loading' && messages.length === 0
   const members = selectedId ? (membersByChannel[selectedId] ?? []) : []
-  const myRole = members.find((m) => m.user.id === currentUser?.id)?.role
+  const myRole = members.find((m) => m.user.id === currentUser?.id)?.role ?? 'MEMBER'
   const canModerate = myRole === 'OWNER' || myRole === 'MODERATOR'
+
+  const { incomingCall } = useAppSelector((state) => state.call)
 
   // Decrypt any E2EE messages in the open channel once a passphrase is set.
   // Failures (wrong passphrase / corrupt payload) are left locked.
@@ -316,12 +323,20 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       },
       onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
       onRead: (receipt) => dispatch(readReceived(receipt)),
+      onCallSignal: (signal) => {
+        if (signal.type === 'OFFER') {
+          dispatch(setIncomingCall({ channelId, senderId: signal.senderId }))
+        } else if (signal.type === 'HANG_UP' || signal.type === 'REJECT') {
+          dispatch(clearCall())
+        }
+      },
     })
   }
 
   useEffect(() => {
     if (!selectedId) return
     prevHeightRef.current = null
+    dispatch(loadOfflineMessages(selectedId))
     dispatch(fetchMessages(selectedId))
     dispatch(fetchPolls(selectedId))
     dispatch(fetchMembers(selectedId))
@@ -499,26 +514,39 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         quotedContent: replyingTo ? (replyingTo.content || (replyingTo.attachmentUrl ? '📷 Görsel' : '')) : null,
         expiresAt: null,
         sending: true,
+        parentMessageId: null,
+        editedAt: null,
       }
 
       dispatch(addOptimisticMessage(optimisticMsg))
 
-      sendChatMessage(
-        channel.id,
-        content,
-        undefined,
-        attachment?.url,
-        replyingTo?.id,
-        attachment?.name ?? undefined,
-        attachment?.type,
-      )
+      const isOffline = !navigator.onLine || !isStompConnected()
+      if (isOffline) {
+        // PWA Offline mode: Save to IndexedDB and keep in UI indefinitely
+        addPendingMessage({
+          ...optimisticMsg,
+          tempId: optId,
+          timestamp: Date.now()
+        }).catch(console.error)
+      } else {
+        // Online: Send via STOMP and drop optimistic UI if no response in 10s
+        sendChatMessage(
+          channel.id,
+          content,
+          undefined,
+          attachment?.url,
+          replyingTo?.id,
+          attachment?.name ?? undefined,
+          attachment?.type,
+        )
+        setTimeout(() => {
+          dispatch(removeOptimisticMessage({ channelId: channel.id, id: optId }))
+        }, 10000)
+      }
+
       setDraft('')
       setAttachment(null)
       setReplyingTo(null)
-
-      setTimeout(() => {
-        dispatch(removeOptimisticMessage({ channelId: channel.id, id: optId }))
-      }, 10000)
     }
     stopTyping()
   }
@@ -530,6 +558,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const onJoin = async () => {
     await dispatch(joinChannel(channel.id))
+    dispatch(loadOfflineMessages(channel.id))
     dispatch(fetchMessages(channel.id))
     dispatch(fetchPolls(channel.id))
     subscribe(channel.id)
@@ -542,7 +571,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const onPickCommand = (name: string) => {
     setDraft(`/${name} `)
-    inputRef.current?.focus()
+    setFocusTrigger(f => f + 1)
   }
 
   const onPickFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -595,17 +624,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     if (editingId === msg.id) {
       return (
         <div className="mt-1">
-          <Textarea
+          <RichTextEditor
             value={editDraft}
-            onChange={(e) => setEditDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                saveEdit(msg)
-              }
-              if (e.key === 'Escape') cancelEdit()
-            }}
-            rows={2}
+            onChange={(val) => setEditDraft(val)}
+            onEnter={() => saveEdit(msg)}
             autoFocus
           />
           <div className="mt-1 flex gap-2">
@@ -739,7 +761,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const pickMention = (username: string) => {
     setDraft((d) => d.replace(/@(\w*)$/, `@${username} `))
-    inputRef.current?.focus()
+    setFocusTrigger(f => f + 1)
   }
 
   const refreshPinned = (channelId: string) => {
@@ -969,6 +991,20 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               {blockedIds.includes(dmPartner.id) ? 'Engeli kaldır' : 'Engelle'}
             </Button>
           )}
+          {dmPartner && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                if (selectedId) {
+                  dispatch(setActiveCall({ channelId: selectedId, peerId: dmPartner.id, isIncoming: false }))
+                }
+              }}
+              title="Görüntülü/Sesli Ara"
+            >
+              📞
+            </Button>
+          )}
           {pinned.length > 0 && (
             <Button variant="secondary" size="sm" onClick={() => setShowPinned(true)} title="Sabitlenenler">
               📌 {pinned.length}
@@ -1105,7 +1141,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                           <div className="min-w-0">
                             <div className="flex items-baseline gap-2">
                               <span className="text-sm font-medium text-fg">{senderName}</span>
-                              <span className="text-xs text-fg-faint">{formatTime(msg.createdAt)}</span>
+                              <span className="text-xs text-fg-faint">
+                                {formatTime(msg.createdAt)}
+                                {msg.sending && <span className="ml-1 opacity-70" title="Gönderiliyor / Bekliyor">🕒</span>}
+                              </span>
                             </div>
                             {renderBody(msg)}
                           </div>
@@ -1137,7 +1176,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                           <button
                             onClick={() => {
                               setReplyingTo(msg)
-                              inputRef.current?.focus()
+                              setFocusTrigger(f => f + 1)
                             }}
                             className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
                           >
@@ -1302,19 +1341,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               >
                 {recording ? '⏹' : '🎤'}
               </Button>
-              <Textarea
-                ref={inputRef}
+              <RichTextEditor
                 value={draft}
-                onChange={(e) => onDraftChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    submit()
-                  }
-                }}
-                rows={1}
+                onChange={(val) => onDraftChange(val)}
+                onEnter={() => submit()}
                 placeholder={`#${channel.name} kanalına yaz  ·  /poll, /giphy, /shrug`}
-                className="max-h-40 flex-1"
+                className="flex-1 w-full"
+                autoFocus
+                focusTrigger={focusTrigger}
               />
               <Button type="submit" disabled={uploading}>
                 Gönder
@@ -1328,22 +1362,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           </div>
         </>
       )}
+
+      {selectedId && <CallModal channelId={selectedId} peerId={dmPartner?.id ?? null} isIncoming={!!incomingCall && incomingCall.channelId === selectedId} />}
     </section>
   )
 }
 
-function MessageSkeleton() {
-  return (
-    <div className="space-y-4">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex gap-3">
-          <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-surface-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3 w-32 animate-pulse rounded-lg bg-surface-muted" />
-            <div className="h-3 w-2/3 animate-pulse rounded-lg bg-surface-muted" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}

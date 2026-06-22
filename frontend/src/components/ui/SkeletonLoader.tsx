@@ -1,5 +1,3 @@
-import React from 'react'
-
 interface SkeletonLoaderProps {
   type: 'channel-list' | 'message-list' | 'thread-list'
   count?: number

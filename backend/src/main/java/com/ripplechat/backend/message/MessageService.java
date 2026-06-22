@@ -18,6 +18,7 @@ import com.ripplechat.backend.message.dto.ThreadSummary;
 import com.ripplechat.backend.message.dto.ThreadUpdate;
 import com.ripplechat.backend.media.MediaStorage;
 import com.ripplechat.backend.push.MessageSentEvent;
+import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.dto.UserSummary;
 import com.ripplechat.backend.user.UserRepository;
@@ -25,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +60,8 @@ public class MessageService {
     private final ChannelMembershipRepository membershipRepository;
     private final MessageReactionService messageReactionService;
     private final MessageHideRepository messageHideRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
+    private final SearchService searchService;
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher eventPublisher;
     private final MediaStorage mediaStorage;
@@ -144,14 +146,15 @@ public class MessageService {
         }
 
         Message saved = messageRepository.saveAndFlush(message);
+        searchService.indexMessage(saved);
         MessageResponse response = MessageResponse.from(saved);
 
         if (saved.getParent() == null) {
-            messagingTemplate.convertAndSend("/topic/channels/" + channelId, response);
+            redisBroadcastService.broadcast("/topic/channels/" + channelId, response);
         } else {
             UUID parentId = saved.getParent().getId();
-            messagingTemplate.convertAndSend("/topic/channels/" + channelId + "/thread/" + parentId, response);
-            messagingTemplate.convertAndSend("/topic/channels/" + channelId + "/thread-updates",
+            redisBroadcastService.broadcast("/topic/channels/" + channelId + "/thread/" + parentId, response);
+            redisBroadcastService.broadcast("/topic/channels/" + channelId + "/thread-updates",
                     new ThreadUpdate(parentId, threadSummary(parentId)));
         }
         eventPublisher.publishEvent(new MessageSentEvent(channelId, saved.getId(), username));
@@ -193,9 +196,10 @@ public class MessageService {
         message.setChannel(target);
         message.setSender(sender);
         Message saved = messageRepository.saveAndFlush(message);
+        searchService.indexMessage(saved);
 
         MessageResponse response = MessageResponse.from(saved);
-        messagingTemplate.convertAndSend("/topic/channels/" + targetChannelId, response);
+        redisBroadcastService.broadcast("/topic/channels/" + targetChannelId, response);
         return response;
     }
 
@@ -245,6 +249,7 @@ public class MessageService {
         message.setContent(content);
         message.setEditedAt(Instant.now());
         messageRepository.saveAndFlush(message);
+        searchService.indexMessage(message);
         broadcastUpdate(message);
     }
 
@@ -279,6 +284,7 @@ public class MessageService {
         message.setAttachmentName(null);
         message.setAttachmentType(null);
         messageRepository.saveAndFlush(message);
+        searchService.deleteMessage(messageId);
         messageReactionService.deleteAllForMessage(messageId);
         broadcastUpdate(message);
     }
@@ -391,7 +397,7 @@ public class MessageService {
                 ? threadSummary(message.getId())
                 : ThreadSummary.empty();
         MessageResponse response = MessageResponse.from(message, reactions, thread);
-        messagingTemplate.convertAndSend(
+        redisBroadcastService.broadcast(
                 "/topic/channels/" + message.getChannel().getId() + "/message-updates", response);
     }
 

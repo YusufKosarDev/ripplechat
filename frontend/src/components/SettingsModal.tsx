@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { client } from '../api/client'
 import { disablePush, enablePush, isPushSubscribed, pushSupported } from '../push'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { changePassword, logout, updateMe } from '../features/auth/authSlice'
+import { changePassword, fetchCurrentUser, logout, updateMe } from '../features/auth/authSlice'
 import { AVATAR_COLORS } from './Avatar'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
@@ -36,6 +36,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const [pushOn, setPushOn] = useState(false)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
+
+  const [qrCodeUri, setQrCodeUri] = useState<string | null>(null)
+  const [twoFaCode, setTwoFaCode] = useState('')
+  const [twoFaMsg, setTwoFaMsg] = useState<string | null>(null)
+  const [twoFaError, setTwoFaError] = useState(false)
 
   useEffect(() => {
     isPushSubscribed().then(setPushOn)
@@ -104,6 +109,45 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       const ok = await enablePush()
       setPushOn(ok)
       if (!ok) setPushMsg('Bildirim açılamadı — izin verilmedi veya sunucuda yapılandırılmamış.')
+    }
+  }
+
+  const onSetup2Fa = async () => {
+    try {
+      const { data } = await client.post<{ qrCodeUri: string }>('/api/2fa/setup')
+      setQrCodeUri(data.qrCodeUri)
+      setTwoFaMsg('Google Authenticator ile QR kodu taratın ve kodu girin.')
+      setTwoFaError(false)
+    } catch (e: any) {
+      setTwoFaMsg(e.response?.data?.message || 'Kurulum başlatılamadı.')
+      setTwoFaError(true)
+    }
+  }
+
+  const onEnable2Fa = async () => {
+    try {
+      await client.post('/api/2fa/enable', { code: twoFaCode })
+      dispatch(fetchCurrentUser())
+      setQrCodeUri(null)
+      setTwoFaCode('')
+      setTwoFaMsg('2FA başarıyla etkinleştirildi ✓')
+      setTwoFaError(false)
+    } catch (e: any) {
+      setTwoFaMsg(e.response?.data?.message || 'Geçersiz kod.')
+      setTwoFaError(true)
+    }
+  }
+
+  const onDisable2Fa = async () => {
+    try {
+      await client.post('/api/2fa/disable', { code: twoFaCode })
+      dispatch(fetchCurrentUser())
+      setTwoFaCode('')
+      setTwoFaMsg('2FA devre dışı bırakıldı.')
+      setTwoFaError(false)
+    } catch (e: any) {
+      setTwoFaMsg(e.response?.data?.message || 'Geçersiz kod.')
+      setTwoFaError(true)
     }
   }
 
@@ -229,6 +273,55 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               <span className={`text-xs ${pwError ? 'text-danger' : 'text-fg-muted'}`}>{pwMsg}</span>
             )}
           </div>
+        </div>
+
+        {/* 2FA */}
+        <div className="mt-6 border-t border-border pt-4">
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">İki Aşamalı Doğrulama (2FA)</h4>
+          {!user.isTwoFactorEnabled ? (
+            <div>
+              {!qrCodeUri ? (
+                <Button onClick={onSetup2Fa} variant="secondary">2FA Kurulumunu Başlat</Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-center rounded-xl bg-white p-4">
+                    <img src={qrCodeUri} alt="2FA QR Code" className="h-40 w-40" />
+                  </div>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="6 haneli kodu girin"
+                    value={twoFaCode}
+                    onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                    maxLength={6}
+                  />
+                  <Button onClick={onEnable2Fa} disabled={twoFaCode.length !== 6}>
+                    Onayla ve Etkinleştir
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-accent">2FA şu anda aktif.</p>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Devre dışı bırakmak için kod"
+                  value={twoFaCode}
+                  onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                  maxLength={6}
+                />
+                <Button onClick={onDisable2Fa} variant="danger" disabled={twoFaCode.length !== 6}>
+                  Kapat
+                </Button>
+              </div>
+            </div>
+          )}
+          {twoFaMsg && (
+            <div className={`mt-2 text-xs ${twoFaError ? 'text-danger' : 'text-fg-muted'}`}>{twoFaMsg}</div>
+          )}
         </div>
 
         {/* Logout */}

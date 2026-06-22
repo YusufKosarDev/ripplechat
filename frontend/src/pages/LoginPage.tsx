@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { login } from '../features/auth/authSlice'
+import { login, verify2Fa } from '../features/auth/authSlice'
 import { useT } from '../i18n'
 import AuthShell from '../components/AuthShell'
 import Button from '../components/ui/Button'
@@ -18,17 +18,31 @@ export default function LoginPage() {
 
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+  const { requires2Fa, preAuthToken } = useAppSelector((state) => state.auth)
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setFormError(null)
+    if (requires2Fa && preAuthToken) {
+      if (!code || code.length !== 6) {
+        setFormError('Lütfen 6 haneli doğrulama kodunu girin.')
+        return
+      }
+      const result = await dispatch(verify2Fa({ preAuthToken, code }))
+      if (verify2Fa.fulfilled.match(result)) {
+        navigate('/chat')
+      }
+      return
+    }
+
     if (!loginValue.trim() || !password) {
       setFormError(t('auth.login.required'))
       return
     }
     const result = await dispatch(login({ login: loginValue.trim(), password }))
-    if (login.fulfilled.match(result)) {
+    if (login.fulfilled.match(result) && !result.payload.requires2Fa) {
       navigate('/chat')
     }
   }
@@ -36,25 +50,44 @@ export default function LoginPage() {
   return (
     <AuthShell title={t('auth.login.title')}>
       <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className="mb-1 block text-sm text-fg-muted">{t('auth.usernameOrEmail')}</label>
-          <Input
-            value={loginValue}
-            onChange={(e) => setLoginValue(e.target.value)}
-            placeholder="neo"
-            autoComplete="username"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-fg-muted">{t('auth.password')}</label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            autoComplete="current-password"
-          />
-        </div>
+        {requires2Fa ? (
+          <div>
+            <label className="mb-1 block text-sm text-fg-muted">Google Authenticator Kodu</label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+              autoComplete="one-time-code"
+              autoFocus
+            />
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="mb-1 block text-sm text-fg-muted">{t('auth.usernameOrEmail')}</label>
+              <Input
+                value={loginValue}
+                onChange={(e) => setLoginValue(e.target.value)}
+                placeholder="neo"
+                autoComplete="username"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-fg-muted">{t('auth.password')}</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </div>
+          </>
+        )}
 
         {(formError || error) && (
           <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-danger">{formError || error}</p>

@@ -3,6 +3,7 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { client } from '../../api/client'
 import type { Message, PageResponse, ReactionSummary, ThreadSummary } from '../../api/types'
+import { getMessagesFromDB, saveMessagesToDB } from '../../db'
 
 const PAGE_SIZE = 50
 
@@ -42,12 +43,24 @@ export const fetchMessages = createAsyncThunk(
   async (channelId: string, { rejectWithValue }) => {
     try {
       const { messages, last } = await fetchPage(channelId, 0)
+      // Save fresh messages to IndexedDB (fire-and-forget to keep UI fast)
+      saveMessagesToDB(messages).catch(console.error)
       return { channelId, messages, last }
     } catch (e) {
       const status = axios.isAxiosError(e) ? e.response?.status : undefined
       return rejectWithValue({ channelId, status })
     }
   },
+)
+
+// Attempt to load from local DB immediately when offline or before network resolves.
+export const loadOfflineMessages = createAsyncThunk(
+  'messages/loadOffline',
+  async (channelId: string) => {
+    const messages = await getMessagesFromDB(channelId)
+    // Reverse to chronological order as DB returned them newest-first
+    return { channelId, messages: [...messages].reverse() }
+  }
 )
 
 // Scroll-up: an older page, prepended to the existing history.
@@ -80,6 +93,8 @@ const messagesSlice = createSlice({
           state.byChannel[msg.channelId] = [...list, msg]
         }
       }
+      // Save new message to DB
+      saveMessagesToDB([msg]).catch(console.error)
     },
     // Adds a temporary local message before server confirmation.
     addOptimisticMessage(state, action: PayloadAction<Message>) {
@@ -140,16 +155,30 @@ const messagesSlice = createSlice({
         state.loadError = null
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
-        const { channelId, messages, last } = action.payload
         state.status = 'idle'
+        const { channelId, messages, last } = action.payload
         state.byChannel[channelId] = messages
-        state.paging[channelId] = { nextPage: 1, hasMore: !last, loadingOlder: false }
+        state.paging[channelId] = {
+          nextPage: 1,
+          hasMore: !last,
+          loadingOlder: false,
+        }
       })
       .addCase(fetchMessages.rejected, (state, action) => {
         state.status = 'idle'
-        const payload = action.payload as { channelId: string; status?: number } | undefined
-        if (payload) {
-          state.loadError = { channelId: payload.channelId, forbidden: payload.status === 403 }
+        const payload = action.payload as { channelId: string; status?: number }
+        state.loadError = {
+          channelId: payload.channelId,
+          forbidden: payload.status === 403,
+        }
+      })
+      
+      // loadOfflineMessages
+      .addCase(loadOfflineMessages.fulfilled, (state, action) => {
+        const { channelId, messages } = action.payload
+        // Only override if we haven't successfully loaded from API yet
+        if (!state.byChannel[channelId] || state.byChannel[channelId].length === 0) {
+          state.byChannel[channelId] = messages
         }
       })
       .addCase(fetchOlderMessages.pending, (state, action) => {

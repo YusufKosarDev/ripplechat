@@ -5,6 +5,7 @@ import com.ripplechat.backend.auth.dto.LoginRequest;
 import com.ripplechat.backend.auth.dto.RefreshRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
 import com.ripplechat.backend.auth.dto.TokenResponse;
+import com.ripplechat.backend.auth.dto.Verify2FaRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/2fa/verify")
+    public AuthResponse verify2Fa(@Valid @RequestBody Verify2FaRequest request) {
+        return authService.verify2FaLogin(request);
     }
 
     @PostMapping("/refresh")

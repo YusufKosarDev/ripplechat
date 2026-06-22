@@ -60,6 +60,12 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "is_two_factor_enabled", nullable = false)
+    private boolean isTwoFactorEnabled = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -60,11 +60,35 @@ public class JwtService {
                 .compact();
     }
 
+    public String generatePreAuthToken(String username) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes pre-auth
+        return Jwts.builder()
+                .subject(username)
+                .claim("preAuth", true)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(signingKey)
+                .compact();
+    }
+
     /**
      * Returns the username (subject) if the token is valid, otherwise throws.
      */
     public String extractUsername(String token) {
-        return parse(token).getSubject();
+        Claims claims = parse(token);
+        if (claims.get("preAuth", Boolean.class) != null && claims.get("preAuth", Boolean.class)) {
+            throw new IllegalArgumentException("Cannot use pre-auth token for normal authentication");
+        }
+        return claims.getSubject();
+    }
+
+    public String extractUsernameFromPreAuthToken(String token) {
+        Claims claims = parse(token);
+        if (claims.get("preAuth", Boolean.class) == null || !claims.get("preAuth", Boolean.class)) {
+            throw new IllegalArgumentException("Invalid pre-auth token");
+        }
+        return claims.getSubject();
     }
 
     private Claims parse(String token) {

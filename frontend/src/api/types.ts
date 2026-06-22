@@ -6,13 +6,16 @@ export interface User {
   avatarColor: string | null
   avatarUrl: string | null
   createdAt: string
+  isTwoFactorEnabled: boolean
 }
 
 export interface AuthResponse {
-  accessToken: string
-  refreshToken: string
-  tokenType: string
-  user: User
+  accessToken?: string
+  refreshToken?: string
+  tokenType?: string
+  user?: User
+  requires2Fa?: boolean
+  preAuthToken?: string
 }
 
 // Returned by /api/auth/refresh (no user payload).
@@ -208,4 +211,13 @@ export interface Poll {
   createdBy: string
   createdAt: string
   totalVotes: number
+}
+
+export type CallSignalType = 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE' | 'HANG_UP' | 'RINGING' | 'REJECT' | 'LEAVE'
+
+export interface CallSignal {
+  type: CallSignalType
+  senderId: string
+  receiverId: string | null
+  payload: any
 }

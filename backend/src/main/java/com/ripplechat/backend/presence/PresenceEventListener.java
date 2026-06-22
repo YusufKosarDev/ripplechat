@@ -3,7 +3,7 @@ package com.ripplechat.backend.presence;
 import com.ripplechat.backend.presence.dto.PresenceEvent;
 import com.ripplechat.backend.user.UserRepository;
 import org.springframework.context.event.EventListener;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -21,14 +21,14 @@ public class PresenceEventListener {
     private static final String PRESENCE_TOPIC = "/topic/presence";
 
     private final PresenceService presenceService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisBroadcastService redisBroadcastService;
     private final UserRepository userRepository;
 
     public PresenceEventListener(PresenceService presenceService,
-                                 SimpMessagingTemplate messagingTemplate,
+                                 RedisBroadcastService redisBroadcastService,
                                  UserRepository userRepository) {
         this.presenceService = presenceService;
-        this.messagingTemplate = messagingTemplate;
+        this.redisBroadcastService = redisBroadcastService;
         this.userRepository = userRepository;
     }
 
@@ -58,7 +58,7 @@ public class PresenceEventListener {
                 user.setLastSeenAt(Instant.now());
                 userRepository.save(user);
             }
-            messagingTemplate.convertAndSend(PRESENCE_TOPIC,
+            redisBroadcastService.broadcast(PRESENCE_TOPIC,
                     new PresenceEvent(user.getId(), user.getUsername(), user.getDisplayName(), status));
         });
     }

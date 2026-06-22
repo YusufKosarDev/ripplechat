@@ -10,9 +10,15 @@ public record AuthResponse(
         String accessToken,
         String refreshToken,
         String tokenType,
-        UserResponse user
+        UserResponse user,
+        Boolean requires2Fa,
+        String preAuthToken
 ) {
     public static AuthResponse of(String accessToken, String refreshToken, UserResponse user) {
-        return new AuthResponse(accessToken, refreshToken, "Bearer", user);
+        return new AuthResponse(accessToken, refreshToken, "Bearer", user, false, null);
+    }
+    
+    public static AuthResponse requires2Fa(String preAuthToken) {
+        return new AuthResponse(null, null, null, null, true, preAuthToken);
     }
 }

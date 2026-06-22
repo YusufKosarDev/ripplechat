@@ -16,7 +16,12 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@reduxjs/toolkit": "^2.12.0",
     "@stomp/stompjs": "^7.3.0",
+    "@tiptap/extension-placeholder": "^3.27.1",
+    "@tiptap/pm": "^3.27.1",
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
     "axios": "^1.17.0",
+    "idb": "^8.0.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
@@ -25,7 +30,9 @@
     "react-syntax-highlighter": "^16.1.1",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "sockjs-client": "^1.6.1"
+    "sockjs-client": "^1.6.1",
+    "tiptap-markdown": "^0.9.0",
+    "vite-plugin-pwa": "^1.3.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",

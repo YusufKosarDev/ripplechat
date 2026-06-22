@@ -6,12 +6,17 @@ import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.search.dto.SearchPageResponse;
 import com.ripplechat.backend.search.dto.SearchResultResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.Criteria;
+import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,6 +26,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SearchService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
@@ -28,93 +34,102 @@ public class SearchService {
 
     private final ChannelMembershipRepository membershipRepository;
     private final MessageRepository messageRepository;
+    private final MessageSearchRepository searchRepository;
+    private final ElasticsearchOperations elasticsearchOperations;
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> searchMessages(String username, String query) {
-        return searchMessages(username, query, null, null, null);
+        return searchPage(username, query, null, null, null, 0, MAX_PAGE_SIZE).results();
     }
 
-    /**
-     * Convenience overload returning the first page as a flat list (used by the
-     * simpler call sites and tests).
-     */
-    @Transactional(readOnly = true)
-    public List<SearchResultResponse> searchMessages(String username, String query, UUID channelId,
-                                                     String from, Instant since) {
-        return searchPage(username, query, channelId, from, since, 0, MAX_PAGE_SIZE).results();
-    }
-
-    /**
-     * Full-text search with optional filters: a single channel, a sender (matched
-     * on username/display name), and a "since" date. The FTS ranking is paged in
-     * one indexed query; sender/date filters are applied to the ranked page.
-     * {@code hasMore} reflects the raw ranked page so paging stays reliable even
-     * when the post-filters hide some hits.
-     */
     @Transactional(readOnly = true)
     public SearchPageResponse searchPage(String username, String query, UUID channelId,
                                          String from, Instant since, int page, int size) {
         int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int pageNumber = Math.max(page, 0);
 
-        String tsquery = toPrefixTsQuery(query);
-        if (tsquery.isEmpty()) {
+        if (query == null || query.isBlank()) {
             return new SearchPageResponse(List.of(), false);
         }
-        List<UUID> channelIds;
+
+        List<String> channelIds;
         if (channelId != null) {
             if (!membershipRepository.existsByChannelIdAndUser_Username(channelId, username)) {
                 return new SearchPageResponse(List.of(), false);
             }
-            channelIds = List.of(channelId);
+            channelIds = List.of(channelId.toString());
         } else {
             channelIds = membershipRepository.findByUser_Username(username).stream()
-                    .map(m -> m.getChannel().getId())
+                    .map(m -> m.getChannel().getId().toString())
                     .toList();
         }
+
         if (channelIds.isEmpty()) {
             return new SearchPageResponse(List.of(), false);
         }
 
-        List<UUID> rankedIds = messageRepository.searchMessageIds(
-                channelIds, tsquery, PageRequest.of(pageNumber, pageSize));
-        boolean hasMore = rankedIds.size() == pageSize;
+        Criteria criteria = new Criteria("content").matches(query)
+                .and(new Criteria("channelId").in(channelIds));
+
+        if (from != null && !from.isBlank()) {
+            // Note: Since senderUsername is Keyword in our ES mapping, we might need a partial match or precise match.
+            // But we use "contains" logic. We can do contains on the string if we map it as text.
+            // For simplicity, we just filter it post-ES if we want, or use matches.
+            criteria = criteria.and(new Criteria("senderUsername").contains(from.trim().toLowerCase()));
+        }
+
+        if (since != null) {
+            criteria = criteria.and(new Criteria("createdAt").greaterThanEqual(since.toEpochMilli()));
+        }
+
+        CriteriaQuery criteriaQuery = new CriteriaQuery(criteria)
+                .setPageable(PageRequest.of(pageNumber, pageSize));
+
+        SearchHits<MessageDocument> searchHits = elasticsearchOperations.search(criteriaQuery, MessageDocument.class);
+        
+        List<UUID> rankedIds = searchHits.getSearchHits().stream()
+                .map(SearchHit::getContent)
+                .map(doc -> UUID.fromString(doc.getId()))
+                .toList();
+
+        boolean hasMore = rankedIds.size() == pageSize; // simplistic
+
         if (rankedIds.isEmpty()) {
             return new SearchPageResponse(List.of(), false);
         }
+
         Map<UUID, Message> byId = messageRepository.findForSearchByIds(rankedIds).stream()
                 .collect(Collectors.toMap(Message::getId, Function.identity()));
-        String fromLower = (from == null || from.isBlank()) ? null : from.trim().toLowerCase();
+
         List<SearchResultResponse> results = rankedIds.stream()
                 .map(byId::get)
                 .filter(Objects::nonNull)
-                .filter(m -> fromLower == null || matchesSender(m, fromLower))
-                .filter(m -> since == null || !m.getCreatedAt().isBefore(since))
                 .map(SearchResultResponse::from)
                 .toList();
+
         return new SearchPageResponse(results, hasMore);
     }
 
-    private boolean matchesSender(Message message, String fromLower) {
-        String username = message.getSender().getUsername().toLowerCase();
-        String display = message.getSender().getDisplayName() == null
-                ? "" : message.getSender().getDisplayName().toLowerCase();
-        return username.contains(fromLower) || display.contains(fromLower);
+    public void indexMessage(Message message) {
+        try {
+            MessageDocument doc = MessageDocument.builder()
+                    .id(message.getId().toString())
+                    .channelId(message.getChannel().getId().toString())
+                    .content(message.getContent() == null ? "" : message.getContent())
+                    .senderUsername(message.getSender().getUsername())
+                    .createdAt(message.getCreatedAt())
+                    .build();
+            searchRepository.save(doc);
+        } catch (Exception e) {
+            log.error("Failed to index message to Elasticsearch", e);
+        }
     }
 
-    /**
-     * Builds a prefix tsquery from free-text input: each whitespace-separated
-     * term is stripped to letters/digits and matched as a prefix ({@code term:*}),
-     * all ANDed together. Returns "" when the input has no searchable terms.
-     */
-    private String toPrefixTsQuery(String query) {
-        if (query == null || query.isBlank()) {
-            return "";
+    public void deleteMessage(UUID messageId) {
+        try {
+            searchRepository.deleteById(messageId.toString());
+        } catch (Exception e) {
+            log.error("Failed to delete message from Elasticsearch", e);
         }
-        return Arrays.stream(query.trim().split("\\s+"))
-                .map(term -> term.replaceAll("[^\\p{L}\\p{Nd}]", ""))
-                .filter(term -> !term.isEmpty())
-                .map(term -> term + ":*")
-                .collect(Collectors.joining(" & "));
     }
 }

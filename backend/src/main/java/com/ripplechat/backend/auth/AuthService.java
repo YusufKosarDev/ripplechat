@@ -4,6 +4,7 @@ import com.ripplechat.backend.auth.dto.AuthResponse;
 import com.ripplechat.backend.auth.dto.LoginRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
 import com.ripplechat.backend.auth.dto.TokenResponse;
+import com.ripplechat.backend.auth.dto.Verify2FaRequest;
 import com.ripplechat.backend.common.RateLimiter;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.InvalidCredentialsException;
@@ -31,6 +32,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final RateLimiter rateLimiter;
     private final SecurityAuditLogger audit;
+    private final TwoFactorService twoFactorService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -77,7 +79,34 @@ public class AuthService {
             throw new InvalidCredentialsException("invalid username/email or password");
         }
 
+        if (user.isTwoFactorEnabled()) {
+            audit.loginSucceeded(user.getUsername() + " (pre-auth 2FA)");
+            String preAuthToken = jwtService.generatePreAuthToken(user.getUsername());
+            return AuthResponse.requires2Fa(preAuthToken);
+        }
+
         audit.loginSucceeded(user.getUsername());
+        String accessToken = jwtService.generateToken(user.getUsername());
+        String refreshToken = refreshTokenService.issue(user);
+        return AuthResponse.of(accessToken, refreshToken, UserResponse.from(user));
+    }
+
+    @Transactional
+    public AuthResponse verify2FaLogin(Verify2FaRequest request) {
+        String username = jwtService.extractUsernameFromPreAuthToken(request.preAuthToken());
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid token"));
+
+        if (!user.isTwoFactorEnabled()) {
+            throw new InvalidCredentialsException("2FA is not enabled for this user");
+        }
+
+        if (!twoFactorService.isOtpValid(user.getTotpSecret(), request.code())) {
+            audit.loginFailed(username, "bad_2fa_code");
+            throw new InvalidCredentialsException("Invalid 2FA code");
+        }
+
+        audit.loginSucceeded(username + " (2FA passed)");
         String accessToken = jwtService.generateToken(user.getUsername());
         String refreshToken = refreshTokenService.issue(user);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(user));

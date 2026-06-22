@@ -4,6 +4,7 @@ import blocksReducer from '../features/blocks/blocksSlice'
 import channelOrgReducer from '../features/channelOrg/channelOrgSlice'
 import channelsReducer from '../features/channels/channelsSlice'
 import connectionReducer from '../features/connection/connectionSlice'
+import callReducer from '../features/call/callSlice'
 import e2eeReducer from '../features/e2ee/e2eeSlice'
 import linkPreviewsReducer from '../features/linkPreviews/linkPreviewsSlice'
 import messagesReducer from '../features/messages/messagesSlice'
@@ -23,6 +24,7 @@ export const store = configureStore({
     channelOrg: channelOrgReducer,
     channels: channelsReducer,
     connection: connectionReducer,
+    call: callReducer,
     e2ee: e2eeReducer,
     linkPreviews: linkPreviewsReducer,
     messages: messagesReducer,
