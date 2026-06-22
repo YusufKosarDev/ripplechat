@@ -12,6 +12,9 @@ public interface MediaStorage {
     /** Uploads arbitrary file bytes (auto-detected) and returns the public URL. */
     String uploadFile(byte[] bytes);
 
+    /** Deletes an uploaded file by its URL. Returns true if deleted or not found. */
+    boolean delete(String url);
+
     /** Whether uploads are configured and available. */
     boolean isEnabled();
 }

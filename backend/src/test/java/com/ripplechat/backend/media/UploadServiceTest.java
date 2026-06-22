@@ -25,6 +25,11 @@ class UploadServiceTest {
         public String uploadFile(byte[] bytes) {
             return "https://res.cloudinary.com/demo/raw/upload/x.pdf";
         }
+
+        @Override
+        public boolean delete(String url) {
+            return true;
+        }
     });
 
     @Test

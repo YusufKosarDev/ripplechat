@@ -46,4 +46,41 @@ public class CloudinaryMediaStorage implements MediaStorage {
             throw new IllegalStateException("upload failed", e);
         }
     }
+
+    @Override
+    public boolean delete(String url) {
+        if (url == null || !url.startsWith("https://res.cloudinary.com/")) {
+            return false;
+        }
+        try {
+            int uploadIndex = url.indexOf("/upload/");
+            if (uploadIndex == -1) {
+                return false;
+            }
+            String beforeUpload = url.substring(0, uploadIndex);
+            String resourceType = beforeUpload.substring(beforeUpload.lastIndexOf('/') + 1);
+            String afterUpload = url.substring(uploadIndex + "/upload/".length());
+            if (afterUpload.startsWith("v")) {
+                int firstSlash = afterUpload.indexOf('/');
+                if (firstSlash != -1) {
+                    afterUpload = afterUpload.substring(firstSlash + 1);
+                }
+            }
+            String publicId = afterUpload;
+            if ("image".equals(resourceType) || "video".equals(resourceType)) {
+                int lastDot = publicId.lastIndexOf('.');
+                if (lastDot != -1) {
+                    publicId = publicId.substring(0, lastDot);
+                }
+            }
+            Map<?, ?> result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap(
+                    "resource_type", resourceType,
+                    "invalidate", true
+            ));
+            String status = (String) result.get("result");
+            return "ok".equals(status) || "not_found".equals(status);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

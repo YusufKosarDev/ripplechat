@@ -16,6 +16,7 @@ import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.message.dto.ThreadSummary;
 import com.ripplechat.backend.message.dto.ThreadUpdate;
+import com.ripplechat.backend.media.MediaStorage;
 import com.ripplechat.backend.push.MessageSentEvent;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.dto.UserSummary;
@@ -61,6 +62,7 @@ public class MessageService {
     private final SimpMessagingTemplate messagingTemplate;
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher eventPublisher;
+    private final MediaStorage mediaStorage;
 
     /**
      * Persists a message and broadcasts it. A top-level message goes to the main
@@ -267,6 +269,10 @@ public class MessageService {
         if (message.isDeleted()) {
             return;
         }
+        String attachmentUrl = message.getAttachmentUrl();
+        if (attachmentUrl != null) {
+            mediaStorage.delete(attachmentUrl);
+        }
         message.setDeleted(true);
         message.setContent("");
         message.setAttachmentUrl(null);
@@ -349,6 +355,10 @@ public class MessageService {
     public void purgeExpired() {
         List<Message> expired = messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(Instant.now());
         for (Message message : expired) {
+            String attachmentUrl = message.getAttachmentUrl();
+            if (attachmentUrl != null) {
+                mediaStorage.delete(attachmentUrl);
+            }
             message.setDeleted(true);
             message.setContent("");
             message.setAttachmentUrl(null);

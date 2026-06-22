@@ -14,6 +14,7 @@ import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
 import type { Channel } from '../api/types'
+import SkeletonLoader from './ui/SkeletonLoader'
 
 interface SidebarProps {
   open: boolean
@@ -157,13 +158,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             Kanallar
           </div>
 
-          {loadingChannels && (
-            <div className="mt-2 space-y-1.5 px-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-6 animate-pulse rounded-lg bg-surface-muted" />
-              ))}
-            </div>
-          )}
+          {loadingChannels && <SkeletonLoader type="channel-list" count={3} />}
 
           {!loadingChannels && (
             <div className="mt-2">

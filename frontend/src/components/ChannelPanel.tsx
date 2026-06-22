@@ -13,6 +13,8 @@ import {
   messageReceived,
   messageUpdated,
   threadSummaryUpdated,
+  addOptimisticMessage,
+  removeOptimisticMessage,
 } from '../features/messages/messagesSlice'
 import {
   channelRemoved,
@@ -65,6 +67,7 @@ import type { FlyingEmoji } from './ReactionOverlay'
 import Button from './ui/Button'
 import { Textarea } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import SkeletonLoader from './ui/SkeletonLoader'
 
 const TYPING_TTL = 4000
 const TYPING_STOP_DELAY = 2000
@@ -467,7 +470,39 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       })
       if (!hadError) setDraft('')
     } else {
+      if (!currentUser) return
       const content = text && passphrase ? await encryptText(channel.id, passphrase, text) : text
+      const optId = 'opt-' + Math.random().toString(36).substring(2, 9)
+      const optimisticMsg: Message = {
+        id: optId,
+        content: content,
+        channelId: channel.id,
+        sender: {
+          id: currentUser.id,
+          username: currentUser.username,
+          displayName: currentUser.displayName,
+          avatarColor: currentUser.avatarColor,
+          avatarUrl: currentUser.avatarUrl,
+          lastSeenAt: null,
+        },
+        createdAt: new Date().toISOString(),
+        deleted: false,
+        pinned: false,
+        forwarded: false,
+        reactions: [],
+        thread: { replyCount: 0, lastRepliers: [] },
+        attachmentUrl: attachment?.url ?? null,
+        attachmentName: attachment?.name ?? null,
+        attachmentType: attachment?.type ?? null,
+        quotedMessageId: replyingTo?.id ?? null,
+        quotedSender: replyingTo ? (replyingTo.sender.displayName ?? replyingTo.sender.username) : null,
+        quotedContent: replyingTo ? (replyingTo.content || (replyingTo.attachmentUrl ? '📷 Görsel' : '')) : null,
+        expiresAt: null,
+        sending: true,
+      }
+
+      dispatch(addOptimisticMessage(optimisticMsg))
+
       sendChatMessage(
         channel.id,
         content,
@@ -480,6 +515,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       setDraft('')
       setAttachment(null)
       setReplyingTo(null)
+
+      setTimeout(() => {
+        dispatch(removeOptimisticMessage({ channelId: channel.id, id: optId }))
+      }, 10000)
     }
     stopTyping()
   }
@@ -641,7 +680,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             ⏲️
           </span>
         )}
-        {dm && dm.otherUser && mine && !msg.deleted && (
+        {msg.sending && (
+          <span className="ml-1.5 align-middle text-xs text-fg-faint animate-pulse" title="Gönderiliyor…">
+            ⏳
+          </span>
+        )}
+        {!msg.sending && dm && dm.otherUser && mine && !msg.deleted && (
           <span
             title={readByOther ? 'Okundu' : 'İletildi'}
             className={`ml-1.5 align-middle text-xs ${readByOther ? 'text-accent' : 'text-fg-faint'}`}
@@ -649,7 +693,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             ✓✓
           </span>
         )}
-        {!msg.deleted && (
+        {!msg.deleted && !msg.sending && (
           <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
             {mine && (
               <button onClick={() => startEdit(msg)} className={`rounded-lg hover:text-fg ${focusRing}`}>
@@ -1014,7 +1058,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 </div>
               )}
 
-              {loadingMessages && <MessageSkeleton />}
+              {loadingMessages && <SkeletonLoader type="message-list" count={6} />}
 
               {!loadingMessages && messages.length === 0 && polls.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center text-center">
@@ -1041,7 +1085,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                     <div
                       key={msg.id}
                       id={`msg-${msg.id}`}
-                      className="group -mx-2 rounded-lg px-2 transition-colors hover:bg-surface-muted/50"
+                      className={`group -mx-2 rounded-lg px-2 transition-colors hover:bg-surface-muted/50 ${msg.sending ? 'opacity-70 select-none' : ''}`}
                     >
                       {showDate && (
                         <div className="my-3 flex items-center gap-3">

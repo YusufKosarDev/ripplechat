@@ -63,12 +63,36 @@ const messagesSlice = createSlice({
   name: 'messages',
   initialState,
   reducers: {
-    // Appends a message that arrived over WebSocket (deduped by id).
+    // Appends a message that arrived over WebSocket (deduped by id or merging optimistic ones).
     messageReceived(state, action: PayloadAction<Message>) {
       const msg = action.payload
       const list = state.byChannel[msg.channelId] ?? []
-      if (!list.some((m) => m.id === msg.id)) {
-        state.byChannel[msg.channelId] = [...list, msg]
+      const optIdx = list.findIndex(
+        (m) =>
+          m.sending &&
+          m.sender.id === msg.sender.id &&
+          (m.content === msg.content || (msg.attachmentUrl !== null && m.attachmentUrl === msg.attachmentUrl))
+      )
+      if (optIdx >= 0) {
+        list[optIdx] = msg
+      } else {
+        if (!list.some((m) => m.id === msg.id)) {
+          state.byChannel[msg.channelId] = [...list, msg]
+        }
+      }
+    },
+    // Adds a temporary local message before server confirmation.
+    addOptimisticMessage(state, action: PayloadAction<Message>) {
+      const msg = action.payload
+      const list = state.byChannel[msg.channelId] ?? []
+      state.byChannel[msg.channelId] = [...list, msg]
+    },
+    // Discards a temporary local message if it times out without server confirmation.
+    removeOptimisticMessage(state, action: PayloadAction<{ channelId: string; id: string }>) {
+      const { channelId, id } = action.payload
+      const list = state.byChannel[channelId]
+      if (list) {
+        state.byChannel[channelId] = list.filter((m) => m.id !== id || !m.sending)
       }
     },
     // Updates one message's reaction summary (from the WebSocket broadcast).
@@ -147,6 +171,13 @@ const messagesSlice = createSlice({
   },
 })
 
-export const { messageReceived, messageHidden, messageUpdated, messageReactionsUpdated, threadSummaryUpdated } =
-  messagesSlice.actions
+export const {
+  messageReceived,
+  messageHidden,
+  messageUpdated,
+  messageReactionsUpdated,
+  threadSummaryUpdated,
+  addOptimisticMessage,
+  removeOptimisticMessage,
+} = messagesSlice.actions
 export default messagesSlice.reducer

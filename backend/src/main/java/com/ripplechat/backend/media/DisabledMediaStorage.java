@@ -21,6 +21,11 @@ public class DisabledMediaStorage implements MediaStorage {
         throw disabled();
     }
 
+    @Override
+    public boolean delete(String url) {
+        return false;
+    }
+
     private ResponseStatusException disabled() {
         return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "uploads are not configured");
     }

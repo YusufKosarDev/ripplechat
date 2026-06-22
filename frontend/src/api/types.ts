@@ -143,6 +143,7 @@ export interface Message {
   pinned: boolean
   // Set when the channel has a disappearing-messages timer; auto-deleted after this instant.
   expiresAt: string | null
+  sending?: boolean
 }
 
 export interface MessageReactionUpdate {

@@ -150,3 +150,25 @@ html.dark body {
   pointer-events: none;
   user-select: none;
 }
+
+/* Shimmer loader animation for skeleton states */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 25%,
+    var(--border) 50%,
+    var(--surface-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.5s infinite linear;
+}
+
