@@ -97,6 +97,22 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
           {status === 'loading' ? t('auth.login.submitting') : t('auth.login.submit')}
         </Button>
+
+        <Button 
+          type="button" 
+          variant="secondary" 
+          className="w-full flex items-center justify-center gap-2 border-dashed border-indigo-500/30 hover:border-indigo-500"
+          disabled={status === 'loading'}
+          onClick={async () => {
+            setFormError(null)
+            const result = await dispatch(login({ login: 'demo', password: 'demo1234' }))
+            if (login.fulfilled.match(result) && !result.payload.requires2Fa) {
+              navigate('/chat')
+            }
+          }}
+        >
+          🚀 Demo Hesap ile Hızlı Giriş
+        </Button>
         <WakeNotice show={waking} />
       </form>
 

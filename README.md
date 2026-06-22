@@ -85,11 +85,12 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 ### 🔐 Security & privacy
 - **Two-Factor Authentication (2FA)** — TOTP-based multi-factor authentication via Google Authenticator/Authy using a secure Pre-Auth JWT handshake
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
-- **Refresh tokens** with rotation and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
+- **Refresh tokens** with rotation, IP/User-Agent metadata tracking, and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
+- **Session & Device Management** — users can view active devices (with browser, OS, and IP address details) and perform remote session revocation (log out other devices)
 - **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`, with server-side moderation checks
 - **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members can't eavesdrop
 - **User blocking** — hide messages from blocked users
-- **End-to-end encryption** (opt-in) for direct messages — AES-GCM with a passphrase-derived key (PBKDF2), encrypted entirely in the browser via Web Crypto; the server only ever relays opaque ciphertext
+- **End-to-end encryption (E2EE)** (opt-in) for direct messages — supports automatic **Asymmetric E2EE Key Agreement** using **ECDH (P-256)** and **AES-GCM (256-bit)** without manual passphrase entry (generating keypairs in IndexedDB and registering public keys on the server), as well as manual passphrase-derived key (PBKDF2) encryption. The server only ever stores/relays opaque ciphertext
 - **Abuse protection** — input size limits plus rate limiting on login, message sends, and reactions (rate-limited responses carry a `Retry-After` hint)
 - **Security headers** — HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a `frame-ancestors` CSP on every response
 - **Hardened secrets** — the JWT secret is validated at startup (rejects a too-short or placeholder value); SSRF guard on link unfurling; outbound calls (Cloudinary, link/GIF) are timeout-bounded
@@ -241,7 +242,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V17__disappearing_messages`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V20__user_public_key`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), and `GIPHY_API_KEY` (GIF search). End-to-end encryption is entirely client-side and needs no server configuration.
 
@@ -269,7 +270,7 @@ ripplechat/
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, rate limiter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations V1–V17 (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V20 (prod schema)
 ├── frontend/                    # React + TypeScript app
 │   ├── public/                  # PWA manifest + service worker (sw.js)
 │   └── src/
