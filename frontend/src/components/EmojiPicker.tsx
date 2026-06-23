@@ -11,7 +11,7 @@ export default function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
   const [active, setActive] = useState(0)
 
   return (
-    <div className="absolute bottom-full right-0 z-20 mb-2 w-72 rounded-xl border border-border bg-surface-overlay p-2 shadow-elevated">
+    <div className="absolute bottom-full right-0 z-20 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface-overlay p-2 shadow-elevated">
       <div className="flex items-center gap-0.5 border-b border-border pb-1">
         {EMOJI_GROUPS.map((group, i) => (
           <button

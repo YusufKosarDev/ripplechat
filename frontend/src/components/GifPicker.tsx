@@ -49,7 +49,7 @@ export default function GifPicker({ onPick, onClose }: GifPickerProps) {
   }, [query])  
 
   return (
-    <div className="absolute bottom-full right-0 z-20 mb-2 w-80 rounded-xl border border-border bg-surface-overlay p-2 shadow-elevated">
+    <div className="absolute bottom-full right-0 z-20 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface-overlay p-2 shadow-elevated">
       <div className="flex items-center gap-2">
         <input
           autoFocus
