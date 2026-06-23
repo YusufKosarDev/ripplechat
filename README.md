@@ -120,7 +120,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 **Backend**
 - Java 21
 - Spring Boot 3.5
-- Spring Security (JWT access + rotating refresh tokens, HS256)
+- Spring Security (JWT access + rotating refresh tokens, HS384)
 - Spring Data JPA · Spring Data Redis · Spring Data Elasticsearch
 - Spring WebSocket (STOMP messaging)
 - PostgreSQL (primary datastore) · Redis (distributed Pub/Sub & caching) · Elasticsearch (message search engine)

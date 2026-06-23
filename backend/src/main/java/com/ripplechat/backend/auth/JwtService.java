@@ -11,7 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
- * Issues and verifies HS256 JWT access tokens.
+ * Issues and verifies HMAC-SHA JWT access tokens. jjwt selects the HMAC variant
+ * from the key length, so the recommended ≥ 48-byte secret yields HS384.
  */
 @Service
 public class JwtService {
@@ -21,7 +22,7 @@ public class JwtService {
 
     /** The placeholder shipped in .env.example — never acceptable as a real secret. */
     private static final String EXAMPLE_SECRET = "replace-with-a-long-random-secret-at-least-32-bytes";
-    private static final int MIN_SECRET_BYTES = 32; // HS256 requires a 256-bit key
+    private static final int MIN_SECRET_BYTES = 32; // HMAC signing requires a key of at least 256 bits
 
     public JwtService(@Value("${jwt.secret}") String secret,
                       @Value("${jwt.access-expiration}") long expirationMillis) {
@@ -33,14 +34,14 @@ public class JwtService {
     /**
      * Fail fast at startup with an actionable message instead of letting a weak
      * or placeholder secret reach production. Catches an unset/too-short key
-     * (HS256 needs ≥ 32 bytes) and the example value from .env.example.
+     * (HMAC needs ≥ 32 bytes) and the example value from .env.example.
      */
     private static void validateSecret(String secret) {
         if (secret == null || secret.isBlank()
                 || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
             throw new IllegalStateException(
                     "jwt.secret must be set to at least " + MIN_SECRET_BYTES
-                            + " bytes (HS256). Generate one with: openssl rand -hex 48");
+                            + " bytes. Generate one with: openssl rand -hex 48");
         }
         if (EXAMPLE_SECRET.equals(secret.trim())) {
             throw new IllegalStateException(
