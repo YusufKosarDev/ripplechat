@@ -305,19 +305,16 @@ ripplechat/
 
 ## 📈 Scaling & Roadmap
 
-RippleChat runs as a single backend instance, which keeps a few things in-process:
+RippleChat is built to run behind a load balancer as **multiple backend replicas**. The pieces that would otherwise be per-instance state have been moved to shared infrastructure:
 
-- **Rate limiting** is in-memory (per-instance token buckets).
-- **WebSocket fan-out** uses Spring's in-memory `SimpleBroker`.
-- **The disappearing-message sweep** is a `@Scheduled` task running on every instance.
+- **Distributed rate limiting** — the limiter is backed by **Redis** via an atomic token-bucket Lua script, so limits hold across replicas instead of per-instance.
+- **Cross-replica WebSocket fan-out** — the local STOMP `SimpleBroker` is fronted by a **Redis Pub/Sub** bridge: a message published on one replica is fanned out to subscribers connected to *any* replica. (Each node still serves its own clients via `SimpMessagingTemplate`; Redis carries the cross-node hop.)
 
-That's the right choice for one instance. To scale **horizontally** (multiple backend replicas behind a load balancer), a few pieces would move to shared infrastructure:
+One scheduled task remains genuinely per-instance and is the next item on the roadmap:
 
-1. **Distributed rate limiting** — back the limiter with **Redis** (e.g. atomic `INCR` + TTL, or a token-bucket library) so limits hold across replicas instead of per-instance.
-2. **External STOMP relay** — replace the in-memory broker with a real message broker (**RabbitMQ** or **Redis**) via `enableStompBrokerRelay`, so a message published on one replica reaches subscribers connected to another.
-3. **Single-runner scheduling** — the expiry sweep is naturally idempotent (it only ever touches not-yet-deleted rows), but on multiple replicas it would run redundantly and could double-broadcast a deletion; a lock (e.g. **ShedLock**) would elect one runner.
+- **Single-runner scheduling** — the disappearing-message expiry sweep is a `@Scheduled` task. It's naturally idempotent (it only ever touches not-yet-deleted rows), but on multiple replicas it would run redundantly and could double-broadcast a deletion; a lock (e.g. **ShedLock**) would elect one runner. This is deferred because it can't be meaningfully exercised without a multi-replica deployment.
 
-Both are intentionally deferred: they add operational dependencies that bring no benefit at single-instance scale, and can't be meaningfully exercised without a multi-replica deployment. Sticky sessions at the load balancer are a lighter interim option for the WebSocket layer.
+> A heavier alternative to the Redis Pub/Sub bridge would be an **external STOMP relay** (RabbitMQ or Redis via `enableStompBrokerRelay`), which moves broker state out of the JVM entirely. The Pub/Sub bridge is the lighter choice and avoids the extra broker dependency.
 
 Other possible next steps: paginating search results, reaction notifications, and extending internationalization coverage across the in-app chat surfaces.
 

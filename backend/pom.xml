@@ -304,13 +304,13 @@
 						</dependencies>
 						<configuration>
 							<targetClasses>
-								<param>com.ripplechat.backend.common.RateLimiter</param>
+								<param>com.ripplechat.backend.redis.RateLimiter</param>
 								<param>com.ripplechat.backend.common.RequestIdFilter</param>
 								<param>com.ripplechat.backend.auth.JwtService</param>
 								<param>com.ripplechat.backend.poll.Poll</param>
 							</targetClasses>
 							<targetTests>
-								<param>com.ripplechat.backend.common.RateLimiterTest</param>
+								<param>com.ripplechat.backend.redis.RateLimiterTest</param>
 								<param>com.ripplechat.backend.common.RequestIdFilterTest</param>
 								<param>com.ripplechat.backend.auth.JwtServiceTest</param>
 								<param>com.ripplechat.backend.poll.PollTest</param>
