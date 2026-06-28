@@ -27,6 +27,16 @@ public class AuthService {
     private static final double LOGIN_BURST = 5;
     private static final double LOGIN_REFILL_PER_SEC = 0.1;
 
+    // 2FA code throttle: ~5 attempts burst, then ~1 every 10s per user. Stops a
+    // 6-digit TOTP from being brute-forced once the password step has been passed.
+    private static final double TWO_FACTOR_BURST = 5;
+    private static final double TWO_FACTOR_REFILL_PER_SEC = 0.1;
+
+    // Registration throttle, keyed by client IP: ~5 burst, then ~1 every 30s.
+    // Limits automated account-creation spam from a single source.
+    private static final double REGISTER_BURST = 5;
+    private static final double REGISTER_REFILL_PER_SEC = 0.033;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -42,6 +52,11 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
+        if (ipAddress != null
+                && !rateLimiter.tryAcquire("register:" + ipAddress, REGISTER_BURST, REGISTER_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "too many registration attempts, please wait a moment and try again");
+        }
         if (userRepository.existsByUsername(request.username())) {
             throw new DuplicateResourceException("username already taken: " + request.username());
         }
@@ -110,6 +125,11 @@ public class AuthService {
     @Transactional
     public AuthResponse verify2FaLogin(Verify2FaRequest request, String ipAddress, String userAgent) {
         String username = jwtService.extractUsernameFromPreAuthToken(request.preAuthToken());
+        if (!rateLimiter.tryAcquire("2fa:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
+            audit.loginThrottled(username);
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "too many 2FA attempts, please wait a moment and try again");
+        }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid token"));
 

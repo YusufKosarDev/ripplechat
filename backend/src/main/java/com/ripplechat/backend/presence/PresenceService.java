@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Tracks online users in Redis by storing a set of active WebSocket session IDs
@@ -16,6 +15,8 @@ import java.util.stream.Collectors;
 public class PresenceService {
 
     private static final String PRESENCE_PREFIX = "presence:sessions:";
+    /** A single set of currently-online usernames, kept in sync with the per-user session sets. */
+    private static final String ONLINE_USERS_KEY = "presence:online";
 
     private final StringRedisTemplate redisTemplate;
 
@@ -31,7 +32,11 @@ public class PresenceService {
     public boolean connected(String username, String sessionId) {
         String key = PRESENCE_PREFIX + username;
         Long count = redisTemplate.opsForSet().add(key, sessionId);
-        return count != null && count == 1 && redisTemplate.opsForSet().size(key) == 1;
+        boolean justCameOnline = count != null && count == 1 && redisTemplate.opsForSet().size(key) == 1;
+        if (justCameOnline) {
+            redisTemplate.opsForSet().add(ONLINE_USERS_KEY, username);
+        }
+        return justCameOnline;
     }
 
     /**
@@ -44,18 +49,22 @@ public class PresenceService {
         Long count = redisTemplate.opsForSet().remove(key, sessionId);
         if (count != null && count == 1) {
             Long size = redisTemplate.opsForSet().size(key);
-            return size == null || size == 0;
+            boolean justWentOffline = size == null || size == 0;
+            if (justWentOffline) {
+                redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, username);
+            }
+            return justWentOffline;
         }
         return false;
     }
 
+    /**
+     * The set of online usernames. Reads a single Redis set ({@code SMEMBERS})
+     * instead of scanning the keyspace with {@code KEYS}, which is O(N) over every
+     * key and blocks the server.
+     */
     public Set<String> onlineUsernames() {
-        Set<String> keys = redisTemplate.keys(PRESENCE_PREFIX + "*");
-        if (keys == null || keys.isEmpty()) {
-            return Collections.emptySet();
-        }
-        return keys.stream()
-                .map(key -> key.substring(PRESENCE_PREFIX.length()))
-                .collect(Collectors.toSet());
+        Set<String> members = redisTemplate.opsForSet().members(ONLINE_USERS_KEY);
+        return members == null ? Collections.emptySet() : members;
     }
 }
