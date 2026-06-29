@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout, fetchCurrentUser } from '../features/auth/authSlice'
@@ -14,6 +14,9 @@ import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
 import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
 import { client } from '../api/client'
+
+// Loaded on demand the first time the quick switcher (Ctrl/Cmd+K) is opened.
+const QuickSwitcher = lazy(() => import('../components/QuickSwitcher'))
 
 // True if the message text @mentions the given username (standalone token).
 function mentionsUser(content: string, username: string): boolean {
@@ -37,6 +40,20 @@ export default function ChatPage() {
     Object.values(state.unread.counts).reduce((sum, n) => sum + n, 0),
   )
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false)
+
+  // Global Ctrl/Cmd+K opens the quick switcher. Capture phase so it works even
+  // while the message composer (or any input) has focus.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setQuickSwitcherOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
 
   const selectedIdRef = useRef(selectedId)
   const currentUserIdRef = useRef(currentUserId)
@@ -156,6 +173,9 @@ export default function ChatPage() {
         <ChannelPanel onOpenSidebar={() => setSidebarOpen(true)} />
         <ThreadPanel />
       </div>
+      <Suspense fallback={null}>
+        {quickSwitcherOpen && <QuickSwitcher onClose={() => setQuickSwitcherOpen(false)} />}
+      </Suspense>
     </div>
   )
 }
