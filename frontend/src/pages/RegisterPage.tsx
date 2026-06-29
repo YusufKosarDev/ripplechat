@@ -10,6 +10,26 @@ import { Input } from '../components/ui/Field'
 import WakeNotice from '../components/ui/WakeNotice'
 import { useWakeNotice } from '../hooks/useWakeNotice'
 
+// Lightweight, dependency-free password strength estimate from length and
+// character variety. Deliberately avoids a library (e.g. zxcvbn ~400 kB) so it
+// adds no weight to the bundle.
+function passwordStrength(pw: string): { level: 'weak' | 'medium' | 'strong'; score: number } {
+  let variety = 0
+  if (/[a-z]/.test(pw)) variety++
+  if (/[A-Z]/.test(pw)) variety++
+  if (/\d/.test(pw)) variety++
+  if (/[^A-Za-z0-9]/.test(pw)) variety++
+  if (pw.length < 8 || variety <= 1) return { level: 'weak', score: 1 }
+  if (pw.length >= 12 && variety >= 3) return { level: 'strong', score: 3 }
+  return { level: 'medium', score: 2 }
+}
+
+const STRENGTH_COLORS: Record<'weak' | 'medium' | 'strong', string> = {
+  weak: 'bg-danger',
+  medium: 'bg-amber-500',
+  strong: 'bg-emerald-500',
+}
+
 export default function RegisterPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
@@ -22,6 +42,8 @@ export default function RegisterPage() {
 
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }))
+
+  const strength = form.password ? passwordStrength(form.password) : null
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -71,6 +93,21 @@ export default function RegisterPage() {
             placeholder={t('auth.register.passwordPlaceholder')}
             autoComplete="new-password"
           />
+          {strength && (
+            <div className="mt-2" aria-live="polite">
+              <div className="flex gap-1" aria-hidden="true">
+                {[1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className={`h-1 flex-1 rounded-full ${i <= strength.score ? STRENGTH_COLORS[strength.level] : 'bg-border'}`}
+                  />
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-fg-muted">
+                {t('auth.register.strength.label')}: {t(`auth.register.strength.${strength.level}`)}
+              </p>
+            </div>
+          )}
         </div>
 
         {(formError || error) && (
