@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { changePassword, fetchCurrentUser, logout, updateMe } from '../features/auth/authSlice'
 import { AVATAR_COLORS } from './Avatar'
 import Avatar from './Avatar'
+import StatusSettings from './StatusSettings'
 import ThemeToggle from './ThemeToggle'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
@@ -285,6 +286,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             </Button>
           </div>
         )}
+
+        {/* Custom status + Do-Not-Disturb */}
+        <StatusSettings />
 
         {/* Password */}
         <div className="mt-6 border-t border-border pt-4">

@@ -116,6 +116,30 @@ export const updateMe = createAsyncThunk(
   },
 )
 
+export const setStatus = createAsyncThunk(
+  'auth/setStatus',
+  async (body: { emoji?: string; text?: string; expiresInMinutes?: number | null }, { rejectWithValue }) => {
+    try {
+      const { data } = await client.put<User>('/api/users/me/status', body)
+      return data
+    } catch (e) {
+      return rejectWithValue(extractError(e))
+    }
+  },
+)
+
+export const setDnd = createAsyncThunk(
+  'auth/setDnd',
+  async (body: { minutes: number | null }, { rejectWithValue }) => {
+    try {
+      const { data } = await client.put<User>('/api/users/me/dnd', body)
+      return data
+    } catch (e) {
+      return rejectWithValue(extractError(e))
+    }
+  },
+)
+
 export const changePassword = createAsyncThunk(
   'auth/changePassword',
   async (body: { currentPassword: string; newPassword: string }, { rejectWithValue }) => {
@@ -194,6 +218,12 @@ const authSlice = createSlice({
         state.user = action.payload
       })
       .addCase(updateMe.fulfilled, (state, action) => {
+        state.user = action.payload
+      })
+      .addCase(setStatus.fulfilled, (state, action) => {
+        state.user = action.payload
+      })
+      .addCase(setDnd.fulfilled, (state, action) => {
         state.user = action.payload
       })
       .addCase(fetchCurrentUser.rejected, (state) => {

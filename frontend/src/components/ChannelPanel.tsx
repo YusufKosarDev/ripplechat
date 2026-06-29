@@ -912,13 +912,22 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 size="sm"
               />
               <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold tracking-tight">{channel.name}</h2>
+                <h2 className="truncate text-base font-semibold tracking-tight">
+                  {channel.name}
+                  {dm.otherUser.statusEmoji && (
+                    <span className="ml-1.5 font-normal" title={dm.otherUser.statusText ?? undefined}>
+                      {dm.otherUser.statusEmoji}
+                    </span>
+                  )}
+                </h2>
                 <p className="truncate text-sm text-fg-muted">
-                  {partnerOnline
-                    ? 'çevrimiçi'
-                    : dm.otherUser.lastSeenAt
-                      ? `son görülme ${formatLastSeen(dm.otherUser.lastSeenAt)}`
-                      : 'çevrimdışı'}
+                  {dm.otherUser.statusText
+                    ? dm.otherUser.statusText
+                    : partnerOnline
+                      ? 'çevrimiçi'
+                      : dm.otherUser.lastSeenAt
+                        ? `son görülme ${formatLastSeen(dm.otherUser.lastSeenAt)}`
+                        : 'çevrimdışı'}
                 </p>
               </div>
             </>

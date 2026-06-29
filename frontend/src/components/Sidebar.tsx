@@ -146,6 +146,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             >
               <Avatar name={displayName} color={user?.avatarColor} imageUrl={user?.avatarUrl} online={selfOnline} size="sm" />
               <span className="truncate text-sm text-fg-secondary">{displayName}</span>
+              {user?.statusEmoji && (
+                <span className="shrink-0 text-sm" title={user.statusText ?? undefined} aria-label={user.statusText ?? 'Durum'}>
+                  {user.statusEmoji}
+                </span>
+              )}
             </button>
             <button
               onClick={onLogout}

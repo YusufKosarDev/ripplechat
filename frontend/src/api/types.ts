@@ -8,6 +8,10 @@ export interface User {
   createdAt: string
   isTwoFactorEnabled: boolean
   publicKey?: string | null
+  statusEmoji?: string | null
+  statusText?: string | null
+  statusExpiresAt?: string | null
+  dndUntil?: string | null
 }
 
 export interface AuthResponse {
@@ -60,6 +64,8 @@ export interface UserSummary {
   avatarUrl: string | null
   lastSeenAt: string | null
   publicKey?: string | null
+  statusEmoji?: string | null
+  statusText?: string | null
 }
 
 export type MembershipRole = 'OWNER' | 'MODERATOR' | 'MEMBER'
