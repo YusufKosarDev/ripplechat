@@ -7,6 +7,7 @@ export interface CommandContext {
   args: string
   sendMessage: (content: string) => void
   createPoll: (question: string, options: string[]) => void
+  scheduleMessage: (content: string, scheduledAt: Date) => void
   showError: (message: string) => void
 }
 
@@ -23,6 +24,17 @@ const GIPHY_PLACEHOLDERS = ['🪩', '✨', '🌈', '🦄', '🎬', '💫', '🐙
 function quotedArgs(input: string): string[] {
   const matches = input.match(/"([^"]+)"/g)
   return matches ? matches.map((s) => s.slice(1, -1)) : []
+}
+
+/** Parses a `/remind` argument: a leading duration, then the reminder text. */
+function parseReminder(input: string): { when: Date; text: string } | null {
+  const m = input.trim().match(/^(\d+)\s*(dakika|dak|dk|min|m|saat|sa|hour|h|s)?\s+(.+)$/i)
+  if (!m) return null
+  const n = parseInt(m[1], 10)
+  const unit = (m[2] ?? 'm').toLowerCase()
+  const minutes = /^(saat|sa|hour|h|s)$/.test(unit) ? n * 60 : n
+  if (minutes <= 0) return null
+  return { when: new Date(Date.now() + minutes * 60_000), text: m[3].trim() }
 }
 
 export const commands: Command[] = [
@@ -57,6 +69,19 @@ export const commands: Command[] = [
     run: (ctx) => {
       const text = ctx.args.trim()
       ctx.sendMessage((text ? `${text} ` : '') + '¯\\_(ツ)_/¯')
+    },
+  },
+  {
+    name: 'remind',
+    description: 'Bir hatırlatma zamanla',
+    usage: '/remind <süre> <metin>  (örn. 30m, 1h, 2 saat)',
+    run: (ctx) => {
+      const parsed = parseReminder(ctx.args)
+      if (!parsed) {
+        ctx.showError('Kullanım: /remind <süre> <metin>  (örn. 30m, 1h, 45dk)')
+        return
+      }
+      ctx.scheduleMessage(`⏰ ${parsed.text}`, parsed.when)
     },
   },
 ]

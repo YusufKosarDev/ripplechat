@@ -46,6 +46,8 @@ const GifPicker = lazy(() => import('./GifPicker'))
 const ChannelMembersModal = lazy(() => import('./ChannelMembersModal'))
 const ForwardModal = lazy(() => import('./ForwardModal'))
 const MediaGalleryModal = lazy(() => import('./MediaGalleryModal'))
+const ScheduledMessagesModal = lazy(() => import('./ScheduledMessagesModal'))
+import { scheduleMessage as scheduleApi } from '../api/scheduled'
 import {
   isStompConnected,
   sendChatMessage,
@@ -191,6 +193,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [pinned, setPinned] = useState<Message[]>([])
   const [showPinned, setShowPinned] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
+  const [showScheduled, setShowScheduled] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
   const [showTtl, setShowTtl] = useState(false)
@@ -515,6 +518,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         args: parsed.args,
         sendMessage: (content) => sendChatMessage(channel.id, content),
         createPoll: (question, options) => sendPoll(channel.id, question, options),
+        scheduleMessage: (content, scheduledAt) => {
+          scheduleApi(channel.id, content, scheduledAt.toISOString())
+            .then(() => dispatch(showToast({ message: 'Hatırlatma zamanlandı', variant: 'success' })))
+            .catch(() => dispatch(showToast({ message: 'Zamanlanamadı', variant: 'error' })))
+        },
         showError: (message) => {
           hadError = true
           setCmdError(message)
@@ -1089,6 +1097,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         {showGallery && selectedId && (
           <MediaGalleryModal channelId={selectedId} onClose={() => setShowGallery(false)} />
         )}
+
+        {showScheduled && (
+          <ScheduledMessagesModal channelId={channel.id} initialDraft={draft} onClose={() => setShowScheduled(false)} />
+        )}
       </Suspense>
 
       {showPinned && (
@@ -1351,6 +1363,15 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 title="Dosya ekle"
               >
                 {uploading ? '…' : '📎'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowScheduled(true)}
+                aria-label="Zamanlanmış mesajlar"
+                title="Mesaj zamanla / zamanlanmışlar"
+              >
+                ⏰
               </Button>
               <div className="relative">
                 <Button
