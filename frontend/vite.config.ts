@@ -50,4 +50,13 @@ export default defineConfig({
       '/ws': { target: 'http://localhost:8081', ws: true },
     },
   },
+  preview: {
+    // Mirror the production Content-Security-Policy (set on Vercel via
+    // vercel.json) so `vite preview` — and the Playwright e2e suite that runs
+    // against it — exercises the app under the real, enforced policy.
+    headers: {
+      'Content-Security-Policy':
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://res.cloudinary.com https://*.giphy.com; font-src 'self' data:; connect-src 'self' https://ripplechat-backend.onrender.com wss://ripplechat-backend.onrender.com; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+    },
+  },
 })
