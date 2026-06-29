@@ -46,7 +46,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 ### ⚡ Real-time & Communication
 - **Live messaging** over WebSocket / STOMP — messages fan out instantly to every subscriber of a channel
 - **Distributed Pub/Sub (Redis)** — horizontally scalable WebSockets; messages published on any node are reliably broadcasted to users connected to other nodes via Redis Pub/Sub
-- **Voice & Video Calls (WebRTC)** — peer-to-peer secure WebRTC video calls with local/remote stream rendering, mute/video toggles, and signaling via STOMP
+- **Voice & Video Calls (WebRTC)** — peer-to-peer secure WebRTC calls with **screen sharing** (swapped in via `replaceTrack`, no renegotiation), local/remote stream rendering, mute/video toggles, and signaling via STOMP
 - **Optimistic UI** — instant UI updates for messages and channels before server confirmation, with seamless fallback/error handling
 - **Presence** — see who's online at a glance
 - **Typing indicators** — know when someone in the channel is composing a message
@@ -60,7 +60,8 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Quote-reply** to a specific message, **forward** messages to other chats, and **pin** important messages
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
-- **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying
+- **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying. **Gracefully degrades** to PostgreSQL full-text when Elasticsearch is unavailable, so the app still boots and search keeps working
+- **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
 
 ### 🎉 Interaction
@@ -68,7 +69,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Live flying emoji** — reactions burst across the screen in real time
 - **GIFs** — search and send GIFs from a picker (Giphy)
 - **Polls** — create and vote on polls right inside a channel (`/poll`)
-- **Slash commands** — an extensible command system (`/poll`, `/giphy`, `/shrug`)
+- **Slash commands** — an extensible command system (`/poll`, `/giphy`, `/shrug`, `/remind`)
 
 ### 📎 Media & attachments
 - **Image, file, and voice-message attachments** (recorded in-browser), stored on Cloudinary
@@ -76,10 +77,15 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Per-channel media gallery** of shared images
 - **Link previews** — URLs unfurl into title/description/image cards (server-side, SSRF-guarded)
 
+### 🔌 Integrations
+- **Incoming webhooks** — a channel moderator mints a token'd URL; external systems (CI, monitoring, …) POST `{"text":"..."}` and it lands in the channel as a dedicated **bot** identity. Only the token's **SHA-256 hash** is stored (the URL is shown once), the ingest endpoint is **rate-limited**, and bot accounts are hidden from people-search
+
 ### 🔔 Presence & notifications
 - **Presence** and **last-seen** timestamps · **typing indicators**
+- **Custom status** — an emoji + short text (with optional auto-expiry) shown next to your name and in DM headers
+- **Do Not Disturb** — pause web-push notifications for a chosen window (30 min / 1 h / 8 h)
 - **Read receipts** — delivery/read ticks in direct messages
-- **Web push notifications** (VAPID) for messages while you're away
+- **Web push notifications** (VAPID) for messages while you're away — suppressed while you're in Do Not Disturb
 - **Mute** channels and DMs · **unread badges** with a live count in the browser tab title
 
 ### 🔐 Security & privacy
@@ -91,12 +97,13 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members can't eavesdrop
 - **User blocking** — hide messages from blocked users
 - **End-to-end encryption (E2EE)** (opt-in) for direct messages — supports automatic **Asymmetric E2EE Key Agreement** using **ECDH (P-256)** and **AES-GCM (256-bit)** without manual passphrase entry (generating keypairs in IndexedDB and registering public keys on the server), as well as manual passphrase-derived key (PBKDF2) encryption. The server only ever stores/relays opaque ciphertext
-- **Abuse protection** — input size limits plus rate limiting on login, message sends, and reactions (rate-limited responses carry a `Retry-After` hint)
-- **Security headers** — HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a `frame-ancestors` CSP on every response
+- **Abuse protection** — input size limits plus distributed (Redis) rate limiting on login, **2FA verification**, **registration**, message sends, reactions, and webhook ingestion (rate-limited responses carry a `Retry-After` hint)
+- **Security headers** — the backend sets HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a `frame-ancestors` CSP on every response; the static frontend (Vercel) adds a strict enforced **Content-Security-Policy**, `Permissions-Policy`, and the same hardening headers
 - **Hardened secrets** — the JWT secret is validated at startup (rejects a too-short or placeholder value); SSRF guard on link unfurling; outbound calls (Cloudinary, link/GIF) are timeout-bounded
 - **Security audit log** — authentication events (login success/failure/throttle, registration, refresh, logout) on a dedicated logger, correlated by request id
 
 ### 🎨 Experience & platform
+- **Quick switcher** — `Ctrl`/`Cmd`+`K` opens a Slack-style palette to jump between channels and DMs with full keyboard navigation
 - **Light / dark theme** toggle and a **responsive** layout that adapts to mobile
 - **Offline-First PWA** — progressive web app with a service worker (`vite-plugin-pwa`) that caches UI assets and uses **IndexedDB** (`idb`) to store messages locally. Users can read history and send "pending" messages while offline, which automatically sync to the backend when the network recovers.
 - **Internationalization** — English / Turkish with a language toggle
@@ -135,7 +142,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Tailwind CSS
 - STOMP.js / SockJS
 - TipTap (Rich Text Editor)
-- WebRTC (P2P Video/Audio Calls)
+- WebRTC (P2P Video/Audio Calls + screen sharing)
 - Web Crypto (E2EE) · Service Worker (PWA + push) · IndexedDB (Offline sync via idb)
 - TypeScript strict mode · error boundary + in-house toast layer · route-level code splitting
 
@@ -151,7 +158,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Docker Compose (PostgreSQL)
 - Flyway (production schema migrations)
 - Maven · Spring profiles (dev / prod)
-- GitHub Actions CI (backend, frontend, e2e) · Dependabot (Maven, npm, Actions)
+- GitHub Actions CI (backend, frontend, e2e) · Dependabot (Maven, npm, Actions) · `npm audit` gate on shipped dependencies
 
 ---
 
@@ -160,8 +167,8 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 **Modular monolith backend.** The codebase is organized by domain, each package owning its own controllers, services, and persistence:
 
 ```
-auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards)
-presence · typing · reaction · poll · search (full-text) · read receipts · push · link previews · media · gif · websocket
+auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards · scheduled)
+presence · typing · reaction · poll · search (full-text) · read receipts · push · link previews · media · gif · webhook · websocket
 ```
 
 **WebSocket layer.** Clients open a single STOMP connection authenticated with a JWT on `CONNECT`. The server broadcasts to `/topic/...` destinations (e.g. `/topic/channels/{id}`); clients publish via `/app/...`. Messages, reactions, presence, typing, and polls all travel over this channel for instant fan-out.
@@ -242,9 +249,9 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V20__user_public_key`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V24__webhooks`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
-Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), and `GIPHY_API_KEY` (GIF search). End-to-end encryption is entirely client-side and needs no server configuration.
+Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), and `GIPHY_API_KEY` (GIF search). Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
 ---
 
@@ -255,22 +262,24 @@ ripplechat/
 ├── backend/                     # Spring Boot application
 │   ├── src/main/java/com/ripplechat/backend/
 │   │   ├── auth/                # Registration, login, JWT, security config
-│   │   ├── user/                # Profiles, settings, password, avatars, blocking
+│   │   ├── user/                # Profiles, status/DND, settings, password, avatars, blocking
 │   │   ├── channel/             # Channels, membership & roles, direct/group messages
 │   │   ├── message/             # Messages, threads, edit/delete, pins, forwards, quotes
+│   │   │   └── scheduled/       # Scheduled messages + background dispatcher
+│   │   ├── webhook/             # Incoming webhooks (token'd ingest, bot identity)
 │   │   ├── reaction/            # Emoji reactions
 │   │   ├── poll/                # Polls (REST + WebSocket, persisted)
 │   │   ├── presence/            # Online status & last seen
 │   │   ├── typing/              # Typing indicators
 │   │   ├── read/                # Read receipts
-│   │   ├── search/              # Full-text message search (tsvector)
+│   │   ├── search/              # Message search (Elasticsearch, PostgreSQL tsvector fallback)
 │   │   ├── push/                # Web push (VAPID) subscriptions & sending
 │   │   ├── link/                # Link-preview unfurling (jsoup, SSRF-guarded)
 │   │   ├── media/ · gif/        # Cloudinary uploads · Giphy GIF search
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, rate limiter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations V1–V20 (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V24 (prod schema)
 ├── frontend/                    # React + TypeScript app
 │   ├── public/                  # PWA manifest + service worker (sw.js)
 │   └── src/
@@ -310,9 +319,9 @@ RippleChat is built to run behind a load balancer as **multiple backend replicas
 - **Distributed rate limiting** — the limiter is backed by **Redis** via an atomic token-bucket Lua script, so limits hold across replicas instead of per-instance.
 - **Cross-replica WebSocket fan-out** — the local STOMP `SimpleBroker` is fronted by a **Redis Pub/Sub** bridge: a message published on one replica is fanned out to subscribers connected to *any* replica. (Each node still serves its own clients via `SimpMessagingTemplate`; Redis carries the cross-node hop.)
 
-One scheduled task remains genuinely per-instance and is the next item on the roadmap:
+A couple of `@Scheduled` tasks remain genuinely per-instance and are the next item on the roadmap:
 
-- **Single-runner scheduling** — the disappearing-message expiry sweep is a `@Scheduled` task. It's naturally idempotent (it only ever touches not-yet-deleted rows), but on multiple replicas it would run redundantly and could double-broadcast a deletion; a lock (e.g. **ShedLock**) would elect one runner. This is deferred because it can't be meaningfully exercised without a multi-replica deployment.
+- **Single-runner scheduling** — the disappearing-message expiry sweep and the scheduled-message dispatcher run on a timer. On multiple replicas they would run redundantly (e.g. double-delivering a scheduled message), so a distributed lock (e.g. **ShedLock**) would elect one runner. This is deferred because it can't be meaningfully exercised without a multi-replica deployment.
 
 > A heavier alternative to the Redis Pub/Sub bridge would be an **external STOMP relay** (RabbitMQ or Redis via `enableStompBrokerRelay`), which moves broker state out of the JVM entirely. The Pub/Sub bridge is the lighter choice and avoids the extra broker dependency.
 
