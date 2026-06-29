@@ -16,10 +16,14 @@ public record UserSummary(
         String avatarColor,
         String avatarUrl,
         Instant lastSeenAt,
-        String publicKey
+        String publicKey,
+        String statusEmoji,
+        String statusText
 ) {
     public static UserSummary from(User user) {
+        boolean status = user.isStatusActive();
         return new UserSummary(user.getId(), user.getUsername(), user.getDisplayName(),
-                user.getAvatarColor(), user.getAvatarUrl(), user.getLastSeenAt(), user.getPublicKey());
+                user.getAvatarColor(), user.getAvatarUrl(), user.getLastSeenAt(), user.getPublicKey(),
+                status ? user.getStatusEmoji() : null, status ? user.getStatusText() : null);
     }
 }

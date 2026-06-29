@@ -1,6 +1,8 @@
 package com.ripplechat.backend.user;
 
 import com.ripplechat.backend.user.dto.ChangePasswordRequest;
+import com.ripplechat.backend.user.dto.SetDndRequest;
+import com.ripplechat.backend.user.dto.SetStatusRequest;
 import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
 import com.ripplechat.backend.user.dto.UserSummary;
@@ -53,6 +55,20 @@ public class UserController {
     public UserResponse updateMe(@Valid @RequestBody UpdateMeRequest request,
                                  @AuthenticationPrincipal String username) {
         return userService.updateMe(username, request);
+    }
+
+    /** Set or clear the caller's custom status (emoji + text, optional expiry). */
+    @PutMapping("/me/status")
+    public UserResponse setStatus(@Valid @RequestBody SetStatusRequest request,
+                                  @AuthenticationPrincipal String username) {
+        return userService.updateStatus(username, request);
+    }
+
+    /** Enable/clear the caller's Do-Not-Disturb window. */
+    @PutMapping("/me/dnd")
+    public UserResponse setDnd(@Valid @RequestBody SetDndRequest request,
+                              @AuthenticationPrincipal String username) {
+        return userService.updateDnd(username, request);
     }
 
     @PutMapping("/me/password")

@@ -112,7 +112,9 @@ public class WebPushService {
         Set<UUID> recipients = new HashSet<>();
         for (var membership : membershipRepository.findByChannelId(channelId)) {
             String username = membership.getUser().getUsername();
-            if (!username.equals(senderUsername) && !online.contains(username)) {
+            // Skip the sender, anyone currently online, and anyone in Do-Not-Disturb.
+            if (!username.equals(senderUsername) && !online.contains(username)
+                    && !membership.getUser().isDndActive()) {
                 recipients.add(membership.getUser().getId());
             }
         }

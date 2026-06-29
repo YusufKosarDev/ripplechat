@@ -77,7 +77,33 @@ public class User {
     @Column(name = "public_key")
     private String publicKey;
 
+    /** Custom status: a short emoji and/or text (e.g. "🌴" / "On vacation"). */
+    @Column(name = "status_emoji", length = 16)
+    private String statusEmoji;
+
+    @Column(name = "status_text", length = 100)
+    private String statusText;
+
+    /** When set, the status clears itself once this instant has passed. */
+    @Column(name = "status_expires_at")
+    private Instant statusExpiresAt;
+
+    /** Do-Not-Disturb until this instant; while active, web push is suppressed. */
+    @Column(name = "dnd_until")
+    private Instant dndUntil;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /** A status is shown only if it has content and has not expired. */
+    public boolean isStatusActive() {
+        return (statusEmoji != null || statusText != null)
+                && (statusExpiresAt == null || statusExpiresAt.isAfter(Instant.now()));
+    }
+
+    /** True while the user is within their Do-Not-Disturb window. */
+    public boolean isDndActive() {
+        return dndUntil != null && dndUntil.isAfter(Instant.now());
+    }
 }

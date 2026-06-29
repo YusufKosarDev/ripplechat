@@ -4,6 +4,8 @@ import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.user.dto.ChangePasswordRequest;
+import com.ripplechat.backend.user.dto.SetDndRequest;
+import com.ripplechat.backend.user.dto.SetStatusRequest;
 import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import com.ripplechat.backend.user.dto.UserResponse;
 import com.ripplechat.backend.user.dto.UserSummary;
@@ -13,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -79,6 +82,37 @@ public class UserService {
             }
         }
         return UserResponse.from(userRepository.saveAndFlush(user));
+    }
+
+    /** Set or clear the user's custom status. Empty emoji and text clears it. */
+    @Transactional
+    public UserResponse updateStatus(String username, SetStatusRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        String emoji = blankToNull(request.emoji());
+        String text = blankToNull(request.text());
+        user.setStatusEmoji(emoji);
+        user.setStatusText(text);
+        Long minutes = request.expiresInMinutes();
+        boolean cleared = emoji == null && text == null;
+        user.setStatusExpiresAt(cleared || minutes == null || minutes <= 0
+                ? null
+                : Instant.now().plusSeconds(minutes * 60));
+        return UserResponse.from(userRepository.saveAndFlush(user));
+    }
+
+    /** Enable Do-Not-Disturb for the given number of minutes; 0 or null clears it. */
+    @Transactional
+    public UserResponse updateDnd(String username, SetDndRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        Long minutes = request.minutes();
+        user.setDndUntil(minutes == null || minutes <= 0 ? null : Instant.now().plusSeconds(minutes * 60));
+        return UserResponse.from(userRepository.saveAndFlush(user));
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     @Transactional

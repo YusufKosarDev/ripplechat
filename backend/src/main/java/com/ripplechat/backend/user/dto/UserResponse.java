@@ -17,9 +17,14 @@ public record UserResponse(
         String avatarUrl,
         Instant createdAt,
         boolean isTwoFactorEnabled,
-        String publicKey
+        String publicKey,
+        String statusEmoji,
+        String statusText,
+        Instant statusExpiresAt,
+        Instant dndUntil
 ) {
     public static UserResponse from(User user) {
+        boolean status = user.isStatusActive();
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
@@ -29,7 +34,11 @@ public record UserResponse(
                 user.getAvatarUrl(),
                 user.getCreatedAt(),
                 user.isTwoFactorEnabled(),
-                user.getPublicKey()
+                user.getPublicKey(),
+                status ? user.getStatusEmoji() : null,
+                status ? user.getStatusText() : null,
+                status ? user.getStatusExpiresAt() : null,
+                user.isDndActive() ? user.getDndUntil() : null
         );
     }
 }
