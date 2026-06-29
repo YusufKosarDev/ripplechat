@@ -47,6 +47,7 @@ const ChannelMembersModal = lazy(() => import('./ChannelMembersModal'))
 const ForwardModal = lazy(() => import('./ForwardModal'))
 const MediaGalleryModal = lazy(() => import('./MediaGalleryModal'))
 const ScheduledMessagesModal = lazy(() => import('./ScheduledMessagesModal'))
+const WebhooksModal = lazy(() => import('./WebhooksModal'))
 import { scheduleMessage as scheduleApi } from '../api/scheduled'
 import {
   isStompConnected,
@@ -194,6 +195,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [showPinned, setShowPinned] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [showScheduled, setShowScheduled] = useState(false)
+  const [showWebhooks, setShowWebhooks] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
   const [showTtl, setShowTtl] = useState(false)
@@ -1078,6 +1080,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               Üyeler ({members.length})
             </Button>
           )}
+          {!dm && canModerate && (
+            <Button variant="secondary" size="sm" onClick={() => setShowWebhooks(true)} title="Incoming webhook'lar">
+              🔗
+            </Button>
+          )}
         </div>
       </header>
 
@@ -1101,6 +1108,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         {showScheduled && (
           <ScheduledMessagesModal channelId={channel.id} initialDraft={draft} onClose={() => setShowScheduled(false)} />
         )}
+
+        {showWebhooks && <WebhooksModal channelId={channel.id} onClose={() => setShowWebhooks(false)} />}
       </Suspense>
 
       {showPinned && (
