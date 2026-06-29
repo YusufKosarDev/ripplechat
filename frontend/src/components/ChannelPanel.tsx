@@ -39,13 +39,13 @@ import { clearUnread } from '../features/unread/unreadSlice'
 import { setPassphrase } from '../features/e2ee/e2eeSlice'
 import { decryptText, encryptText, isEncrypted, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from '../crypto/e2ee'
 import { getAsymmetricKeyPair } from '../db'
-import ChannelMembersModal from './ChannelMembersModal'
-import ForwardModal from './ForwardModal'
-import MediaGalleryModal from './MediaGalleryModal'
-// Pickers are heavy (emoji dataset / GIF search UI) and only shown on demand,
-// so load them lazily instead of bundling them into the chat page.
+// Pickers and modals are only shown on demand, so load them lazily instead of
+// bundling them into the main chat page chunk.
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
+const ChannelMembersModal = lazy(() => import('./ChannelMembersModal'))
+const ForwardModal = lazy(() => import('./ForwardModal'))
+const MediaGalleryModal = lazy(() => import('./MediaGalleryModal'))
 import {
   isStompConnected,
   sendChatMessage,
@@ -1064,21 +1064,23 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         </div>
       </header>
 
-      {showMembers && (
-        <ChannelMembersModal
-          channelId={channel.id}
-          members={members}
-          myRole={myRole}
-          currentUserId={currentUser?.id}
-          onClose={() => setShowMembers(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showMembers && (
+          <ChannelMembersModal
+            channelId={channel.id}
+            members={members}
+            myRole={myRole}
+            currentUserId={currentUser?.id}
+            onClose={() => setShowMembers(false)}
+          />
+        )}
 
-      {forwardingMsg && <ForwardModal onPick={onForward} onClose={() => setForwardingMsg(null)} />}
+        {forwardingMsg && <ForwardModal onPick={onForward} onClose={() => setForwardingMsg(null)} />}
 
-      {showGallery && selectedId && (
-        <MediaGalleryModal channelId={selectedId} onClose={() => setShowGallery(false)} />
-      )}
+        {showGallery && selectedId && (
+          <MediaGalleryModal channelId={selectedId} onClose={() => setShowGallery(false)} />
+        )}
+      </Suspense>
 
       {showPinned && (
         <div

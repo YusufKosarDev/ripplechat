@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
@@ -7,12 +7,15 @@ import { setJumpTarget } from '../features/ui/uiSlice'
 import { createChannel, createGroupDm, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
 import ThemeToggle from './ThemeToggle'
-import NewDmModal from './NewDmModal'
-import SearchModal from './SearchModal'
-import SettingsModal from './SettingsModal'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+
+// Mounted only on user action, so their code is split into on-demand chunks
+// instead of riding along in the main chat bundle.
+const NewDmModal = lazy(() => import('./NewDmModal'))
+const SearchModal = lazy(() => import('./SearchModal'))
+const SettingsModal = lazy(() => import('./SettingsModal'))
 import type { Channel } from '../api/types'
 import SkeletonLoader from './ui/SkeletonLoader'
 
@@ -298,31 +301,33 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </div>
       </aside>
 
-      {showSearch && (
-        <SearchModal
-          onPick={(channelId, messageId) => {
-            dispatch(selectChannel(channelId))
-            dispatch(setJumpTarget(messageId))
-            setShowSearch(false)
-            onClose()
-          }}
-          onClose={() => setShowSearch(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showSearch && (
+          <SearchModal
+            onPick={(channelId, messageId) => {
+              dispatch(selectChannel(channelId))
+              dispatch(setJumpTarget(messageId))
+              setShowSearch(false)
+              onClose()
+            }}
+            onClose={() => setShowSearch(false)}
+          />
+        )}
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 
-      {showNewDm && (
-        <NewDmModal
-          onStart={(userIds, name) => {
-            if (userIds.length === 1) dispatch(openDm(userIds[0]))
-            else dispatch(createGroupDm({ userIds, name }))
-            setShowNewDm(false)
-            onClose()
-          }}
-          onClose={() => setShowNewDm(false)}
-        />
-      )}
+        {showNewDm && (
+          <NewDmModal
+            onStart={(userIds, name) => {
+              if (userIds.length === 1) dispatch(openDm(userIds[0]))
+              else dispatch(createGroupDm({ userIds, name }))
+              setShowNewDm(false)
+              onClose()
+            }}
+            onClose={() => setShowNewDm(false)}
+          />
+        )}
+      </Suspense>
     </>
   )
 }
