@@ -92,6 +92,10 @@ public class User {
     @Column(name = "dnd_until")
     private Instant dndUntil;
 
+    /** A bot account (e.g. an incoming-webhook poster); hidden from people-search. */
+    @Column(nullable = false)
+    private boolean bot = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

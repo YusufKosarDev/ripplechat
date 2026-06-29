@@ -69,6 +69,9 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'none'")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Incoming webhooks authenticate via the secret token in the
+                        // path, not a JWT, so the ingest endpoint is permit-listed.
+                        .requestMatchers("/api/hooks/**").permitAll()
                         // The WebSocket handshake is open; STOMP CONNECT is authenticated
                         // separately via JWT in StompAuthChannelInterceptor.
                         .requestMatchers("/ws/**").permitAll()

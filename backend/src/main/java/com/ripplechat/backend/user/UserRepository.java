@@ -33,8 +33,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     /** Case-insensitive lookup by username or display name (for the direct-message picker). */
     @Query("""
             select u from User u
-            where lower(u.username) like lower(concat('%', :q, '%'))
-               or lower(u.displayName) like lower(concat('%', :q, '%'))
+            where u.bot = false
+              and (lower(u.username) like lower(concat('%', :q, '%'))
+                   or lower(u.displayName) like lower(concat('%', :q, '%')))
             order by u.username
             """)
     List<User> searchByUsernameOrDisplayName(@Param("q") String q, Pageable pageable);
