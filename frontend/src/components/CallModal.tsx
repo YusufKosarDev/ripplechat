@@ -21,8 +21,10 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
     endCall,
     toggleMic,
     toggleVideo,
+    toggleScreenShare,
     isMicMuted,
-    isVideoMuted
+    isVideoMuted,
+    isScreenSharing
   } = useWebRTC(channelId, peerId)
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -126,16 +128,24 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
             >
               🎤
             </Button>
-            <Button 
-              variant={isVideoMuted ? "danger" : "secondary"} 
+            <Button
+              variant={isVideoMuted ? "danger" : "secondary"}
               onClick={toggleVideo}
               className="h-12 w-12 rounded-full p-0"
               title={isVideoMuted ? "Kamerayı Aç" : "Kamerayı Kapat"}
             >
               📷
             </Button>
-            <Button 
-              variant="danger" 
+            <Button
+              variant={isScreenSharing ? "primary" : "secondary"}
+              onClick={toggleScreenShare}
+              className="h-12 w-12 rounded-full p-0"
+              title={isScreenSharing ? "Paylaşımı Durdur" : "Ekranı Paylaş"}
+            >
+              🖥️
+            </Button>
+            <Button
+              variant="danger"
               onClick={handleEndCall}
               className="rounded-full px-8"
             >

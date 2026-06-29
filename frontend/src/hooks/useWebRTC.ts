@@ -16,8 +16,12 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
   const [isMicMuted, setIsMicMuted] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(false)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
+  // The camera+mic stream stays live while screen sharing so we can switch back.
+  const cameraStreamRef = useRef<MediaStream | null>(null)
+  const screenStreamRef = useRef<MediaStream | null>(null)
 
   const initializePeerConnection = useCallback(() => {
     if (pcRef.current) return pcRef.current
@@ -47,17 +51,20 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
 
   useEffect(() => {
     return () => {
-      // Cleanup on unmount
+      // Cleanup on unmount: close the connection and stop any live media.
       if (pcRef.current) {
         pcRef.current.close()
         pcRef.current = null
       }
+      cameraStreamRef.current?.getTracks().forEach((t) => t.stop())
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop())
     }
   }, [])
 
   const startLocalMedia = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      cameraStreamRef.current = stream
       setLocalStream(stream)
       const pc = initializePeerConnection()
       stream.getTracks().forEach((track) => {
@@ -71,11 +78,13 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
   }, [initializePeerConnection])
 
   const stopLocalMedia = useCallback(() => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop())
-      setLocalStream(null)
-    }
-  }, [localStream])
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+    cameraStreamRef.current = null
+    screenStreamRef.current?.getTracks().forEach((track) => track.stop())
+    screenStreamRef.current = null
+    setLocalStream(null)
+    setIsScreenSharing(false)
+  }, [])
 
   const toggleMic = useCallback(() => {
     if (localStream) {
@@ -96,6 +105,45 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
       }
     }
   }, [localStream])
+
+  // Swap the outgoing video track between camera and screen with replaceTrack —
+  // no renegotiation needed since it reuses the same sender / m-line.
+  const toggleScreenShare = useCallback(async () => {
+    const pc = pcRef.current
+    const camera = cameraStreamRef.current
+    if (!pc || !camera) return
+    const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video')
+    if (!videoSender) return
+
+    const backToCamera = () => {
+      const cameraVideo = camera.getVideoTracks()[0]
+      if (cameraVideo) videoSender.replaceTrack(cameraVideo)
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop())
+      screenStreamRef.current = null
+      setLocalStream(camera)
+      setIsScreenSharing(false)
+    }
+
+    if (isScreenSharing) {
+      backToCamera()
+      return
+    }
+
+    let display: MediaStream
+    try {
+      display = await navigator.mediaDevices.getDisplayMedia({ video: true })
+    } catch {
+      return // user dismissed the screen picker
+    }
+    const screenTrack = display.getVideoTracks()[0]
+    await videoSender.replaceTrack(screenTrack)
+    screenStreamRef.current = display
+    // Local preview shows the shared screen while keeping the mic audio track.
+    setLocalStream(new MediaStream([screenTrack, ...camera.getAudioTracks()]))
+    setIsScreenSharing(true)
+    // Revert when the user stops sharing from the browser's own UI.
+    screenTrack.onended = backToCamera
+  }, [isScreenSharing])
 
   const startCall = useCallback(async () => {
     if (!user || !peerId || !channelId) return
@@ -170,7 +218,9 @@ export function useWebRTC(channelId: string | null, peerId: string | null) {
     endCall,
     toggleMic,
     toggleVideo,
+    toggleScreenShare,
     isMicMuted,
-    isVideoMuted
+    isVideoMuted,
+    isScreenSharing
   }
 }
