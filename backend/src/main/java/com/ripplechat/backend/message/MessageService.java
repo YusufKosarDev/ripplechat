@@ -27,7 +27,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import com.ripplechat.backend.redis.RedisBroadcastService;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -354,9 +353,11 @@ public class MessageService {
     /**
      * Sweeps disappearing messages whose expiry has passed: soft-deletes them
      * (clearing content/attachment, dropping reactions) and notifies clients so
-     * they update to the "deleted" placeholder. Runs on a fixed delay.
+     * they update to the "deleted" placeholder. Invoked on a fixed delay by
+     * {@link DisappearingMessageScheduler} (which holds the ShedLock lock); kept
+     * as a plain transactional method so it can also be called directly (e.g. in
+     * tests) without going through the scheduler lock.
      */
-    @Scheduled(fixedDelayString = "${ripplechat.disappearing.sweep-ms:30000}")
     @Transactional
     public void purgeExpired() {
         List<Message> expired = messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(Instant.now());
