@@ -98,6 +98,12 @@ public class RefreshTokenService {
         repository.findByTokenHash(hash(rawToken)).ifPresent(repository::delete);
     }
 
+    /** Ends every session for a user (e.g. after a password reset). */
+    @Transactional
+    public void revokeAll(User user) {
+        repository.deleteAllByUser(user);
+    }
+
     private String randomToken() {
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);

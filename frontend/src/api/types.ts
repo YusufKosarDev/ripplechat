@@ -12,6 +12,7 @@ export interface User {
   statusText?: string | null
   statusExpiresAt?: string | null
   dndUntil?: string | null
+  emailVerified?: boolean
 }
 
 export interface AuthResponse {

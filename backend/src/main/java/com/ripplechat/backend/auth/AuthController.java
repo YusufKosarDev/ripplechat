@@ -2,11 +2,14 @@ package com.ripplechat.backend.auth;
 
 import com.ripplechat.backend.auth.dto.ActiveSessionResponse;
 import com.ripplechat.backend.auth.dto.AuthResponse;
+import com.ripplechat.backend.auth.dto.ForgotPasswordRequest;
 import com.ripplechat.backend.auth.dto.LoginRequest;
 import com.ripplechat.backend.auth.dto.RefreshRequest;
 import com.ripplechat.backend.auth.dto.RegisterRequest;
+import com.ripplechat.backend.auth.dto.ResetPasswordRequest;
 import com.ripplechat.backend.auth.dto.TokenResponse;
 import com.ripplechat.backend.auth.dto.Verify2FaRequest;
+import com.ripplechat.backend.auth.dto.VerifyEmailRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +34,7 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountService accountService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -56,6 +61,37 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@Valid @RequestBody RefreshRequest request) {
         authService.logout(request.refreshToken());
+    }
+
+    /** Starts a password reset; always 204 so it can't reveal whether an email exists. */
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
+        accountService.requestPasswordReset(request.email(), getClientIp(httpRequest));
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        accountService.resetPassword(request.token(), request.newPassword());
+    }
+
+    @PostMapping("/verify-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        accountService.verifyEmail(request.token());
+    }
+
+    /** Re-sends the verification email to the signed-in user. */
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendVerification(@AuthenticationPrincipal String username) {
+        // /api/auth/** is permit-all, so an unauthenticated caller has a null
+        // principal here; require a real session for this one.
+        if (username == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "authentication required");
+        }
+        accountService.resendVerification(username);
     }
 
     @GetMapping("/sessions")

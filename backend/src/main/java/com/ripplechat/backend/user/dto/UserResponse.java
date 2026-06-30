@@ -21,7 +21,8 @@ public record UserResponse(
         String statusEmoji,
         String statusText,
         Instant statusExpiresAt,
-        Instant dndUntil
+        Instant dndUntil,
+        boolean emailVerified
 ) {
     public static UserResponse from(User user) {
         boolean status = user.isStatusActive();
@@ -38,7 +39,8 @@ public record UserResponse(
                 status ? user.getStatusEmoji() : null,
                 status ? user.getStatusText() : null,
                 status ? user.getStatusExpiresAt() : null,
-                user.isDndActive() ? user.getDndUntil() : null
+                user.isDndActive() ? user.getDndUntil() : null,
+                user.isEmailVerified()
         );
     }
 }

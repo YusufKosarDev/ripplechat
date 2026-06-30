@@ -91,6 +91,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 ### 🔐 Security & privacy
 - **Two-Factor Authentication (2FA)** — TOTP-based multi-factor authentication via Google Authenticator/Authy using a secure Pre-Auth JWT handshake
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
+- **Password reset & email verification** — token'd, single-use, expiring links delivered by email (only the SHA-256 hash is stored). The forgot-password endpoint is rate-limited and never reveals whether an address is registered; a reset ends every existing session. Email gracefully degrades to logging the link when no SMTP server is configured, so the flows work in development
 - **Refresh tokens** with rotation, IP/User-Agent metadata tracking, and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
 - **Session & Device Management** — users can view active devices (with browser, OS, and IP address details) and perform remote session revocation (log out other devices)
 - **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`, with server-side moderation checks
@@ -249,9 +250,9 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V24__webhooks`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V26__auth_tokens_and_email_verified`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
-Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), and `GIPHY_API_KEY` (GIF search). Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
+Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
 ---
 

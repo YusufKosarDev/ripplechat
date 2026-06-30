@@ -44,4 +44,16 @@ public class SecurityAuditLogger {
     public void loggedOut() {
         log.info("event=logout");
     }
+
+    public void passwordResetRequested(String username) {
+        log.info("event=password_reset_requested user=\"{}\"", username);
+    }
+
+    public void passwordReset(String username) {
+        log.info("event=password_reset user=\"{}\"", username);
+    }
+
+    public void emailVerified(String username) {
+        log.info("event=email_verified user=\"{}\"", username);
+    }
 }

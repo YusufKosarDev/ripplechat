@@ -44,6 +44,7 @@ public class AuthService {
     private final RateLimiter rateLimiter;
     private final SecurityAuditLogger audit;
     private final TwoFactorService twoFactorService;
+    private final AccountService accountService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -72,6 +73,7 @@ public class AuthService {
 
         User saved = userRepository.saveAndFlush(user);
         audit.registered(saved.getUsername());
+        accountService.sendVerificationEmail(saved);
         String accessToken = jwtService.generateToken(saved.getUsername());
         String refreshToken = refreshTokenService.issue(saved, ipAddress, userAgent);
         return AuthResponse.of(accessToken, refreshToken, UserResponse.from(saved));

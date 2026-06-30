@@ -96,6 +96,15 @@ public class User {
     @Column(nullable = false)
     private boolean bot = false;
 
+    /**
+     * Whether the user has confirmed ownership of their email. Non-blocking —
+     * unverified users can still sign in; this drives an in-app prompt. The
+     * column default lets ddl-auto add the NOT NULL column to existing rows.
+     */
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -90,6 +90,14 @@ export default function LoginPage() {
           </>
         )}
 
+        {!requires2Fa && (
+          <div className="text-right">
+            <Link to="/forgot-password" className="text-xs text-fg-muted underline hover:text-fg-secondary">
+              {t('auth.login.forgot')}
+            </Link>
+          </div>
+        )}
+
         {(formError || error) && (
           <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-danger">{formError || error}</p>
         )}
