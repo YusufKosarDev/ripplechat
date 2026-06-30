@@ -44,6 +44,7 @@ public class AuthService {
     private final RateLimiter rateLimiter;
     private final SecurityAuditLogger audit;
     private final TwoFactorService twoFactorService;
+    private final RecoveryCodeService recoveryCodeService;
     private final AccountService accountService;
 
     @Transactional
@@ -139,7 +140,10 @@ public class AuthService {
             throw new InvalidCredentialsException("2FA is not enabled for this user");
         }
 
-        if (!twoFactorService.isOtpValid(user.getTotpSecret(), request.code())) {
+        // Accept either a current TOTP code or a single-use recovery code (for a
+        // user who has lost their authenticator). Recovery codes are consumed on use.
+        boolean otpValid = twoFactorService.isOtpValid(user.getTotpSecret(), request.code());
+        if (!otpValid && !recoveryCodeService.consumeIfValid(user, request.code())) {
             audit.loginFailed(username, "bad_2fa_code");
             throw new InvalidCredentialsException("Invalid 2FA code");
         }

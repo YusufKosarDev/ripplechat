@@ -43,6 +43,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [twoFaCode, setTwoFaCode] = useState('')
   const [twoFaMsg, setTwoFaMsg] = useState<string | null>(null)
   const [twoFaError, setTwoFaError] = useState(false)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
   useEffect(() => {
     isPushSubscribed().then(setPushOn)
@@ -165,11 +166,26 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const onEnable2Fa = async () => {
     try {
-      await client.post('/api/2fa/enable', { code: twoFaCode })
+      const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/enable', { code: twoFaCode })
       dispatch(fetchCurrentUser())
       setQrCodeUri(null)
       setTwoFaCode('')
+      setRecoveryCodes(data.recoveryCodes)
       setTwoFaMsg('2FA başarıyla etkinleştirildi ✓')
+      setTwoFaError(false)
+    } catch (e: unknown) {
+      const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
+      setTwoFaMsg(msg || 'Geçersiz kod.')
+      setTwoFaError(true)
+    }
+  }
+
+  const onRegenerateRecoveryCodes = async () => {
+    try {
+      const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/recovery-codes/regenerate', { code: twoFaCode })
+      setTwoFaCode('')
+      setRecoveryCodes(data.recoveryCodes)
+      setTwoFaMsg('Yeni kurtarma kodları oluşturuldu. Eskileri artık geçersiz.')
       setTwoFaError(false)
     } catch (e: unknown) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
@@ -348,23 +364,50 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-accent">2FA şu anda aktif.</p>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="İşlem için 6 haneli kod"
+                value={twoFaCode}
+                onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                maxLength={6}
+              />
               <div className="flex gap-2">
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Devre dışı bırakmak için kod"
-                  value={twoFaCode}
-                  onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
-                  maxLength={6}
-                />
                 <Button onClick={onDisable2Fa} variant="danger" disabled={twoFaCode.length !== 6}>
                   Kapat
+                </Button>
+                <Button onClick={onRegenerateRecoveryCodes} variant="secondary" disabled={twoFaCode.length !== 6}>
+                  Kurtarma kodlarını yenile
                 </Button>
               </div>
             </div>
           )}
           {twoFaMsg && (
             <div className={`mt-2 text-xs ${twoFaError ? 'text-danger' : 'text-fg-muted'}`}>{twoFaMsg}</div>
+          )}
+          {recoveryCodes && (
+            <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                Bu kurtarma kodlarını güvenli bir yere kaydedin. Her kod yalnızca bir kez kullanılabilir ve
+                kimlik doğrulayıcına erişemediğinde giriş yapmanı sağlar. Bu kodlar bir daha gösterilmeyecek.
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm text-fg-secondary">
+                {recoveryCodes.map((c) => (
+                  <span key={c} className="select-all">{c}</span>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))}
+                >
+                  Kodları kopyala
+                </Button>
+                <Button variant="secondary" onClick={() => setRecoveryCodes(null)}>
+                  Kapat
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 

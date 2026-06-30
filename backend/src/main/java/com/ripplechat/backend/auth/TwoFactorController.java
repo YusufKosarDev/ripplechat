@@ -1,6 +1,7 @@
 package com.ripplechat.backend.auth;
 
 import com.ripplechat.backend.auth.dto.CodeRequest;
+import com.ripplechat.backend.auth.dto.RecoveryCodesResponse;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.user.User;
@@ -8,6 +9,7 @@ import com.ripplechat.backend.user.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class TwoFactorController {
 
     private final TwoFactorService twoFactorService;
+    private final RecoveryCodeService recoveryCodeService;
     private final UserRepository userRepository;
 
     @PostMapping("/setup")
@@ -41,7 +44,7 @@ public class TwoFactorController {
     }
 
     @PostMapping("/enable")
-    public Map<String, Boolean> enable2Fa(@AuthenticationPrincipal String username, @Valid @RequestBody CodeRequest request) {
+    public RecoveryCodesResponse enable2Fa(@AuthenticationPrincipal String username, @Valid @RequestBody CodeRequest request) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -59,7 +62,9 @@ public class TwoFactorController {
 
         user.setTwoFactorEnabled(true);
         userRepository.save(user);
-        return Map.of("success", true);
+        // Issued once, here — these substitute for a TOTP code if the authenticator
+        // is ever lost. Returned now and never retrievable again.
+        return new RecoveryCodesResponse(recoveryCodeService.generate(user));
     }
 
     @PostMapping("/disable")
@@ -78,6 +83,31 @@ public class TwoFactorController {
         user.setTwoFactorEnabled(false);
         user.setTotpSecret(null);
         userRepository.save(user);
+        recoveryCodeService.deleteAll(user);
         return Map.of("success", true);
+    }
+
+    /** How many unused recovery codes remain (for a "regenerate" prompt). */
+    @GetMapping("/recovery-codes")
+    public Map<String, Long> recoveryCodeCount(@AuthenticationPrincipal String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return Map.of("remaining", recoveryCodeService.remaining(user));
+    }
+
+    /** Re-issues a fresh batch of recovery codes (invalidating the old ones). Requires a current TOTP code. */
+    @PostMapping("/recovery-codes/regenerate")
+    public RecoveryCodesResponse regenerateRecoveryCodes(@AuthenticationPrincipal String username,
+                                                         @Valid @RequestBody CodeRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!user.isTwoFactorEnabled()) {
+            throw new BadRequestException("2FA is not enabled");
+        }
+        if (!twoFactorService.isOtpValid(user.getTotpSecret(), request.code())) {
+            throw new BadRequestException("Invalid 2FA code");
+        }
+        return new RecoveryCodesResponse(recoveryCodeService.generate(user));
     }
 }

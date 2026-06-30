@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
+  const [useRecovery, setUseRecovery] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const { requires2Fa, preAuthToken } = useAppSelector((state) => state.auth)
 
@@ -27,11 +28,16 @@ export default function LoginPage() {
     e.preventDefault()
     setFormError(null)
     if (requires2Fa && preAuthToken) {
-      if (!code || code.length !== 6) {
+      if (useRecovery) {
+        if (code.trim().length < 6) {
+          setFormError('Lütfen bir kurtarma kodu girin.')
+          return
+        }
+      } else if (!code || code.length !== 6) {
         setFormError('Lütfen 6 haneli doğrulama kodunu girin.')
         return
       }
-      const result = await dispatch(verify2Fa({ preAuthToken, code }))
+      const result = await dispatch(verify2Fa({ preAuthToken, code: code.trim() }))
       if (verify2Fa.fulfilled.match(result)) {
         navigate('/chat')
       }
@@ -53,18 +59,43 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="space-y-4">
         {requires2Fa ? (
           <div>
-            <label className="mb-1 block text-sm text-fg-muted">Google Authenticator Kodu</label>
-            <Input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              placeholder="123456"
-              autoComplete="one-time-code"
-              autoFocus
-            />
+            <label className="mb-1 block text-sm text-fg-muted">
+              {useRecovery ? 'Kurtarma kodu' : 'Google Authenticator Kodu'}
+            </label>
+            {useRecovery ? (
+              <Input
+                type="text"
+                maxLength={14}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="xxxxx-xxxxx"
+                autoComplete="one-time-code"
+                autoFocus
+              />
+            ) : (
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                autoFocus
+              />
+            )}
+            <button
+              type="button"
+              className="mt-2 text-xs text-fg-muted underline hover:text-fg-secondary"
+              onClick={() => {
+                setUseRecovery((v) => !v)
+                setCode('')
+                setFormError(null)
+              }}
+            >
+              {useRecovery ? '6 haneli kodu kullan' : 'Kurtarma kodu kullan'}
+            </button>
           </div>
         ) : (
           <>
