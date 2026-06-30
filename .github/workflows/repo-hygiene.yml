@@ -1,0 +1,14 @@
+name: Repo hygiene
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  encoding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check text files have no NUL bytes (encoding corruption guard)
+        run: bash scripts/check-encoding.sh
