@@ -123,6 +123,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **RFC 7807 problem responses** — every error (validation, auth 401/403, framework) returns a consistent `application/problem+json` body
 - **Prometheus metrics** at `/actuator/prometheus` and **build info** (version, build time) at `/actuator/info`
 - **Request correlation** — each request gets an `X-Request-Id` that is echoed back and stamped on every log line for that request
+- **Distributed tracing** — Micrometer Tracing over OpenTelemetry stamps a `traceId`/`spanId` on every log line and can export spans to an OTLP collector (Grafana Tempo / Jaeger). Sampling is off by default (no collector needed to run); set `TRACING_SAMPLE_RATE` + `OTLP_ENDPOINT` to enable export
 - **OpenAPI / Swagger UI** (`/swagger-ui.html`, with a Bearer "Authorize") · **health endpoint** (`/actuator/health`)
 
 ---

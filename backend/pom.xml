@@ -91,6 +91,19 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Distributed tracing: Micrometer Tracing over OpenTelemetry, with an
+		     OTLP exporter. traceId/spanId are stamped on every log line for
+		     correlation; spans are exported only when sampling is enabled (off by
+		     default, so no collector is required to boot). -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-tracing-bridge-otel</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-exporter-otlp</artifactId>
+		</dependency>
+
 		<!-- Caching abstraction with Caffeine as the provider (link-preview cache). -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
