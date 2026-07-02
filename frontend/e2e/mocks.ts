@@ -28,6 +28,82 @@ const CHANNEL = {
 
 const EMPTY_PAGE = { content: [], page: 0, size: 50, totalElements: 0, totalPages: 0, last: true }
 
+// A fully-shaped message so the channel feed renders without missing-field errors.
+const MESSAGE = {
+  id: 'm-1',
+  content: 'merhaba dünya e2e',
+  channelId: CHANNEL.id,
+  sender: OWNER,
+  createdAt: '2026-01-01T10:00:00Z',
+  reactions: [],
+  parentMessageId: null,
+  thread: { replyCount: 0, lastRepliers: [] },
+  editedAt: null,
+  deleted: false,
+  attachmentUrl: null,
+  attachmentName: null,
+  attachmentType: null,
+  quotedMessageId: null,
+  quotedSender: null,
+  quotedContent: null,
+  forwarded: false,
+  pinned: false,
+  expiresAt: null,
+}
+const MESSAGE_PAGE = { content: [MESSAGE], page: 0, size: 50, totalElements: 1, totalPages: 1, last: true }
+
+const NOTIFICATION = {
+  id: 'n-1',
+  type: 'MENTION',
+  actor: OWNER,
+  channelId: CHANNEL.id,
+  messageId: MESSAGE.id,
+  preview: 'merhaba dünya e2e',
+  read: false,
+  createdAt: '2026-01-01T10:05:00Z',
+}
+const NOTIFICATION_PAGE = { content: [NOTIFICATION], page: 0, size: 20, totalElements: 1, totalPages: 1, last: true }
+
+const SAVED = {
+  messageId: MESSAGE.id,
+  channelId: CHANNEL.id,
+  channelName: CHANNEL.name,
+  sender: OWNER,
+  content: 'kaydedilen mesaj icerigi',
+  createdAt: MESSAGE.createdAt,
+  savedAt: '2026-01-01T10:06:00Z',
+}
+
+const DISCOVER_CHANNEL = {
+  id: 'c-2',
+  name: 'kesfedilecek-kanal',
+  description: 'katilinabilir herkese acik kanal',
+  isPrivate: false,
+  createdBy: OWNER,
+  createdAt: '2026-01-01T00:00:00Z',
+}
+
+/**
+ * Layered on top of {@link mockApi}: returns sample content for the chat-surface
+ * endpoints (a message in the feed, a notification, a bookmark, a discoverable
+ * channel) and defers everything else back to mockApi via route.fallback().
+ */
+export async function mockChatData(page: Page) {
+  await page.route('**/api/**', async (route) => {
+    const { pathname } = new URL(route.request().url())
+    const method = route.request().method()
+    const json = (body: unknown) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+
+    if (pathname.includes('/messages') && method === 'GET') return json(MESSAGE_PAGE)
+    if (pathname.endsWith('/api/notifications')) return json(NOTIFICATION_PAGE)
+    if (pathname.endsWith('/api/notifications/unread-count')) return json({ count: 1 })
+    if (pathname.endsWith('/api/bookmarks')) return json([SAVED])
+    if (pathname.endsWith('/api/channels/discover')) return json([DISCOVER_CHANNEL])
+    return route.fallback()
+  })
+}
+
 export async function mockApi(page: Page, opts: { loginStatus?: number } = {}) {
   const loginStatus = opts.loginStatus ?? 200
 
