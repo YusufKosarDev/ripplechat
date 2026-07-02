@@ -84,6 +84,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Presence** and **last-seen** timestamps · **typing indicators**
 - **Custom status** — an emoji + short text (with optional auto-expiry) shown next to your name and in DM headers
 - **Do Not Disturb** — pause web-push notifications for a chosen window (30 min / 1 h / 8 h)
+- **Activity center** — a bell with an unread badge that aggregates the events that involve you (someone **@mentioned** you, **replied** to your message, or **reacted** to it) into one feed; new activity arrives live over your own authorized STOMP topic, and clicking an item jumps to the message
 - **Read receipts** — delivery/read ticks in direct messages
 - **Web push notifications** (VAPID) for messages while you're away — suppressed while you're in Do Not Disturb
 - **Mute** channels and DMs · **unread badges** with a live count in the browser tab title
@@ -252,7 +253,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V28__user_deleted`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V29__notifications`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 

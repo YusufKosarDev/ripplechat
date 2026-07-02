@@ -6,6 +6,7 @@ import { logout } from '../features/auth/authSlice'
 import { setJumpTarget } from '../features/ui/uiSlice'
 import { createChannel, createGroupDm, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
 import Avatar from './Avatar'
+import NotificationBell from './NotificationBell'
 import ThemeToggle from './ThemeToggle'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
@@ -128,6 +129,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               Ripple<span className="text-indigo-500 dark:text-indigo-400">Chat</span>
             </span>
             <div className="flex items-center gap-1">
+              <NotificationBell />
               <button
                 onClick={() => setShowSearch(true)}
                 title="Mesajlarda ara"

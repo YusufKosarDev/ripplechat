@@ -5,6 +5,8 @@ import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.dto.MessageReactionUpdate;
 import com.ripplechat.backend.message.dto.ReactionSummary;
+import com.ripplechat.backend.notification.Notification;
+import com.ripplechat.backend.notification.NotificationService;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class MessageReactionService {
     private final UserRepository userRepository;
     private final ChannelMembershipService membershipService;
     private final RedisBroadcastService redisBroadcastService;
+    private final NotificationService notificationService;
 
     @Transactional
     public void toggle(UUID channelId, UUID messageId, String username, String emoji) {
@@ -66,6 +69,10 @@ public class MessageReactionService {
         reaction.setUser(user);
         reaction.setEmoji(emoji);
         reactionRepository.save(reaction);
+
+        // Let the message's author know someone reacted (no-op if reacting to self).
+        notificationService.notify(message.getSender(), user, Notification.TYPE_REACTION,
+                message.getChannel().getId(), message.getId(), emoji);
     }
 
     /** Removes all reactions on a message (used when a message is deleted). */

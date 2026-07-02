@@ -8,6 +8,7 @@ import type { ConnectionStatus } from '../features/connection/connectionSlice'
 import type {
   Message,
   MessageReactionUpdate,
+  NotificationItem,
   Poll,
   PresenceEvent,
   ReactionEvent,
@@ -75,6 +76,10 @@ let desired: ({ channelId: string } & ChannelHandlers) | null = null
 let presenceHandler: PresenceHandler | null = null
 let handlers: ChatHandlers = {}
 let hasConnectedBefore = false
+
+// The user's personal activity-notification topic (only they may subscribe).
+let notificationSub: StompSubscription | null = null
+let desiredNotifications: { username: string; handler: (n: NotificationItem) => void } | null = null
 
 function resolveChannelSubs() {
   if (!client?.connected || !desired) {
@@ -169,6 +174,16 @@ function resolvePresence() {
   })
 }
 
+function resolveNotifications() {
+  if (!client?.connected || !desiredNotifications || notificationSub) {
+    return
+  }
+  const { username, handler } = desiredNotifications
+  notificationSub = client.subscribe(`/topic/users/${username}/notifications`, (frame) => {
+    handler(JSON.parse(frame.body) as NotificationItem)
+  })
+}
+
 export function connectChat(chatHandlers: ChatHandlers = {}) {
   if (client) {
     return
@@ -199,8 +214,10 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       presenceSub = null
       callSignalSub = null
       threadSub = null
+      notificationSub = null
       allChannelSubs = []
       resolvePresence()
+      resolveNotifications()
       resolveChannelSubs()
       resolveThread()
       resolveAllChannels()
@@ -236,6 +253,12 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
 export function setPresenceHandler(handler: PresenceHandler) {
   presenceHandler = handler
   resolvePresence()
+}
+
+/** Subscribes to the current user's personal activity-notification topic. */
+export function setNotificationHandler(username: string, handler: (n: NotificationItem) => void) {
+  desiredNotifications = { username, handler }
+  resolveNotifications()
 }
 
 // Switches the active channel's message + typing + reaction subscriptions.

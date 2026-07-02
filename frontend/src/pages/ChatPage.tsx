@@ -8,7 +8,8 @@ import { fetchMessages, loadOfflineMessages, messageReceived } from '../features
 import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice'
 import { addMention, incrementUnread } from '../features/unread/unreadSlice'
 import { fetchBlocks } from '../features/blocks/blocksSlice'
-import { connectChat, disconnectChat, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
+import { fetchNotifications, notificationReceived } from '../features/notifications/notificationsSlice'
+import { connectChat, disconnectChat, setNotificationHandler, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
@@ -94,6 +95,14 @@ export default function ChatPage() {
     dispatch(fetchBlocks())
     return () => disconnectChat()
   }, [dispatch, navigate])
+
+  // Personal activity feed: subscribe to the user's notification topic (mentions,
+  // replies, reactions to their messages) and load the initial feed + unread count.
+  useEffect(() => {
+    if (!currentUsername) return
+    setNotificationHandler(currentUsername, (n) => dispatch(notificationReceived(n)))
+    dispatch(fetchNotifications())
+  }, [currentUsername, dispatch])
 
   // Subscribe to every channel's message topic so unread counts stay accurate
   // even for channels the user isn't currently viewing.

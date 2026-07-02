@@ -36,6 +36,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private static final String PREFIX = "Bearer ";
     private static final String CHANNEL_TOPIC_PREFIX = "/topic/channels/";
+    private static final String USER_TOPIC_PREFIX = "/topic/users/";
 
     private final JwtService jwtService;
     private final ChannelRepository channelRepository;
@@ -84,7 +85,24 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private void authorizeSubscribe(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
-        if (destination == null || !destination.startsWith(CHANNEL_TOPIC_PREFIX)) {
+        if (destination == null) {
+            return;
+        }
+
+        // A user's personal topic (e.g. /topic/users/{username}/notifications) may
+        // only be subscribed to by that user, so nobody else sees their activity.
+        if (destination.startsWith(USER_TOPIC_PREFIX)) {
+            String rest = destination.substring(USER_TOPIC_PREFIX.length());
+            int slash = rest.indexOf('/');
+            String owner = slash >= 0 ? rest.substring(0, slash) : rest;
+            Principal user = accessor.getUser();
+            if (user == null || !owner.equals(user.getName())) {
+                throw new MessagingException("not authorized to subscribe to another user's topic");
+            }
+            return;
+        }
+
+        if (!destination.startsWith(CHANNEL_TOPIC_PREFIX)) {
             return; // not a channel topic (e.g. /topic/presence) — no per-channel check
         }
 

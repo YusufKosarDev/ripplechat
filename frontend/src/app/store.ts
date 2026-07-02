@@ -9,6 +9,7 @@ import e2eeReducer from '../features/e2ee/e2eeSlice'
 import linkPreviewsReducer from '../features/linkPreviews/linkPreviewsSlice'
 import messagesReducer from '../features/messages/messagesSlice'
 import mutedReducer from '../features/muted/mutedSlice'
+import notificationsReducer from '../features/notifications/notificationsSlice'
 import pollsReducer from '../features/polls/pollsSlice'
 import presenceReducer from '../features/presence/presenceSlice'
 import readsReducer from '../features/reads/readsSlice'
@@ -29,6 +30,7 @@ export const store = configureStore({
     linkPreviews: linkPreviewsReducer,
     messages: messagesReducer,
     muted: mutedReducer,
+    notifications: notificationsReducer,
     polls: pollsReducer,
     presence: presenceReducer,
     reads: readsReducer,

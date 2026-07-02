@@ -63,6 +63,11 @@ public class MessageService {
     private final SearchService searchService;
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.ripplechat.backend.notification.NotificationService notificationService;
+
+    // Matches @username mentions in message content (letters, digits, _ and .).
+    private static final java.util.regex.Pattern MENTION_PATTERN =
+            java.util.regex.Pattern.compile("@([A-Za-z0-9_.]+)");
     private final MediaStorage mediaStorage;
 
     /**
@@ -157,7 +162,48 @@ public class MessageService {
                     new ThreadUpdate(parentId, threadSummary(parentId)));
         }
         eventPublisher.publishEvent(new MessageSentEvent(channelId, saved.getId(), username));
+        notifyMentionsAndReply(saved, sender, content, channelId);
         return response;
+    }
+
+    /**
+     * Fans out activity notifications for a newly-sent message: the parent
+     * author for a thread reply, and any @mentioned channel members. Deduped so a
+     * mentioned parent author isn't notified twice, and never notifies the sender.
+     */
+    private void notifyMentionsAndReply(Message saved, User sender, String content, UUID channelId) {
+        java.util.Set<UUID> notified = new java.util.HashSet<>();
+        if (saved.getParent() != null) {
+            User parentAuthor = saved.getParent().getSender();
+            notificationService.notify(parentAuthor, sender,
+                    com.ripplechat.backend.notification.Notification.TYPE_REPLY,
+                    channelId, saved.getId(), content);
+            if (parentAuthor != null) {
+                notified.add(parentAuthor.getId());
+            }
+        }
+        for (String mentioned : parseMentions(content)) {
+            userRepository.findByUsername(mentioned).ifPresent(user -> {
+                if (notified.add(user.getId())
+                        && membershipRepository.existsByChannelIdAndUser_Username(channelId, mentioned)) {
+                    notificationService.notify(user, sender,
+                            com.ripplechat.backend.notification.Notification.TYPE_MENTION,
+                            channelId, saved.getId(), content);
+                }
+            });
+        }
+    }
+
+    private static java.util.Set<String> parseMentions(String content) {
+        if (content == null || content.isBlank()) {
+            return java.util.Set.of();
+        }
+        java.util.Set<String> names = new java.util.HashSet<>();
+        java.util.regex.Matcher m = MENTION_PATTERN.matcher(content);
+        while (m.find()) {
+            names.add(m.group(1));
+        }
+        return names;
     }
 
     /**

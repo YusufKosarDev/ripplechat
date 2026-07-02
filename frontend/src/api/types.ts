@@ -238,3 +238,16 @@ export interface ActiveSession {
   createdAt: string
   expiresAt: string
 }
+
+export type NotificationType = 'MENTION' | 'REPLY' | 'REACTION'
+
+export interface NotificationItem {
+  id: string
+  type: NotificationType
+  actor: UserSummary
+  channelId: string
+  messageId: string
+  preview: string | null
+  read: boolean
+  createdAt: string
+}
