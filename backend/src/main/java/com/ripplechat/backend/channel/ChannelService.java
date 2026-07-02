@@ -57,6 +57,14 @@ public class ChannelService {
                 .toList();
     }
 
+    /** Public channels the user hasn't joined yet, for the discovery view. */
+    @Transactional(readOnly = true)
+    public List<ChannelResponse> discover(String username) {
+        return channelRepository.findDiscoverableChannels(username).stream()
+                .map(ChannelResponse::from)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public ChannelResponse findById(UUID id, String username) {
         Channel channel = getActiveChannel(id);

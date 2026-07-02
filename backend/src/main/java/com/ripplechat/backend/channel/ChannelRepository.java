@@ -26,6 +26,21 @@ public interface ChannelRepository extends JpaRepository<Channel, UUID> {
             """)
     List<Channel> findVisibleChannels(@Param("username") String username);
 
+    /**
+     * Public, non-deleted channels the user is <em>not</em> already in — the
+     * "discover / browse channels" list. Private channels and DMs are excluded.
+     */
+    @Query("""
+            select c from Channel c
+            where c.deleted = false
+              and c.type = com.ripplechat.backend.channel.ChannelType.CHANNEL
+              and c.isPrivate = false
+              and not exists (select 1 from ChannelMembership m
+                              where m.channel = c and m.user.username = :username)
+            order by c.name
+            """)
+    List<Channel> findDiscoverableChannels(@Param("username") String username);
+
     /** Used by the demo seeder to locate a seeded channel (idempotent re-seeding). */
     Optional<Channel> findFirstByNameAndCreatedBy_UsernameAndDeletedFalse(String name, String username);
 

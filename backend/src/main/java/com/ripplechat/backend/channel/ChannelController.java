@@ -40,6 +40,12 @@ public class ChannelController {
         return channelService.findAll(username);
     }
 
+    /** Public channels the caller hasn't joined yet — the discovery/browse list. */
+    @GetMapping("/discover")
+    public List<ChannelResponse> discover(@AuthenticationPrincipal String username) {
+        return channelService.discover(username);
+    }
+
     @GetMapping("/{id}")
     public ChannelResponse findById(@PathVariable UUID id,
                                     @AuthenticationPrincipal String username) {

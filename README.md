@@ -53,7 +53,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Automatic reconnection** — the client recovers transparently from dropped connections, with a visible connection banner
 
 ### 💬 Messaging
-- **Channels** with membership management
+- **Channels** with membership management, plus a **discover view** to browse and join the public channels you're not in yet (instead of only joining by id)
 - **Direct messages** — private 1:1 conversations, plus **group DMs** (multi-party), reusing the same real-time pipeline
 - **Threads** — keep focused reply chains off the main timeline
 - **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view)

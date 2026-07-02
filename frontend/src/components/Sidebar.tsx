@@ -18,6 +18,7 @@ const NewDmModal = lazy(() => import('./NewDmModal'))
 const SearchModal = lazy(() => import('./SearchModal'))
 const SettingsModal = lazy(() => import('./SettingsModal'))
 const SavedMessagesModal = lazy(() => import('./SavedMessagesModal'))
+const DiscoverChannelsModal = lazy(() => import('./DiscoverChannelsModal'))
 import type { Channel } from '../api/types'
 import SkeletonLoader from './ui/SkeletonLoader'
 
@@ -45,6 +46,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [showSaved, setShowSaved] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showNewDm, setShowNewDm] = useState(false)
+  const [showDiscover, setShowDiscover] = useState(false)
   const [collapsedCats, setCollapsedCats] = useState<string[]>([])
   const [showArchived, setShowArchived] = useState(false)
 
@@ -314,6 +316,15 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               Katıl
             </Button>
           </form>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={() => setShowDiscover(true)}
+          >
+            🧭 Kanalları keşfet
+          </Button>
         </div>
       </aside>
 
@@ -331,6 +342,17 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
 
         {showSaved && <SavedMessagesModal onClose={() => setShowSaved(false)} />}
+
+        {showDiscover && (
+          <DiscoverChannelsModal
+            onClose={() => setShowDiscover(false)}
+            onJoined={(channelId) => {
+              dispatch(selectChannel(channelId))
+              setShowDiscover(false)
+              onClose()
+            }}
+          />
+        )}
 
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 
