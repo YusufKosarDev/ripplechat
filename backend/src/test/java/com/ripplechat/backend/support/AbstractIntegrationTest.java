@@ -57,15 +57,18 @@ public abstract class AbstractIntegrationTest {
     protected PasswordEncoder passwordEncoder;
     @Autowired
     private RateLimiter rateLimiter;
+    @Autowired
+    private com.ripplechat.backend.auth.LoginLockoutService loginLockoutService;
 
     /**
-     * Reset the in-memory rate limiter before each test. The limiter is a
-     * singleton shared across the whole test context, so without this its
-     * token-bucket state leaks between tests and eventually trips the limit.
+     * Reset the shared Redis-backed rate limiter and account-lockout state before
+     * each test. Both are singletons whose keys live in the reused Redis container,
+     * so without this their counters leak between tests and eventually trip.
      */
     @BeforeEach
-    void resetRateLimiter() {
+    void resetLoginGuards() {
         rateLimiter.reset();
+        loginLockoutService.clearAll();
     }
 
     /** Persists a test user with a known password ("password123"). */

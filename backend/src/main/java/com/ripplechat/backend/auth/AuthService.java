@@ -46,6 +46,7 @@ public class AuthService {
     private final TwoFactorService twoFactorService;
     private final RecoveryCodeService recoveryCodeService;
     private final AccountService accountService;
+    private final LoginLockoutService loginLockoutService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -103,9 +104,26 @@ public class AuthService {
             audit.loginFailed(login, "unknown_account");
             throw new InvalidCredentialsException("invalid username/email or password");
         }
+
+        // Temporary account lockout after repeated failures (keyed on the resolved
+        // username, so username and email attempts count together). Auto-unlocks.
+        if (!isDemo && loginLockoutService.isLocked(user.getUsername())) {
+            audit.loginBlockedWhileLocked(user.getUsername());
+            throw new ResponseStatusException(HttpStatus.LOCKED,
+                    "account temporarily locked after too many failed attempts; please try again later");
+        }
+
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            if (!isDemo) {
+                loginLockoutService.recordFailure(user.getUsername());
+            }
             audit.loginFailed(login, "bad_password");
             throw new InvalidCredentialsException("invalid username/email or password");
+        }
+
+        // Correct password: clear any failed-attempt state (even if 2FA is pending).
+        if (!isDemo) {
+            loginLockoutService.reset(user.getUsername());
         }
 
         if (user.isTwoFactorEnabled()) {

@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
  * Emits a structured audit trail for authentication events on a dedicated
  * {@code SECURITY_AUDIT} logger, so they can be filtered/shipped separately.
  * Each line also carries the per-request id (via the MDC log pattern), so an
- * event can be tied back to the originating request. This complements the login
- * rate limiter with visibility, without the denial-of-service surface of a hard
- * account lockout.
+ * event can be tied back to the originating request. It complements the login
+ * rate limiter and the (temporary, auto-unlocking) account lockout with
+ * visibility into who is being throttled or locked.
  */
 @Component
 public class SecurityAuditLogger {
@@ -27,6 +27,14 @@ public class SecurityAuditLogger {
 
     public void loginThrottled(String loginAttempt) {
         log.warn("event=login_throttled login=\"{}\"", loginAttempt);
+    }
+
+    public void accountLocked(String username) {
+        log.warn("event=account_locked user=\"{}\"", username);
+    }
+
+    public void loginBlockedWhileLocked(String username) {
+        log.warn("event=login_blocked_locked user=\"{}\"", username);
     }
 
     public void registered(String username) {
