@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { logout } from '../features/auth/authSlice'
 import { setJumpTarget } from '../features/ui/uiSlice'
 import { createChannel, createGroupDm, joinChannel, openDm, selectChannel } from '../features/channels/channelsSlice'
+import { useT } from '../i18n'
 import Avatar from './Avatar'
 import NotificationBell from './NotificationBell'
 import ThemeToggle from './ThemeToggle'
@@ -30,6 +31,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { t } = useT()
   const { items, dms, selectedId, status } = useAppSelector((state) => state.channels)
   const user = useAppSelector((state) => state.auth.user)
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
@@ -102,9 +104,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <span className="text-fg-faint">#</span> {channel.name}
           </span>
           <span className="flex shrink-0 items-center gap-1">
-            {muted[channel.id] && <span className="text-fg-faint" title="Sessiz">🔕</span>}
+            {muted[channel.id] && <span className="text-fg-faint" title={t('sidebar.muted')}>🔕</span>}
             {mentions[channel.id] && selectedId !== channel.id && (
-              <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title={t('sidebar.mentioned')}>
                 @
               </span>
             )}
@@ -136,14 +138,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <NotificationBell />
               <button
                 onClick={() => setShowSearch(true)}
-                title="Mesajlarda ara"
+                title={t('sidebar.search')}
                 className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
               >
                 🔍
               </button>
               <button
                 onClick={() => setShowSaved(true)}
-                title="Kaydedilen mesajlar"
+                title={t('sidebar.saved')}
                 className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
               >
                 🔖
@@ -154,7 +156,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <div className="mt-3 flex items-center justify-between gap-2">
             <button
               onClick={() => setShowSettings(true)}
-              title="Ayarlar"
+              title={t('sidebar.settings')}
               className={`flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5 transition hover:bg-surface-muted ${focusRing}`}
             >
               <Avatar name={displayName} color={user?.avatarColor} imageUrl={user?.avatarUrl} online={selfOnline} size="sm" />
@@ -169,14 +171,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               onClick={onLogout}
               className={`shrink-0 rounded-lg text-xs text-fg-muted transition hover:text-fg ${focusRing}`}
             >
-              Çıkış
+              {t('sidebar.logout')}
             </button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-3">
           <div className="px-2 text-xs font-semibold uppercase tracking-wider text-fg-faint">
-            Kanallar
+            {t('sidebar.channels')}
           </div>
 
           {loadingChannels && <SkeletonLoader type="channel-list" count={3} />}
@@ -210,7 +212,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     onClick={() => setShowArchived((s) => !s)}
                     className={`flex w-full items-center gap-1 px-2 text-2xs font-semibold uppercase tracking-wider text-fg-faint transition hover:text-fg-muted ${focusRing}`}
                   >
-                    <span className="w-2">{showArchived ? '▾' : '▸'}</span> Arşivlenenler ({archivedItems.length})
+                    <span className="w-2">{showArchived ? '▾' : '▸'}</span> {t('sidebar.archived')} ({archivedItems.length})
                   </button>
                   {showArchived && <ul className="mt-1 space-y-0.5 opacity-70">{archivedItems.map(channelRow)}</ul>}
                 </div>
@@ -218,9 +220,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
               {items.length === 0 && (
                 <p className="px-2 py-3 text-sm text-fg-muted">
-                  Henüz kanalın yok.
+                  {t('sidebar.noChannels')}
                   <br />
-                  <span className="text-fg-faint">Aşağıdan bir tane oluştur.</span>
+                  <span className="text-fg-faint">{t('sidebar.createOneBelow')}</span>
                 </p>
               )}
             </div>
@@ -228,11 +230,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
           <div className="mt-5 flex items-center justify-between px-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-faint">
-              Direkt Mesajlar
+              {t('sidebar.directMessages')}
             </span>
             <button
               onClick={() => setShowNewDm(true)}
-              title="Yeni direkt mesaj"
+              title={t('sidebar.newDm')}
               className={`rounded-lg px-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
             >
               +
@@ -240,7 +242,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
           <ul className="mt-2 space-y-0.5">
             {dms.map((d) => {
-              const name = d.group ? (d.name ?? 'Grup') : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
+              const name = d.group ? (d.name ?? t('sidebar.group')) : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
               const unread = selectedId === d.id ? 0 : (unreadCounts[d.id] ?? 0)
               const online = !d.group && d.otherUser ? onlineUserIds.includes(d.otherUser.id) : false
               return (
@@ -269,9 +271,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                       <span className="truncate">{name}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1">
-                      {muted[d.id] && <span className="text-fg-faint" title="Sessiz">🔕</span>}
+                      {muted[d.id] && <span className="text-fg-faint" title={t('sidebar.muted')}>🔕</span>}
                       {mentions[d.id] && selectedId !== d.id && (
-                        <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title="Bahsedildin">
+                        <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title={t('sidebar.mentioned')}>
                           @
                         </span>
                       )}
@@ -286,7 +288,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               )
             })}
             {dms.length === 0 && (
-              <li className="px-2 py-2 text-xs text-fg-faint">Henüz direkt mesajın yok.</li>
+              <li className="px-2 py-2 text-xs text-fg-faint">{t('sidebar.noDms')}</li>
             )}
           </ul>
         </div>
@@ -298,9 +300,9 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               className="min-w-0 flex-1"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Yeni kanal"
+              placeholder={t('sidebar.newChannel')}
             />
-            <Button type="submit" size="sm" aria-label="Kanal oluştur">
+            <Button type="submit" size="sm" aria-label={t('sidebar.createChannel')}>
               +
             </Button>
           </form>
@@ -310,10 +312,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               className="min-w-0 flex-1"
               value={joinId}
               onChange={(e) => setJoinId(e.target.value)}
-              placeholder="Kanal ID ile katıl"
+              placeholder={t('sidebar.joinById')}
             />
             <Button type="submit" variant="secondary" size="sm">
-              Katıl
+              {t('sidebar.join')}
             </Button>
           </form>
           <Button
@@ -323,7 +325,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             className="w-full"
             onClick={() => setShowDiscover(true)}
           >
-            🧭 Kanalları keşfet
+            🧭 {t('sidebar.discover')}
           </Button>
         </div>
       </aside>

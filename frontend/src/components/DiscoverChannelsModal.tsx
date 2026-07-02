@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAppDispatch } from '../app/hooks'
 import { joinChannel } from '../features/channels/channelsSlice'
 import { client } from '../api/client'
+import { useT } from '../i18n'
 import type { Channel } from '../api/types'
 import Button from './ui/Button'
 import { focusRing } from './ui/focusRing'
@@ -14,6 +15,7 @@ interface Props {
 
 export default function DiscoverChannelsModal({ onClose, onJoined }: Props) {
   const dispatch = useAppDispatch()
+  const { t } = useT()
   const [channels, setChannels] = useState<Channel[]>([])
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState<string | null>(null)
@@ -43,25 +45,23 @@ export default function DiscoverChannelsModal({ onClose, onJoined }: Props) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Kanalları keşfet"
+        aria-label={t('discover.title')}
         tabIndex={-1}
         className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">🧭 Kanalları keşfet</span>
-          <button onClick={onClose} aria-label="Kapat" className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <span className="text-sm font-semibold tracking-tight">🧭 {t('discover.title')}</span>
+          <button onClick={onClose} aria-label={t('common.close')} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">Yükleniyor...</p>}
+          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('common.loading')}</p>}
 
           {!loading && channels.length === 0 && (
-            <p className="px-4 py-8 text-center text-sm text-fg-faint">
-              Katılabileceğin yeni herkese açık kanal yok.
-            </p>
+            <p className="px-4 py-8 text-center text-sm text-fg-faint">{t('discover.empty')}</p>
           )}
 
           {channels.map((c) => (
@@ -71,7 +71,7 @@ export default function DiscoverChannelsModal({ onClose, onJoined }: Props) {
                 {c.description && <p className="truncate text-xs text-fg-faint">{c.description}</p>}
               </div>
               <Button size="sm" disabled={joining === c.id} onClick={() => onJoin(c.id)}>
-                {joining === c.id ? '...' : 'Katıl'}
+                {joining === c.id ? '...' : t('sidebar.join')}
               </Button>
             </div>
           ))}

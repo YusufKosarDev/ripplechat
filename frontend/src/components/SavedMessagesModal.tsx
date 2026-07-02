@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { fetchBookmarks, toggleBookmark } from '../features/bookmarks/bookmarksSlice'
 import { selectChannel } from '../features/channels/channelsSlice'
+import { useT } from '../i18n'
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
@@ -16,6 +17,7 @@ interface Props {
 
 export default function SavedMessagesModal({ onClose }: Props) {
   const dispatch = useAppDispatch()
+  const { t } = useT()
   const { items, status } = useAppSelector((s) => s.bookmarks)
   const panelRef = useDialog<HTMLDivElement>(onClose)
 
@@ -29,25 +31,23 @@ export default function SavedMessagesModal({ onClose }: Props) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Kaydedilen mesajlar"
+        aria-label={t('saved.title')}
         tabIndex={-1}
         className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">🔖 Kaydedilen mesajlar</span>
-          <button onClick={onClose} aria-label="Kapat" className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <span className="text-sm font-semibold tracking-tight">🔖 {t('saved.title')}</span>
+          <button onClick={onClose} aria-label={t('common.close')} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {status === 'loading' && <p className="px-4 py-6 text-center text-sm text-fg-muted">Yükleniyor...</p>}
+          {status === 'loading' && <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('common.loading')}</p>}
 
           {status !== 'loading' && items.length === 0 && (
-            <p className="px-4 py-8 text-center text-sm text-fg-faint">
-              Henüz mesaj kaydetmedin. Bir mesajın üzerine gelip “Kaydet”e tıkla.
-            </p>
+            <p className="px-4 py-8 text-center text-sm text-fg-faint">{t('saved.empty')}</p>
           )}
 
           {items.map((s) => (
@@ -73,13 +73,13 @@ export default function SavedMessagesModal({ onClose }: Props) {
                     }}
                     className="text-accent hover:underline"
                   >
-                    Git
+                    {t('saved.open')}
                   </button>
                   <button
                     onClick={() => dispatch(toggleBookmark({ messageId: s.messageId, saved: true }))}
                     className="text-fg-muted transition hover:text-danger"
                   >
-                    Kaldır
+                    {t('saved.remove')}
                   </button>
                 </div>
               </div>

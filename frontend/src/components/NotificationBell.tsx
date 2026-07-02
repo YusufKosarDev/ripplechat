@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { fetchNotifications, markAllNotificationsRead } from '../features/notifications/notificationsSlice'
 import { selectChannel } from '../features/channels/channelsSlice'
+import { useT } from '../i18n'
 import type { NotificationItem } from '../api/types'
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
 
-function label(n: NotificationItem): string {
+function label(n: NotificationItem, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const who = n.actor.displayName ?? n.actor.username
   switch (n.type) {
     case 'MENTION':
-      return `${who} senden bahsetti`
+      return t('notifications.mention', { who })
     case 'REPLY':
-      return `${who} mesajına yanıt verdi`
+      return t('notifications.reply', { who })
     case 'REACTION':
-      return `${who} mesajına tepki verdi`
+      return t('notifications.reaction', { who })
     default:
       return who
   }
@@ -26,6 +27,7 @@ function when(iso: string): string {
 
 export default function NotificationBell() {
   const dispatch = useAppDispatch()
+  const { t } = useT()
   const { items, unreadCount } = useAppSelector((s) => s.notifications)
   const [open, setOpen] = useState(false)
 
@@ -42,8 +44,8 @@ export default function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Bildirimler"
-        aria-label={unreadCount > 0 ? `Bildirimler (${unreadCount} okunmamış)` : 'Bildirimler'}
+        title={t('notifications.title')}
+        aria-label={unreadCount > 0 ? t('notifications.unreadAria', { count: unreadCount }) : t('notifications.title')}
         className={`relative rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
       >
         🔔
@@ -59,19 +61,19 @@ export default function NotificationBell() {
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           <div className="absolute right-0 z-40 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-border bg-surface-overlay shadow-elevated">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="text-sm font-medium text-fg-secondary">Bildirimler</span>
+              <span className="text-sm font-medium text-fg-secondary">{t('notifications.title')}</span>
               {unreadCount > 0 && (
                 <button
                   onClick={() => dispatch(markAllNotificationsRead())}
                   className="text-xs text-accent hover:underline"
                 >
-                  Tümünü okundu işaretle
+                  {t('notifications.markAllRead')}
                 </button>
               )}
             </div>
 
             {items.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-fg-faint">Henüz bildirim yok.</p>
+              <p className="px-3 py-6 text-center text-sm text-fg-faint">{t('notifications.empty')}</p>
             ) : (
               items.map((n) => (
                 <button
@@ -88,7 +90,7 @@ export default function NotificationBell() {
                     size="sm"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-fg-secondary">{label(n)}</p>
+                    <p className="text-sm text-fg-secondary">{label(n, t)}</p>
                     {n.preview && <p className="truncate text-xs text-fg-faint">{n.preview}</p>}
                     <p className="text-[11px] text-fg-faint">{when(n.createdAt)}</p>
                   </div>
