@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from '../features/auth/authSlice'
 import blocksReducer from '../features/blocks/blocksSlice'
+import bookmarksReducer from '../features/bookmarks/bookmarksSlice'
 import channelOrgReducer from '../features/channelOrg/channelOrgSlice'
 import channelsReducer from '../features/channels/channelsSlice'
 import connectionReducer from '../features/connection/connectionSlice'
@@ -22,6 +23,7 @@ export const store = configureStore({
   reducer: {
     auth: authReducer,
     blocks: blocksReducer,
+    bookmarks: bookmarksReducer,
     channelOrg: channelOrgReducer,
     channels: channelsReducer,
     connection: connectionReducer,

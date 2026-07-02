@@ -36,6 +36,7 @@ import { setActiveCall, setIncomingCall, clearCall } from '../features/call/call
 import { CallModal } from './CallModal'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
+import { toggleBookmark } from '../features/bookmarks/bookmarksSlice'
 import { setPassphrase } from '../features/e2ee/e2eeSlice'
 import { decryptText, encryptText, isEncrypted, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from '../crypto/e2ee'
 import { getAsymmetricKeyPair } from '../db'
@@ -169,6 +170,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const onlineUserIds = useAppSelector((state) => state.presence.onlineUserIds)
   const membersByChannel = useAppSelector((state) => state.channels.membersByChannel)
   const currentUser = useAppSelector((state) => state.auth.user)
+  const bookmarkedIds = useAppSelector((state) => state.bookmarks.ids)
   const reads = useAppSelector((state) => (selectedId ? state.reads.byChannel[selectedId] : undefined))
   const isMuted = useAppSelector((state) => (selectedId ? !!state.muted.muted[selectedId] : false))
   const passphrase = useAppSelector((state) => (selectedId ? state.e2ee.passphrases[selectedId] : undefined))
@@ -1275,6 +1277,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                             className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
                           >
                             {msg.pinned ? 'Sabiti kaldır' : 'Sabitle'}
+                          </button>
+                        )}
+                        {!msg.deleted && (
+                          <button
+                            onClick={() => dispatch(toggleBookmark({ messageId: msg.id, saved: bookmarkedIds.includes(msg.id) }))}
+                            className={`mt-1 rounded-lg text-xs transition sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing} ${bookmarkedIds.includes(msg.id) ? 'text-amber-600 dark:text-amber-500' : 'text-fg-muted hover:text-fg'}`}
+                          >
+                            {bookmarkedIds.includes(msg.id) ? '🔖 Kaydedildi' : 'Kaydet'}
                           </button>
                         )}
                       </div>

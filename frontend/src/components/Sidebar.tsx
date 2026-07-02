@@ -17,6 +17,7 @@ import { focusRing } from './ui/focusRing'
 const NewDmModal = lazy(() => import('./NewDmModal'))
 const SearchModal = lazy(() => import('./SearchModal'))
 const SettingsModal = lazy(() => import('./SettingsModal'))
+const SavedMessagesModal = lazy(() => import('./SavedMessagesModal'))
 import type { Channel } from '../api/types'
 import SkeletonLoader from './ui/SkeletonLoader'
 
@@ -41,6 +42,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [newName, setNewName] = useState('')
   const [joinId, setJoinId] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [showSaved, setShowSaved] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showNewDm, setShowNewDm] = useState(false)
   const [collapsedCats, setCollapsedCats] = useState<string[]>([])
@@ -136,6 +138,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
               >
                 🔍
+              </button>
+              <button
+                onClick={() => setShowSaved(true)}
+                title="Kaydedilen mesajlar"
+                className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
+              >
+                🔖
               </button>
               <ThemeToggle />
             </div>
@@ -320,6 +329,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             onClose={() => setShowSearch(false)}
           />
         )}
+
+        {showSaved && <SavedMessagesModal onClose={() => setShowSaved(false)} />}
 
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 

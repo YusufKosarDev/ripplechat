@@ -239,6 +239,16 @@ export interface ActiveSession {
   expiresAt: string
 }
 
+export interface SavedMessage {
+  messageId: string
+  channelId: string
+  channelName: string
+  sender: UserSummary
+  content: string
+  createdAt: string
+  savedAt: string
+}
+
 export type NotificationType = 'MENTION' | 'REPLY' | 'REACTION'
 
 export interface NotificationItem {

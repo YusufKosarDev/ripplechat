@@ -9,6 +9,7 @@ import { fetchOnline, presenceChanged } from '../features/presence/presenceSlice
 import { addMention, incrementUnread } from '../features/unread/unreadSlice'
 import { fetchBlocks } from '../features/blocks/blocksSlice'
 import { fetchNotifications, notificationReceived } from '../features/notifications/notificationsSlice'
+import { fetchBookmarkIds } from '../features/bookmarks/bookmarksSlice'
 import { connectChat, disconnectChat, setNotificationHandler, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
@@ -102,6 +103,7 @@ export default function ChatPage() {
     if (!currentUsername) return
     setNotificationHandler(currentUsername, (n) => dispatch(notificationReceived(n)))
     dispatch(fetchNotifications())
+    dispatch(fetchBookmarkIds())
   }, [currentUsername, dispatch])
 
   // Subscribe to every channel's message topic so unread counts stay accurate
