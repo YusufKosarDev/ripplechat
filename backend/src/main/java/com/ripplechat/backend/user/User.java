@@ -105,6 +105,18 @@ public class User {
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
+    /**
+     * Set when the account is erased (GDPR): personal data is scrubbed and the
+     * account can no longer sign in, but the row is kept so the user's messages
+     * stay attributable to an anonymised "Deleted User" and channels don't break.
+     */
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -15,4 +15,7 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
 
     @Transactional
     void deleteByEndpoint(String endpoint);
+
+    @Transactional
+    void deleteByUserId(UUID userId);
 }

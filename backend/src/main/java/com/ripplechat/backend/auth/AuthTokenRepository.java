@@ -12,4 +12,7 @@ public interface AuthTokenRepository extends JpaRepository<AuthToken, UUID> {
 
     /** Drops any outstanding tokens of a kind for a user (e.g. before issuing a fresh one). */
     void deleteByUserAndType(User user, String type);
+
+    /** Drops all of a user's tokens (e.g. on account deletion). */
+    void deleteByUser(User user);
 }

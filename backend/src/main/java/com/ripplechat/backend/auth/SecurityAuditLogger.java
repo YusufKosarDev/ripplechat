@@ -64,4 +64,8 @@ public class SecurityAuditLogger {
     public void emailVerified(String username) {
         log.info("event=email_verified user=\"{}\"", username);
     }
+
+    public void accountDeleted(String username) {
+        log.info("event=account_deleted user=\"{}\"", username);
+    }
 }

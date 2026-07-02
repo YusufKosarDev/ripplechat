@@ -1,6 +1,8 @@
 package com.ripplechat.backend.user;
 
+import com.ripplechat.backend.user.dto.AccountExport;
 import com.ripplechat.backend.user.dto.ChangePasswordRequest;
+import com.ripplechat.backend.user.dto.DeleteAccountRequest;
 import com.ripplechat.backend.user.dto.SetDndRequest;
 import com.ripplechat.backend.user.dto.SetStatusRequest;
 import com.ripplechat.backend.user.dto.UpdateMeRequest;
@@ -8,7 +10,9 @@ import com.ripplechat.backend.user.dto.UserResponse;
 import com.ripplechat.backend.user.dto.UserSummary;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,10 +42,30 @@ public class UserController {
 
     private final UserService userService;
     private final BlockService blockService;
+    private final AccountManagementService accountManagementService;
 
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal String username) {
         return userService.findByUsername(username);
+    }
+
+    /** GDPR self-service: download all of the caller's own data as JSON. */
+    @GetMapping("/me/export")
+    public ResponseEntity<AccountExport> exportMyData(@AuthenticationPrincipal String username) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ripplechat-data.json\"")
+                .body(accountManagementService.export(username));
+    }
+
+    /**
+     * GDPR erasure: scrub the caller's personal data and disable the account.
+     * Local accounts must confirm their password in the body.
+     */
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMe(@RequestBody(required = false) DeleteAccountRequest request,
+                         @AuthenticationPrincipal String username) {
+        accountManagementService.delete(username, request == null ? null : request.password());
     }
 
     /** Searches users (no PII) for the direct-message picker; excludes the caller. */

@@ -97,6 +97,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Role-based authorization** per channel: `OWNER` › `MODERATOR` › `MEMBER`, with server-side moderation checks
 - **Private channels** — live messages are restricted to members; subscriptions are authorized per channel so non-members can't eavesdrop
 - **User blocking** — hide messages from blocked users
+- **GDPR self-service** — download all of your own data as JSON, and erase your account: personal data is scrubbed and sign-in/session/notification artifacts are purged, while your past messages are retained under an anonymised "Deleted User" so other people's conversation history stays intact
 - **End-to-end encryption (E2EE)** (opt-in) for direct messages — supports automatic **Asymmetric E2EE Key Agreement** using **ECDH (P-256)** and **AES-GCM (256-bit)** without manual passphrase entry (generating keypairs in IndexedDB and registering public keys on the server), as well as manual passphrase-derived key (PBKDF2) encryption. The server only ever stores/relays opaque ciphertext
 - **Abuse protection** — input size limits plus distributed (Redis) rate limiting on login, **2FA verification**, **registration**, message sends, reactions, and webhook ingestion (rate-limited responses carry a `Retry-After` hint)
 - **Account lockout** — after repeated failed password attempts an account is *temporarily* locked (auto-unlocks after a short cooldown, kept short to bound the DoS surface of a targeted lockout; the demo account is exempt). Counters live in Redis and lock events are audit-logged
@@ -251,7 +252,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V27__recovery_codes`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V28__user_deleted`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 

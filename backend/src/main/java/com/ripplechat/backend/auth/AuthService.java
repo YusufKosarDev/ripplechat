@@ -100,7 +100,9 @@ public class AuthService {
         }
 
         User user = userRepository.findByUsernameOrEmail(login, login).orElse(null);
-        if (user == null) {
+        if (user == null || user.isDeleted()) {
+            // A deleted account is treated exactly like an unknown one (its
+            // credentials are scrubbed anyway) — no signal that it ever existed.
             audit.loginFailed(login, "unknown_account");
             throw new InvalidCredentialsException("invalid username/email or password");
         }

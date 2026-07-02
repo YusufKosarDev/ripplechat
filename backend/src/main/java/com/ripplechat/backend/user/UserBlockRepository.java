@@ -14,4 +14,11 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, UUID> {
 
     @Transactional
     void deleteByBlockerIdAndBlockedId(UUID blockerId, UUID blockedId);
+
+    /** Removes every block involving the user (as blocker or as blocked). */
+    @Transactional
+    void deleteByBlockerId(UUID blockerId);
+
+    @Transactional
+    void deleteByBlockedId(UUID blockedId);
 }

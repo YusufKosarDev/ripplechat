@@ -45,6 +45,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [twoFaError, setTwoFaError] = useState(false)
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null)
+
   useEffect(() => {
     isPushSubscribed().then(setPushOn)
   }, [])
@@ -191,6 +195,32 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
       setTwoFaMsg(msg || 'Geçersiz kod.')
       setTwoFaError(true)
+    }
+  }
+
+  const onExportData = async () => {
+    try {
+      const { data } = await client.get('/api/users/me/export')
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'ripplechat-data.json'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setDeleteMsg('Veriler dışa aktarılamadı.')
+    }
+  }
+
+  const onDeleteAccount = async () => {
+    try {
+      await client.delete('/api/users/me', { data: { password: deletePassword } })
+      dispatch(logout())
+      navigate('/login')
+    } catch (e: unknown) {
+      const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail : undefined
+      setDeleteMsg(msg || 'Hesap silinemedi. Şifreni kontrol et.')
     }
   }
 
@@ -437,6 +467,53 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               <div className="text-xs text-fg-faint italic">Aktif oturum bulunamadı.</div>
             )}
           </div>
+        </div>
+
+        {/* Data & account (GDPR) */}
+        <div className="mt-6 border-t border-border pt-4">
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">Verilerim ve Hesabım</h4>
+          <Button onClick={onExportData} variant="secondary">
+            Verilerimi indir (JSON)
+          </Button>
+          <p className="mt-1 text-xs text-fg-faint">
+            Profilini, kanallarını ve gönderdiğin mesajları bir dosya olarak indir.
+          </p>
+
+          {!confirmingDelete ? (
+            <button
+              type="button"
+              onClick={() => { setConfirmingDelete(true); setDeleteMsg(null) }}
+              className="mt-3 text-sm text-red-500 underline hover:text-red-600 cursor-pointer"
+            >
+              Hesabımı sil
+            </button>
+          ) : (
+            <div className="mt-3 space-y-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
+              <p className="text-xs text-danger">
+                Bu işlem geri alınamaz. Kişisel bilgilerin silinir ve hesabın kalıcı olarak kapatılır.
+                Onaylamak için şifreni gir.
+              </p>
+              <Input
+                type="password"
+                placeholder="Şifre"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              {deleteMsg && <p className="text-xs text-danger">{deleteMsg}</p>}
+              <div className="flex gap-2">
+                <Button onClick={onDeleteAccount} variant="danger">
+                  Hesabı kalıcı olarak sil
+                </Button>
+                <Button
+                  onClick={() => { setConfirmingDelete(false); setDeletePassword(''); setDeleteMsg(null) }}
+                  variant="secondary"
+                >
+                  Vazgeç
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Logout */}
