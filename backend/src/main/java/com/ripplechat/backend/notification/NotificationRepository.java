@@ -18,4 +18,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Modifying
     @Query("update Notification n set n.read = true where n.recipient.id = :recipientId and n.read = false")
     void markAllRead(@Param("recipientId") UUID recipientId);
+
+    @Modifying
+    @Query("delete from Notification n where n.recipient.id = :userId or n.actor.id = :userId")
+    void deleteByUserId(@Param("userId") UUID userId);
 }

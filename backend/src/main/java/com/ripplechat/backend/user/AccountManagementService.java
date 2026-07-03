@@ -8,6 +8,7 @@ import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.MessageRepository;
+import com.ripplechat.backend.notification.NotificationRepository;
 import com.ripplechat.backend.push.PushSubscriptionRepository;
 import com.ripplechat.backend.user.dto.AccountExport;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class AccountManagementService {
     private final RecoveryCodeRepository recoveryCodeRepository;
     private final PushSubscriptionRepository pushSubscriptionRepository;
     private final UserBlockRepository blockRepository;
+    private final NotificationRepository notificationRepository;
     private final SecurityAuditLogger audit;
 
     @Transactional(readOnly = true)
@@ -88,6 +90,7 @@ public class AccountManagementService {
         authTokenRepository.deleteByUser(user);
         recoveryCodeRepository.deleteByUser(user);
         pushSubscriptionRepository.deleteByUserId(id);
+        notificationRepository.deleteByUserId(id);
         blockRepository.deleteByBlockerId(id);
         blockRepository.deleteByBlockedId(id);
 
