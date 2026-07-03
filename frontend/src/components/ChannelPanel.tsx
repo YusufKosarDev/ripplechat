@@ -71,6 +71,7 @@ import MessageContent from './MessageContent'
 import LinkPreviewCard from './LinkPreviewCard'
 import MessageReactions from './MessageReactions'
 import CommandHints from './CommandHints'
+import { SummaryModal, EditHistoryModal } from './MessageInfoModals'
 import PollCard from './PollCard'
 import ReactionBar from './ReactionBar'
 import ReactionOverlay from './ReactionOverlay'
@@ -1148,61 +1149,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         </div>
       </header>
 
-      {summary !== null && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16"
-          onClick={() => setSummary(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border border-border bg-surface-overlay p-4 shadow-elevated"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold tracking-tight">✨ Özet</span>
-              <button onClick={() => setSummary(null)} aria-label="Kapat" className={`text-fg-faint transition hover:text-fg ${focusRing}`}>
-                ✕
-              </button>
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg-secondary">
-              {summary}
-            </div>
-          </div>
-        </div>
-      )}
+      {summary !== null && <SummaryModal summary={summary} onClose={() => setSummary(null)} />}
 
       {(history !== null || historyLoading) && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16"
-          onClick={() => setHistory(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border border-border bg-surface-overlay p-4 shadow-elevated"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold tracking-tight">Düzenleme geçmişi</span>
-              <button onClick={() => setHistory(null)} aria-label="Kapat" className={`text-fg-faint transition hover:text-fg ${focusRing}`}>
-                ✕
-              </button>
-            </div>
-            <div className="max-h-[60vh] space-y-2 overflow-y-auto text-sm">
-              {historyLoading ? (
-                <p className="text-fg-faint">Yükleniyor…</p>
-              ) : history && history.length > 0 ? (
-                history.map((h, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-surface p-2">
-                    <div className="mb-1 text-xs text-fg-faint">
-                      {new Date(h.editedAt).toLocaleString()} tarihinde değiştirildi
-                    </div>
-                    <div className="whitespace-pre-wrap text-fg-secondary">{h.content}</div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-fg-faint">Önceki sürüm yok.</p>
-              )}
-            </div>
-          </div>
-        </div>
+        <EditHistoryModal entries={history} loading={historyLoading} onClose={() => setHistory(null)} />
       )}
 
       <Suspense fallback={null}>
