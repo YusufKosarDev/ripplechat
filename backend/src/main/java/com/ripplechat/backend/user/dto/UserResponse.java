@@ -22,7 +22,8 @@ public record UserResponse(
         String statusText,
         Instant statusExpiresAt,
         Instant dndUntil,
-        boolean emailVerified
+        boolean emailVerified,
+        boolean admin
 ) {
     public static UserResponse from(User user) {
         boolean status = user.isStatusActive();
@@ -40,7 +41,8 @@ public record UserResponse(
                 status ? user.getStatusText() : null,
                 status ? user.getStatusExpiresAt() : null,
                 user.isDndActive() ? user.getDndUntil() : null,
-                user.isEmailVerified()
+                user.isEmailVerified(),
+                user.isAdmin()
         );
     }
 }

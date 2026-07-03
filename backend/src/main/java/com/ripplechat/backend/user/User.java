@@ -96,6 +96,16 @@ public class User {
     @Column(nullable = false)
     private boolean bot = false;
 
+    /** Global platform administrator: may access the admin panel and moderate users. */
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean admin = false;
+
+    /** Disabled (banned) by an admin: the account exists but cannot sign in. */
+    @org.hibernate.annotations.ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean disabled = false;
+
     /**
      * Whether the user has confirmed ownership of their email. Non-blocking —
      * unverified users can still sign in; this drives an in-app prompt. The

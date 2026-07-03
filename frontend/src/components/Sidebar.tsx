@@ -150,6 +150,15 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               >
                 🔖
               </button>
+              {user?.admin && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  title={t('sidebar.admin')}
+                  className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
+                >
+                  🛡️
+                </button>
+              )}
               <ThemeToggle />
             </div>
           </div>

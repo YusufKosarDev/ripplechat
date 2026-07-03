@@ -107,6 +107,13 @@ public class AuthService {
             throw new InvalidCredentialsException("invalid username/email or password");
         }
 
+        // Banned by an admin: the account exists but is blocked from signing in.
+        if (user.isDisabled()) {
+            audit.loginFailed(user.getUsername(), "account_disabled");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "this account has been disabled");
+        }
+
         // Temporary account lockout after repeated failures (keyed on the resolved
         // username, so username and email attempts count together). Auto-unlocks.
         if (!isDemo && loginLockoutService.isLocked(user.getUsername())) {

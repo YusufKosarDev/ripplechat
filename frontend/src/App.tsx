@@ -17,6 +17,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
 const OAuth2RedirectHandler = lazy(() => import('./pages/OAuth2RedirectHandler'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
 
 export default function App() {
   const dispatch = useAppDispatch()
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
           <Route element={<PrivateRoute />}>
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Routes>
       </Suspense>

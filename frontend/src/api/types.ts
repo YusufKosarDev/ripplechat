@@ -13,6 +13,7 @@ export interface User {
   statusExpiresAt?: string | null
   dndUntil?: string | null
   emailVerified?: boolean
+  admin?: boolean
 }
 
 export interface AuthResponse {

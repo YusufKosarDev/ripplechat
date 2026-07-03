@@ -107,6 +107,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Security headers** — the backend sets HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a `frame-ancestors` CSP on every response; the static frontend (Vercel) adds a strict enforced **Content-Security-Policy**, `Permissions-Policy`, and the same hardening headers
 - **Hardened secrets** — the JWT secret is validated at startup (rejects a too-short or placeholder value); SSRF guard on link unfurling; outbound calls (Cloudinary, link/GIF) are timeout-bounded
 - **Security audit log** — authentication events (login success/failure/throttle, registration, refresh, logout) on a dedicated logger, correlated by request id
+- **Admin panel** — global platform administrators (bootstrapped from `ADMIN_USERNAMES`, then self-managed) get a dedicated panel: headline stats (users, admins, channels, messages), a user table to **grant/revoke admin** and **disable/ban** accounts (a disabled user can't sign in; admins can't lock themselves out), and a **persisted audit trail** of every admin action. Access is gated server-side on the user's admin flag
 
 ### 🎨 Experience & platform
 - **Quick switcher** — `Ctrl`/`Cmd`+`K` opens a Slack-style palette to jump between channels and DMs with full keyboard navigation

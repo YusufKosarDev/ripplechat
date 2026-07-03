@@ -103,6 +103,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'sidebar.search': 'Mesajlarda ara',
     'sidebar.saved': 'Kaydedilen mesajlar',
     'sidebar.settings': 'Ayarlar',
+    'sidebar.admin': 'Yönetici paneli',
     'sidebar.group': 'Grup',
 
     'notifications.title': 'Bildirimler',
@@ -228,6 +229,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'sidebar.search': 'Search messages',
     'sidebar.saved': 'Saved messages',
     'sidebar.settings': 'Settings',
+    'sidebar.admin': 'Admin panel',
     'sidebar.group': 'Group',
 
     'notifications.title': 'Notifications',

@@ -1,0 +1,89 @@
+package com.ripplechat.backend.admin;
+
+import com.ripplechat.backend.admin.dto.AdminUserView;
+import com.ripplechat.backend.common.exception.ForbiddenException;
+import com.ripplechat.backend.support.AbstractIntegrationTest;
+import com.ripplechat.backend.user.User;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class AdminServiceTests extends AbstractIntegrationTest {
+
+    @Autowired
+    AdminService adminService;
+
+    private User makeAdmin(String username) {
+        User u = createUser(username);
+        u.setAdmin(true);
+        return userRepository.saveAndFlush(u);
+    }
+
+    @Test
+    void nonAdminIsForbidden() {
+        createUser("bob");
+        assertThatThrownBy(() -> adminService.overview("bob"))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> adminService.listUsers("bob", PageRequest.of(0, 10)))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void adminSeesOverviewAndUsers() {
+        makeAdmin("root");
+        createUser("bob");
+
+        var overview = adminService.overview("root");
+        assertThat(overview.totalUsers()).isEqualTo(2);
+        assertThat(overview.admins()).isEqualTo(1);
+
+        assertThat(adminService.listUsers("root", PageRequest.of(0, 10)).content())
+                .extracting(AdminUserView::username)
+                .contains("root", "bob");
+    }
+
+    @Test
+    void grantingAdminIsRecordedInAudit() {
+        makeAdmin("root");
+        User bob = createUser("bob");
+
+        AdminUserView updated = adminService.setAdmin("root", bob.getId(), true);
+        assertThat(updated.admin()).isTrue();
+        assertThat(userRepository.findByUsername("bob").orElseThrow().isAdmin()).isTrue();
+
+        assertThat(adminService.auditLog("root", PageRequest.of(0, 10)).content())
+                .anySatisfy(entry -> {
+                    assertThat(entry.action()).isEqualTo("admin_granted");
+                    assertThat(entry.actor()).isEqualTo("root");
+                    assertThat(entry.target()).isEqualTo("bob");
+                });
+    }
+
+    @Test
+    void disablingUserIsRecordedAndReversible() {
+        makeAdmin("root");
+        User bob = createUser("bob");
+
+        adminService.setDisabled("root", bob.getId(), true);
+        assertThat(userRepository.findByUsername("bob").orElseThrow().isDisabled()).isTrue();
+
+        adminService.setDisabled("root", bob.getId(), false);
+        assertThat(userRepository.findByUsername("bob").orElseThrow().isDisabled()).isFalse();
+
+        assertThat(adminService.auditLog("root", PageRequest.of(0, 10)).content())
+                .extracting(e -> e.action())
+                .contains("user_disabled", "user_enabled");
+    }
+
+    @Test
+    void adminCannotDemoteOrDisableSelf() {
+        User root = makeAdmin("root");
+        assertThatThrownBy(() -> adminService.setAdmin("root", root.getId(), false))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> adminService.setDisabled("root", root.getId(), true))
+                .isInstanceOf(ForbiddenException.class);
+    }
+}

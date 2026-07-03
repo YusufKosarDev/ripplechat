@@ -30,6 +30,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     /** Resolves a set of usernames to users (used for the online presence list). */
     List<User> findByUsernameIn(Collection<String> usernames);
 
+    /** All users, newest first (admin panel user table). */
+    org.springframework.data.domain.Page<User> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    long countByAdminTrue();
+
+    long countByDisabledTrue();
+
+    long countByBotTrue();
+
     /** Case-insensitive lookup by username or display name (for the direct-message picker). */
     @Query("""
             select u from User u
