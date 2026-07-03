@@ -50,7 +50,7 @@ public class AiSummaryService {
     public AiSummaryService(MessageService messageService,
                             RateLimiter rateLimiter,
                             @Value("${ANTHROPIC_API_KEY:}") String apiKey,
-                            @Value("${AI_MODEL:claude-opus-4-8}") String model) {
+                            @Value("${AI_MODEL:claude-3-5-sonnet-20241022}") String model) {
         this.messageService = messageService;
         this.rateLimiter = rateLimiter;
         this.model = model;
