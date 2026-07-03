@@ -15,6 +15,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -74,11 +77,16 @@ public class AiSummaryService {
                     "too many AI requests, please wait a moment and try again");
         }
 
-        // Membership is enforced here (throws 403 for non-members); top-level,
-        // chronological. Deleted/empty messages are dropped from the transcript.
+        // "Catch me up" means the *recent* window: fetch the newest MAX_MESSAGES
+        // (page 0, newest-first — the feed query has no ORDER BY, so the Pageable's
+        // sort decides), then flip back to chronological order so the transcript
+        // reads oldest→newest for the model. Membership is enforced here (403 for
+        // non-members). Deleted/empty messages are dropped from the transcript.
         PageResponse<MessageResponse> page = messageService.findByChannel(
-                channelId, username, PageRequest.of(0, MAX_MESSAGES, Sort.by("createdAt").ascending()));
-        String transcript = page.content().stream()
+                channelId, username, PageRequest.of(0, MAX_MESSAGES, Sort.by("createdAt").descending()));
+        List<MessageResponse> chronological = new ArrayList<>(page.content());
+        Collections.reverse(chronological);
+        String transcript = chronological.stream()
                 .filter(m -> !m.deleted() && m.content() != null && !m.content().isBlank())
                 .map(m -> senderName(m) + ": " + m.content())
                 .collect(Collectors.joining("\n"));
