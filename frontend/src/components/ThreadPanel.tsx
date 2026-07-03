@@ -38,8 +38,11 @@ export default function ThreadPanel() {
   const [draft, setDraft] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  const blockedIds = useAppSelector((state) => state.blocks.ids)
   const parent = openParentId ? (messages.find((m) => m.id === openParentId) ?? null) : null
-  const replies = openParentId ? (repliesByParent[openParentId] ?? []) : []
+  const replies = openParentId
+    ? (repliesByParent[openParentId] ?? []).filter((r) => !blockedIds.includes(r.sender.id))
+    : []
 
   useEffect(() => {
     if (!channelId || !openParentId) return

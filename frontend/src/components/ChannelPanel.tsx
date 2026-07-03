@@ -297,6 +297,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const handleTyping = (event: TypingEvent) => {
     if (event.userId === currentUserIdRef.current) return
+    if (blockedRef.current.includes(event.userId)) return
     const name = event.displayName ?? event.username
     if (event.typing) {
       setTypingUsers((prev) => ({ ...prev, [event.userId]: name }))
@@ -323,6 +324,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   handleTypingRef.current = handleTyping
 
   const handleReaction = (event: ReactionEvent) => {
+    if (blockedRef.current.includes(event.userId)) return
     const item = makeFlyingEmoji(event.emoji)
     setFlying((prev) => (prev.length >= MAX_FLYING ? [...prev.slice(1), item] : [...prev, item]))
     const timer = setTimeout(() => {
@@ -336,7 +338,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const subscribe = (channelId: string) => {
     watchChannel(channelId, {
-      onMessage: (msg) => dispatch(messageReceived(msg)),
+      onMessage: (msg) => {
+        if (blockedRef.current.includes(msg.sender.id)) return
+        dispatch(messageReceived(msg))
+      },
       onTyping: (event) => handleTypingRef.current(event),
       onReaction: (event) => handleReactionRef.current(event),
       onMessageReaction: (update) =>
@@ -348,6 +353,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           }),
         ),
       onMessageUpdate: (updated) => {
+        if (blockedRef.current.includes(updated.sender.id)) return
         if (updated.parentMessageId) {
           dispatch(threadReplyUpdated(updated))
         } else {
@@ -369,6 +375,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       onPoll: (poll: Poll) => dispatch(pollUpserted(poll)),
       onRead: (receipt) => dispatch(readReceived(receipt)),
       onCallSignal: (signal) => {
+        if (blockedRef.current.includes(signal.senderId)) return
         if (signal.type === 'OFFER') {
           dispatch(setIncomingCall({ channelId, senderId: signal.senderId }))
         } else if (signal.type === 'HANG_UP' || signal.type === 'REJECT') {
