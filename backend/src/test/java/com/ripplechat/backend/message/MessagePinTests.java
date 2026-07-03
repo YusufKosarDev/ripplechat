@@ -18,6 +18,8 @@ class MessagePinTests extends AbstractIntegrationTest {
     ChannelService channelService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    MessageQueryService messageQueryService;
 
     @Test
     void pinListAndUnpin() {
@@ -26,11 +28,11 @@ class MessagePinTests extends AbstractIntegrationTest {
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("önemli", null), "owner");
 
         messageService.pin(channel.id(), msg.id(), "owner");
-        assertThat(messageService.listPinned(channel.id(), "owner"))
+        assertThat(messageQueryService.listPinned(channel.id(), "owner"))
                 .extracting(MessageResponse::id).containsExactly(msg.id());
 
         messageService.unpin(channel.id(), msg.id(), "owner");
-        assertThat(messageService.listPinned(channel.id(), "owner")).isEmpty();
+        assertThat(messageQueryService.listPinned(channel.id(), "owner")).isEmpty();
     }
 
     @Test

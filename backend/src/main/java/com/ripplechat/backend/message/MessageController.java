@@ -31,6 +31,7 @@ import java.util.UUID;
 public class MessageController {
 
     private final MessageService messageService;
+    private final MessageQueryService messageQueryService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -52,13 +53,13 @@ public class MessageController {
     @GetMapping("/pinned")
     public List<MessageResponse> pinned(@PathVariable UUID channelId,
                                         @AuthenticationPrincipal String username) {
-        return messageService.listPinned(channelId, username);
+        return messageQueryService.listPinned(channelId, username);
     }
 
     @GetMapping("/media")
     public List<MediaItem> media(@PathVariable UUID channelId,
                                  @AuthenticationPrincipal String username) {
-        return messageService.listMedia(channelId, username);
+        return messageQueryService.listMedia(channelId, username);
     }
 
     /** Prior versions of an edited message (newest first). */

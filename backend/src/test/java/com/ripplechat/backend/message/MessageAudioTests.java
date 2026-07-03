@@ -16,6 +16,8 @@ class MessageAudioTests extends AbstractIntegrationTest {
     ChannelService channelService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    MessageQueryService messageQueryService;
 
     @Test
     void audioAttachmentKeepsTypeAndIsExcludedFromGallery() {
@@ -28,6 +30,6 @@ class MessageAudioTests extends AbstractIntegrationTest {
                 "owner");
 
         assertThat(msg.attachmentType()).isEqualTo("audio");
-        assertThat(messageService.listMedia(channel.id(), "owner")).isEmpty();
+        assertThat(messageQueryService.listMedia(channel.id(), "owner")).isEmpty();
     }
 }

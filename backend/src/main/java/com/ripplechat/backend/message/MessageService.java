@@ -11,7 +11,6 @@ import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
-import com.ripplechat.backend.message.dto.MediaItem;
 import com.ripplechat.backend.message.dto.MessageEditHistoryEntry;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
@@ -61,6 +60,7 @@ public class MessageService {
     private final MessageReactionService messageReactionService;
     private final MessageHideRepository messageHideRepository;
     private final MessageEditHistoryRepository messageEditHistoryRepository;
+    private final com.ripplechat.backend.channel.membership.ChannelMembershipGuard membershipGuard;
     private final RedisBroadcastService redisBroadcastService;
     private final SearchService searchService;
     private final RateLimiter rateLimiter;
@@ -388,24 +388,6 @@ public class MessageService {
         broadcastUpdate(message);
     }
 
-    @Transactional(readOnly = true)
-    public List<MessageResponse> listPinned(UUID channelId, String username) {
-        requireMember(channelId, username);
-        return messageRepository.findByChannelIdAndPinnedTrueAndDeletedFalseOrderByCreatedAtDesc(channelId).stream()
-                .map(MessageResponse::from)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<MediaItem> listMedia(UUID channelId, String username) {
-        requireMember(channelId, username);
-        return messageRepository.findByChannelIdAndAttachmentUrlIsNotNullAndDeletedFalseOrderByCreatedAtDesc(channelId)
-                .stream()
-                .filter(m -> m.getAttachmentType() == null || "image".equals(m.getAttachmentType())) // images only
-                .map(MediaItem::from)
-                .toList();
-    }
-
     /** "Delete for me": hides the message from this user's feed only. */
     @Transactional
     public void hideForMe(UUID channelId, UUID messageId, String username) {
@@ -505,9 +487,7 @@ public class MessageService {
     }
 
     private void requireMember(UUID channelId, String username) {
-        if (!membershipRepository.existsByChannelIdAndUser_Username(channelId, username)) {
-            throw new ForbiddenException("not a member of channel: " + channelId);
-        }
+        membershipGuard.requireMember(channelId, username);
     }
 
     /** Allows our own Cloudinary uploads and GIFs picked from Giphy. */

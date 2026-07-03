@@ -20,6 +20,8 @@ class MediaGalleryTests extends AbstractIntegrationTest {
     ChannelService channelService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    MessageQueryService messageQueryService;
 
     @Test
     void listsOnlyImageAttachments() {
@@ -28,7 +30,7 @@ class MediaGalleryTests extends AbstractIntegrationTest {
         messageService.send(channel.id(), new CreateMessageRequest("", null, IMAGE), "owner");
         messageService.send(channel.id(), new CreateMessageRequest("sadece metin", null), "owner");
 
-        var media = messageService.listMedia(channel.id(), "owner");
+        var media = messageQueryService.listMedia(channel.id(), "owner");
         assertThat(media).hasSize(1);
         assertThat(media.get(0).url()).isEqualTo(IMAGE);
     }
@@ -43,7 +45,7 @@ class MediaGalleryTests extends AbstractIntegrationTest {
                         null, "rapor.pdf", "file"),
                 "owner");
 
-        var media = messageService.listMedia(channel.id(), "owner");
+        var media = messageQueryService.listMedia(channel.id(), "owner");
         assertThat(media).hasSize(1);
         assertThat(media.get(0).url()).isEqualTo(IMAGE);
     }
@@ -54,7 +56,7 @@ class MediaGalleryTests extends AbstractIntegrationTest {
         createUser("outsider");
         var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
 
-        assertThatThrownBy(() -> messageService.listMedia(channel.id(), "outsider"))
+        assertThatThrownBy(() -> messageQueryService.listMedia(channel.id(), "outsider"))
                 .isInstanceOf(ForbiddenException.class);
     }
 }
