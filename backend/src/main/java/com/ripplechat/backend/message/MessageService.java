@@ -12,6 +12,7 @@ import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MediaItem;
+import com.ripplechat.backend.message.dto.MessageEditHistoryEntry;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.message.dto.ThreadSummary;
@@ -59,6 +60,7 @@ public class MessageService {
     private final ChannelMembershipRepository membershipRepository;
     private final MessageReactionService messageReactionService;
     private final MessageHideRepository messageHideRepository;
+    private final MessageEditHistoryRepository messageEditHistoryRepository;
     private final RedisBroadcastService redisBroadcastService;
     private final SearchService searchService;
     private final RateLimiter rateLimiter;
@@ -291,11 +293,32 @@ public class MessageService {
         if (message.isDeleted() || content == null || content.isBlank() || content.length() > MAX_MESSAGE_LENGTH) {
             return;
         }
+        String previous = message.getContent();
+        if (previous.equals(content)) {
+            return;
+        }
+        Instant now = Instant.now();
+        // Snapshot the version being replaced so the edit history is auditable.
+        messageEditHistoryRepository.save(new MessageEditHistory(message, previous, now));
         message.setContent(content);
-        message.setEditedAt(Instant.now());
+        message.setEditedAt(now);
         messageRepository.saveAndFlush(message);
         searchService.indexMessage(message);
         broadcastUpdate(message);
+    }
+
+    /** Prior versions of a message (newest first). Membership-checked. */
+    @Transactional(readOnly = true)
+    public List<MessageEditHistoryEntry> editHistory(UUID channelId, UUID messageId, String username) {
+        requireMember(channelId, username);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
+        if (!message.getChannel().getId().equals(channelId)) {
+            throw new ResourceNotFoundException("message not found in channel: " + messageId);
+        }
+        return messageEditHistoryRepository.findByMessage_IdOrderByEditedAtDesc(messageId).stream()
+                .map(MessageEditHistoryEntry::from)
+                .toList();
     }
 
     @Transactional

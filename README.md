@@ -56,7 +56,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Channels** with membership management, plus a **discover view** to browse and join the public channels you're not in yet (instead of only joining by id)
 - **Direct messages** — private 1:1 conversations, plus **group DMs** (multi-party), reusing the same real-time pipeline
 - **Threads** — keep focused reply chains off the main timeline
-- **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view)
+- **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view). Edited messages carry a **"(düzenlendi)"** badge that opens the full **edit history** — every superseded version is snapshotted and timestamped
 - **Quote-reply** to a specific message, **forward** messages to other chats, and **pin** important messages
 - **Saved messages** — bookmark any message and revisit them in a dedicated saved-items list (per-user, jump straight back to the message)
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists

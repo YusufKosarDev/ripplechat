@@ -198,6 +198,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [aiEnabled, setAiEnabled] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [summarizing, setSummarizing] = useState(false)
+  const [history, setHistory] = useState<{ content: string; editedAt: string }[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [showScheduled, setShowScheduled] = useState(false)
   const [showWebhooks, setShowWebhooks] = useState(false)
@@ -765,7 +767,16 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           </a>
         ) : null}
         {linkUrl && <LinkPreviewCard url={linkUrl} />}
-        {msg.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
+        {msg.editedAt && (
+          <button
+            type="button"
+            onClick={() => onShowHistory(msg)}
+            className={`text-xs text-fg-faint underline decoration-dotted hover:text-fg ${focusRing}`}
+            title="Düzenleme geçmişini gör"
+          >
+            (düzenlendi)
+          </button>
+        )}
         {msg.expiresAt && !msg.deleted && (
           <span className="text-xs text-fg-faint" title={`Kaybolacak: ${new Date(msg.expiresAt).toLocaleString()}`}>
             ⏲️
@@ -857,6 +868,22 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       setSummary('Özet oluşturulamadı. Lütfen tekrar dene.')
     } finally {
       setSummarizing(false)
+    }
+  }
+
+  const onShowHistory = async (msg: Message) => {
+    if (!selectedId) return
+    setHistory(null)
+    setHistoryLoading(true)
+    try {
+      const { data } = await client.get<{ content: string; editedAt: string }[]>(
+        `/api/channels/${selectedId}/messages/${msg.id}/history`,
+      )
+      setHistory(data)
+    } catch {
+      setHistory([])
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -1138,6 +1165,41 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             </div>
             <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg-secondary">
               {summary}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(history !== null || historyLoading) && (
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16"
+          onClick={() => setHistory(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-border bg-surface-overlay p-4 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold tracking-tight">Düzenleme geçmişi</span>
+              <button onClick={() => setHistory(null)} aria-label="Kapat" className={`text-fg-faint transition hover:text-fg ${focusRing}`}>
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[60vh] space-y-2 overflow-y-auto text-sm">
+              {historyLoading ? (
+                <p className="text-fg-faint">Yükleniyor…</p>
+              ) : history && history.length > 0 ? (
+                history.map((h, i) => (
+                  <div key={i} className="rounded-lg border border-border bg-surface p-2">
+                    <div className="mb-1 text-xs text-fg-faint">
+                      {new Date(h.editedAt).toLocaleString()} tarihinde değiştirildi
+                    </div>
+                    <div className="whitespace-pre-wrap text-fg-secondary">{h.content}</div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-fg-faint">Önceki sürüm yok.</p>
+              )}
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.ForwardRequest;
 import com.ripplechat.backend.message.dto.MediaItem;
+import com.ripplechat.backend.message.dto.MessageEditHistoryEntry;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,14 @@ public class MessageController {
     public List<MediaItem> media(@PathVariable UUID channelId,
                                  @AuthenticationPrincipal String username) {
         return messageService.listMedia(channelId, username);
+    }
+
+    /** Prior versions of an edited message (newest first). */
+    @GetMapping("/{messageId}/history")
+    public List<MessageEditHistoryEntry> history(@PathVariable UUID channelId,
+                                                 @PathVariable UUID messageId,
+                                                 @AuthenticationPrincipal String username) {
+        return messageService.editHistory(channelId, messageId, username);
     }
 
     @PostMapping("/{messageId}/pin")
