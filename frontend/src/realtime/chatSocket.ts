@@ -69,7 +69,7 @@ let desiredThread: { channelId: string; parentId: string; onReply: ReplyHandler 
 
 // Lightweight message subscriptions for ALL of the user's channels (for unread
 // tracking) — only the message topic, not typing/reactions/etc.
-let allChannelSubs: StompSubscription[] = []
+let allChannelSubs: Map<string, StompSubscription> = new Map()
 let desiredAll: { channelIds: string[]; onMessage: MessageHandler } | null = null
 
 let desired: ({ channelId: string } & ChannelHandlers) | null = null
@@ -155,13 +155,25 @@ function resolveAllChannels() {
   if (!client?.connected || !desiredAll) {
     return
   }
-  allChannelSubs.forEach((s) => s.unsubscribe())
-  allChannelSubs = []
   const { channelIds, onMessage } = desiredAll
+  const newIds = new Set(channelIds)
+
+  // Unsubscribe from channels we left
+  allChannelSubs.forEach((sub, id) => {
+    if (!newIds.has(id)) {
+      sub.unsubscribe()
+      allChannelSubs.delete(id)
+    }
+  })
+
+  // Subscribe to newly joined channels
   for (const id of channelIds) {
-    allChannelSubs.push(
-      client.subscribe(`/topic/channels/${id}`, (frame) => onMessage(JSON.parse(frame.body) as Message)),
-    )
+    if (!allChannelSubs.has(id)) {
+      const sub = client.subscribe(`/topic/channels/${id}`, (frame) =>
+        onMessage(JSON.parse(frame.body) as Message),
+      )
+      allChannelSubs.set(id, sub)
+    }
   }
 }
 
@@ -215,7 +227,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       callSignalSub = null
       threadSub = null
       notificationSub = null
-      allChannelSubs = []
+      allChannelSubs = new Map()
       resolvePresence()
       resolveNotifications()
       resolveChannelSubs()
@@ -401,7 +413,7 @@ export function disconnectChat() {
   readSub = null
   presenceSub = null
   threadSub = null
-  allChannelSubs = []
+  allChannelSubs = new Map()
   desired = null
   desiredThread = null
   desiredAll = null
