@@ -172,6 +172,52 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ## 🏗️ Architecture
 
+The system at a glance — a React PWA talking to a horizontally-scalable Spring Boot monolith over REST + STOMP, backed by PostgreSQL / Redis / Elasticsearch, with all third-party services optional and graceful-disabled:
+
+```mermaid
+flowchart TB
+    subgraph Client["🌐 Client — React 19 + TypeScript PWA"]
+        direction LR
+        UI["Redux Toolkit UI<br/>route-split pages"]
+        RT["Realtime layer<br/>STOMP / SockJS"]
+        SEC["Web Crypto E2EE ·<br/>Service Worker · IndexedDB"]
+    end
+
+    subgraph Backend["☕ Spring Boot 3.5 — modular monolith · multiple replicas"]
+        direction TB
+        JWT["JWT auth filter +<br/>per-request rate limit"]
+        REST["REST controllers<br/>/api/**"]
+        WS["STOMP WebSocket<br/>/ws · /topic · /app"]
+        SVC["Domain services<br/>auth · channel · message · search · admin · ai · …"]
+        JWT --> REST --> SVC
+        JWT --> WS --> SVC
+    end
+
+    subgraph Data["🗄️ Stateful infrastructure"]
+        direction LR
+        PG[("PostgreSQL 16<br/>Flyway V1–V32")]
+        RD[("Redis<br/>pub/sub · rate limit<br/>lockout · ShedLock")]
+        ES[("Elasticsearch<br/>search + PG fallback")]
+    end
+
+    subgraph Ext["🔌 External services — optional, graceful-disable"]
+        direction LR
+        CL["Cloudinary"]
+        AN["Anthropic Claude"]
+        GF["Giphy"]
+        SM["SMTP"]
+        VP["Web Push / VAPID"]
+    end
+
+    UI -->|HTTPS REST| REST
+    RT <-->|WSS STOMP| WS
+    SVC --> PG
+    SVC --> ES
+    SVC --> RD
+    WS <-->|cross-replica fan-out| RD
+    SVC -.-> CL & AN & GF & SM & VP
+```
+
 **Modular monolith backend.** The codebase is organized by domain, each package owning its own controllers, services, and persistence:
 
 ```
