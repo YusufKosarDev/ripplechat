@@ -72,6 +72,7 @@ import LinkPreviewCard from './LinkPreviewCard'
 import MessageReactions from './MessageReactions'
 import CommandHints from './CommandHints'
 import MessageAttachment from './MessageAttachment'
+import MessageActions from './MessageActions'
 import { SummaryModal, EditHistoryModal } from './MessageInfoModals'
 import PollCard from './PollCard'
 import ReactionBar from './ReactionBar'
@@ -1274,64 +1275,20 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                           </div>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 pl-12">
-                        {msg.thread.replyCount > 0 && (
-                          <button
-                            onClick={() => dispatch(openThread(msg.id))}
-                            className={`mt-1 inline-flex items-center gap-1.5 rounded-lg border border-control bg-surface-muted px-2 py-1 text-xs text-accent transition hover:border-control-hover ${focusRing}`}
-                          >
-                            <span className="flex -space-x-1.5">
-                              {msg.thread.lastRepliers.map((u) => (
-                                <Avatar key={u.id} name={u.displayName ?? u.username} color={u.avatarColor} imageUrl={u.avatarUrl} size="sm" />
-                              ))}
-                            </span>
-                            💬 {msg.thread.replyCount} yanıt
-                          </button>
-                        )}
-                        {!msg.deleted && (
-                          <button
-                            onClick={() => dispatch(openThread(msg.id))}
-                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
-                          >
-                            Yanıtla
-                          </button>
-                        )}
-                        {!msg.deleted && (
-                          <button
-                            onClick={() => {
-                              setReplyingTo(msg)
-                              setFocusTrigger(f => f + 1)
-                            }}
-                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
-                          >
-                            Alıntıla
-                          </button>
-                        )}
-                        {!msg.deleted && (
-                          <button
-                            onClick={() => setForwardingMsg(msg)}
-                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
-                          >
-                            İlet
-                          </button>
-                        )}
-                        {!msg.deleted && (
-                          <button
-                            onClick={() => togglePin(msg)}
-                            className={`mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`}
-                          >
-                            {msg.pinned ? 'Sabiti kaldır' : 'Sabitle'}
-                          </button>
-                        )}
-                        {!msg.deleted && (
-                          <button
-                            onClick={() => dispatch(toggleBookmark({ messageId: msg.id, saved: bookmarkedIds.includes(msg.id) }))}
-                            className={`mt-1 rounded-lg text-xs transition sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing} ${bookmarkedIds.includes(msg.id) ? 'text-amber-600 dark:text-amber-500' : 'text-fg-muted hover:text-fg'}`}
-                          >
-                            {bookmarkedIds.includes(msg.id) ? '🔖 Kaydedildi' : 'Kaydet'}
-                          </button>
-                        )}
-                      </div>
+                      <MessageActions
+                        msg={msg}
+                        bookmarked={bookmarkedIds.includes(msg.id)}
+                        onOpenThread={() => dispatch(openThread(msg.id))}
+                        onQuote={() => {
+                          setReplyingTo(msg)
+                          setFocusTrigger((f) => f + 1)
+                        }}
+                        onForward={() => setForwardingMsg(msg)}
+                        onTogglePin={() => togglePin(msg)}
+                        onToggleBookmark={() =>
+                          dispatch(toggleBookmark({ messageId: msg.id, saved: bookmarkedIds.includes(msg.id) }))
+                        }
+                      />
                       {!msg.deleted && (
                         <div className="pl-12">
                           <MessageReactions
