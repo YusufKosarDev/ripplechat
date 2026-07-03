@@ -30,6 +30,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Value("${app.frontend.oauth2-redirect-uri:http://localhost:5173/oauth2/redirect}")
     private String redirectUri;
 
+    @Value("${app.allowed-origins:}")
+    private String allowedOrigins;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         String targetUrl = determineTargetUrl(request, response, authentication);
@@ -44,7 +47,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         Optional<String> redirectUriParam = Optional.ofNullable(request.getParameter("redirect_uri"));
-        String targetUrl = redirectUriParam.orElse(redirectUri);
+        String targetUrl = redirectUriParam
+                .filter(this::isAuthorizedRedirectUri)
+                .orElse(redirectUri);
 
         String username = authentication.getName();
         User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
@@ -73,4 +78,48 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 .queryParam("refreshToken", rawRefreshToken)
                 .build().toUriString();
     }
+
+    private boolean isAuthorizedRedirectUri(String uriStr) {
+        if (uriStr == null || uriStr.isBlank()) {
+            return false;
+        }
+        try {
+            java.net.URI clientRedirectUri = java.net.URI.create(uriStr);
+            if (!clientRedirectUri.isAbsolute()) {
+                return true;
+            }
+            String host = clientRedirectUri.getHost();
+            int port = clientRedirectUri.getPort();
+            if (host == null) {
+                return false;
+            }
+
+            if (allowedOrigins != null && !allowedOrigins.isBlank()) {
+                for (String allowedOrigin : allowedOrigins.split(",")) {
+                    try {
+                        java.net.URI allowedUri = java.net.URI.create(allowedOrigin.trim());
+                        String allowedHost = allowedUri.getHost();
+                        int allowedPort = allowedUri.getPort();
+                        if (allowedHost != null && allowedHost.equalsIgnoreCase(host) && allowedPort == port) {
+                            return true;
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            if (redirectUri != null) {
+                java.net.URI defaultUri = java.net.URI.create(redirectUri);
+                String defaultHost = defaultUri.getHost();
+                int defaultPort = defaultUri.getPort();
+                if (defaultHost != null && defaultHost.equalsIgnoreCase(host) && defaultPort == port) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
+

@@ -84,4 +84,35 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     /** A user's authored messages, for the GDPR data export. */
     List<Message> findBySender_IdOrderByCreatedAtAsc(UUID senderId);
+
+    @Query(value = """
+            SELECT m.parent_message_id, COUNT(*)
+            FROM messages m
+            WHERE m.parent_message_id IN (:parentIds) AND m.deleted = false
+            GROUP BY m.parent_message_id
+            """, nativeQuery = true)
+    List<Object[]> findReplyCounts(@Param("parentIds") Collection<UUID> parentIds);
+
+    @Query(value = """
+            WITH distinct_senders AS (
+                SELECT 
+                    m.parent_message_id, 
+                    m.sender_id,
+                    MAX(m.created_at) as max_created
+                FROM messages m
+                WHERE m.parent_message_id IN (:parentIds) AND m.deleted = false
+                GROUP BY m.parent_message_id, m.sender_id
+            ),
+            ranked_senders AS (
+                SELECT 
+                    parent_message_id,
+                    sender_id,
+                    ROW_NUMBER() OVER (PARTITION BY parent_message_id ORDER BY max_created DESC) as rn
+                FROM distinct_senders
+            )
+            SELECT parent_message_id, sender_id
+            FROM ranked_senders
+            WHERE rn <= 3
+            """, nativeQuery = true)
+    List<Object[]> findLastReplierIds(@Param("parentIds") Collection<UUID> parentIds);
 }

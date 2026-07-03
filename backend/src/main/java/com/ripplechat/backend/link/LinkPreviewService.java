@@ -30,6 +30,17 @@ import java.time.Duration;
 @Service
 public class LinkPreviewService {
 
+    static {
+        // Enforce a positive DNS cache TTL (e.g., 30 seconds) to prevent DNS rebinding attacks.
+        // If it is disabled (0), we force it to 30s so the checked IP is cached and reused for the request.
+        try {
+            String ttl = java.security.Security.getProperty("networkaddress.cache.ttl");
+            if (ttl == null || "0".equals(ttl)) {
+                java.security.Security.setProperty("networkaddress.cache.ttl", "30");
+            }
+        } catch (Exception ignored) {}
+    }
+
     private static final Logger log = LoggerFactory.getLogger(LinkPreviewService.class);
     private static final int MAX_BODY_BYTES = 512 * 1024;
     private static final int MAX_REDIRECTS = 3;

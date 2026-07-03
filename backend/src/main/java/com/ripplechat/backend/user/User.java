@@ -69,6 +69,7 @@ public class User {
     private String providerId;
 
     @Column(name = "totp_secret")
+    @jakarta.persistence.Convert(converter = com.ripplechat.backend.common.EncryptionConverter.class)
     private String totpSecret;
 
     @Column(name = "is_two_factor_enabled", nullable = false)

@@ -1,6 +1,8 @@
 package com.ripplechat.backend.websocket;
 
+import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.websocket.dto.CallSignal;
+import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -14,9 +16,12 @@ import java.util.UUID;
 public class CallController {
 
     private final RedisBroadcastService redisBroadcastService;
+    private final ChannelMembershipRepository membershipRepository;
 
-    public CallController(RedisBroadcastService redisBroadcastService) {
+    public CallController(RedisBroadcastService redisBroadcastService,
+                          ChannelMembershipRepository membershipRepository) {
         this.redisBroadcastService = redisBroadcastService;
+        this.membershipRepository = membershipRepository;
     }
 
     /**
@@ -27,6 +32,10 @@ public class CallController {
     public void signal(@DestinationVariable UUID channelId,
                        @Payload CallSignal payload,
                        Principal principal) {
+        if (principal == null || !membershipRepository.existsByChannelIdAndUser_Username(channelId, principal.getName())) {
+            throw new MessagingException("not authorized to call in this channel: " + channelId);
+        }
+
         // Ensure the senderId is authenticated as the current user
         CallSignal signalToBroadcast = new CallSignal(
                 payload.type(),

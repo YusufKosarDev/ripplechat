@@ -350,7 +350,7 @@ public class MessageService {
         }
         String attachmentUrl = message.getAttachmentUrl();
         if (attachmentUrl != null) {
-            mediaStorage.delete(attachmentUrl);
+            safeDeleteMedia(attachmentUrl);
         }
         message.setDeleted(true);
         message.setContent("");
@@ -421,7 +421,7 @@ public class MessageService {
         for (Message message : expired) {
             String attachmentUrl = message.getAttachmentUrl();
             if (attachmentUrl != null) {
-                mediaStorage.delete(attachmentUrl);
+                safeDeleteMedia(attachmentUrl);
             }
             message.setDeleted(true);
             message.setContent("");
@@ -463,27 +463,84 @@ public class MessageService {
         if (parentIds.isEmpty()) {
             return Map.of();
         }
-        return messageRepository.findByParent_IdInOrderByCreatedAtAsc(parentIds).stream()
-                .collect(Collectors.groupingBy(r -> r.getParent().getId()))
-                .entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> summarize(e.getValue())));
+
+        Map<UUID, Integer> counts = messageRepository.findReplyCounts(parentIds).stream()
+                .collect(Collectors.toMap(
+                        row -> toUuid(row[0]),
+                        row -> ((Number) row[1]).intValue()
+                ));
+
+        List<Object[]> replierRows = messageRepository.findLastReplierIds(parentIds);
+        
+        java.util.Set<UUID> senderIds = replierRows.stream()
+                .map(row -> toUuid(row[1]))
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, UserSummary> userSummaries = Map.of();
+        if (!senderIds.isEmpty()) {
+            userSummaries = userRepository.findAllById(senderIds).stream()
+                    .map(UserSummary::from)
+                    .collect(Collectors.toMap(UserSummary::id, java.util.function.Function.identity()));
+        }
+
+        Map<UUID, List<UserSummary>> repliersByParent = new java.util.HashMap<>();
+        for (Object[] row : replierRows) {
+            UUID parentId = toUuid(row[0]);
+            UUID senderId = toUuid(row[1]);
+            if (parentId != null && senderId != null) {
+                UserSummary summary = userSummaries.get(senderId);
+                if (summary != null) {
+                    repliersByParent.computeIfAbsent(parentId, k -> new java.util.ArrayList<>()).add(summary);
+                }
+            }
+        }
+
+        Map<UUID, ThreadSummary> result = new java.util.HashMap<>();
+        for (UUID parentId : parentIds) {
+            int count = counts.getOrDefault(parentId, 0);
+            List<UserSummary> repliers = repliersByParent.getOrDefault(parentId, List.of());
+            result.put(parentId, new ThreadSummary(count, repliers));
+        }
+        return result;
     }
 
     private ThreadSummary threadSummary(UUID parentId) {
-        return summarize(messageRepository.findByParent_IdOrderByCreatedAtAsc(parentId));
+        Map<UUID, ThreadSummary> summaries = threadSummariesByParent(List.of(parentId));
+        return summaries.getOrDefault(parentId, ThreadSummary.empty());
     }
 
-    /** Builds a summary: reply count + the last few distinct repliers (most recent first). */
-    private ThreadSummary summarize(List<Message> replies) {
-        Set<UUID> seen = new LinkedHashSet<>();
-        List<UserSummary> lastRepliers = new ArrayList<>();
-        for (int i = replies.size() - 1; i >= 0 && lastRepliers.size() < MAX_LAST_REPLIERS; i--) {
-            User sender = replies.get(i).getSender();
-            if (seen.add(sender.getId())) {
-                lastRepliers.add(UserSummary.from(sender));
-            }
+    private UUID toUuid(Object obj) {
+        if (obj instanceof UUID) {
+            return (UUID) obj;
+        } else if (obj instanceof String) {
+            return UUID.fromString((String) obj);
+        } else if (obj != null) {
+            return UUID.fromString(obj.toString());
         }
-        return new ThreadSummary(replies.size(), lastRepliers);
+        return null;
+    }
+
+    private void safeDeleteMedia(String url) {
+        if (url == null || url.isBlank()) {
+            return;
+        }
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            mediaStorage.delete(url);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            );
+        } else {
+            try {
+                mediaStorage.delete(url);
+            } catch (Exception ignored) {}
+        }
     }
 
     private void requireMember(UUID channelId, String username) {
