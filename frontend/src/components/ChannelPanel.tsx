@@ -229,6 +229,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const partnerOnline = dm?.otherUser ? onlineUserIds.includes(dm.otherUser.id) : false
   const dmPartner = dm?.otherUser ?? null
   const blockedIds = useAppSelector((state) => state.blocks.ids)
+  const blockedRef = useRef(blockedIds)
+  useLayoutEffect(() => {
+    blockedRef.current = blockedIds
+  }, [blockedIds])
   const jumpTargetId = useAppSelector((state) => state.ui.jumpTargetId)
   const isArchived = useAppSelector((state) => (selectedId ? !!state.channelOrg.archived[selectedId] : false))
   const currentCategory = useAppSelector((state) => (selectedId ? (state.channelOrg.category[selectedId] ?? '') : ''))
