@@ -139,7 +139,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Spring Data JPA · Spring Data Redis · Spring Data Elasticsearch
 - Spring WebSocket (STOMP messaging)
 - PostgreSQL (primary datastore) · Redis (distributed Pub/Sub & caching) · Elasticsearch (message search engine)
-- Cloudinary (media uploads) · web-push/VAPID (notifications) · dev.samstevens.totp (2FA) · Giphy (GIF search)
+- Cloudinary (media uploads) · web-push/VAPID (notifications) · dev.samstevens.totp (2FA) · Giphy (GIF search) · Anthropic Java SDK (Claude channel summarization)
 - Caffeine (link-preview cache) · RFC 7807 ProblemDetail · gzip compression
 - springdoc-openapi (Swagger UI) · Spring Boot Actuator · Micrometer + Prometheus
 
@@ -166,7 +166,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - Docker Compose (PostgreSQL)
 - Flyway (production schema migrations)
 - Maven · Spring profiles (dev / prod)
-- GitHub Actions CI (backend, frontend, e2e) · Dependabot (Maven, npm, Actions) · `npm audit` gate on shipped dependencies
+- GitHub Actions CI (backend, frontend, e2e) · container image build & publish to GHCR on push to `main` (with an optional deploy-hook step) · Dependabot (Maven, npm, Actions) · `npm audit` gate on shipped dependencies
 
 ---
 
@@ -175,8 +175,9 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 **Modular monolith backend.** The codebase is organized by domain, each package owning its own controllers, services, and persistence:
 
 ```
-auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards · scheduled)
-presence · typing · reaction · poll · search (full-text) · read receipts · push · link previews · media · gif · webhook · websocket
+auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards · scheduled · edit history)
+presence · typing · reaction · poll · search (full-text) · read receipts · push · notification · bookmark · link previews · media · gif
+webhook · mail · scheduling (ShedLock) · ai (Claude summarization) · admin (moderation + audit log) · websocket
 ```
 
 **WebSocket layer.** Clients open a single STOMP connection authenticated with a JWT on `CONNECT`. The server broadcasts to `/topic/...` destinations (e.g. `/topic/channels/{id}`); clients publish via `/app/...`. Messages, reactions, presence, typing, and polls all travel over this channel for instant fan-out.
@@ -257,7 +258,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V30__saved_messages`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V32__admin_and_audit_log`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
@@ -272,22 +273,28 @@ ripplechat/
 │   │   ├── auth/                # Registration, login, JWT, security config
 │   │   ├── user/                # Profiles, status/DND, settings, password, avatars, blocking
 │   │   ├── channel/             # Channels, membership & roles, direct/group messages
-│   │   ├── message/             # Messages, threads, edit/delete, pins, forwards, quotes
+│   │   ├── admin/               # Platform admin panel: user moderation + audit log
+│   │   ├── message/             # Messages, threads, edit history, pins, forwards, quotes
 │   │   │   └── scheduled/       # Scheduled messages + background dispatcher
+│   │   ├── ai/                  # Claude channel summarization (Anthropic SDK, graceful-disable)
 │   │   ├── webhook/             # Incoming webhooks (token'd ingest, bot identity)
 │   │   ├── reaction/            # Emoji reactions
 │   │   ├── poll/                # Polls (REST + WebSocket, persisted)
 │   │   ├── presence/            # Online status & last seen
 │   │   ├── typing/              # Typing indicators
 │   │   ├── read/                # Read receipts
+│   │   ├── notification/        # Activity center (mentions, replies, reactions)
+│   │   ├── bookmark/            # Saved / bookmarked messages
 │   │   ├── search/              # Message search (Elasticsearch, PostgreSQL tsvector fallback)
 │   │   ├── push/                # Web push (VAPID) subscriptions & sending
+│   │   ├── mail/                # Transactional email (reset / verification; logs when no SMTP)
+│   │   ├── scheduling/          # ShedLock single-runner locking for @Scheduled tasks
 │   │   ├── link/                # Link-preview unfurling (jsoup, SSRF-guarded)
 │   │   ├── media/ · gif/        # Cloudinary uploads · Giphy GIF search
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, rate limiter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations V1–V24 (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V32 (prod schema)
 ├── frontend/                    # React + TypeScript app
 │   ├── public/                  # PWA manifest + service worker (sw.js)
 │   └── src/
@@ -327,13 +334,13 @@ RippleChat is built to run behind a load balancer as **multiple backend replicas
 - **Distributed rate limiting** — the limiter is backed by **Redis** via an atomic token-bucket Lua script, so limits hold across replicas instead of per-instance.
 - **Cross-replica WebSocket fan-out** — the local STOMP `SimpleBroker` is fronted by a **Redis Pub/Sub** bridge: a message published on one replica is fanned out to subscribers connected to *any* replica. (Each node still serves its own clients via `SimpMessagingTemplate`; Redis carries the cross-node hop.)
 
-A couple of `@Scheduled` tasks remain genuinely per-instance and are the next item on the roadmap:
+The timer-driven `@Scheduled` tasks are also replica-safe:
 
-- **Single-runner scheduling** — the disappearing-message expiry sweep and the scheduled-message dispatcher run on a timer. On multiple replicas they would run redundantly (e.g. double-delivering a scheduled message), so a distributed lock (e.g. **ShedLock**) would elect one runner. This is deferred because it can't be meaningfully exercised without a multi-replica deployment.
+- **Single-runner scheduling (ShedLock)** — the disappearing-message expiry sweep and the scheduled-message dispatcher run on a timer. On multiple replicas they would run redundantly (e.g. double-delivering a scheduled message), so each task is wrapped with `@SchedulerLock` and a **ShedLock** distributed lock (backed by Postgres) elects a single runner — exactly one replica executes each tick.
 
 > A heavier alternative to the Redis Pub/Sub bridge would be an **external STOMP relay** (RabbitMQ or Redis via `enableStompBrokerRelay`), which moves broker state out of the JVM entirely. The Pub/Sub bridge is the lighter choice and avoids the extra broker dependency.
 
-Other possible next steps: paginating search results, reaction notifications, and extending internationalization coverage across the in-app chat surfaces.
+Larger features still on the roadmap: **group voice/video calls** via an SFU media server (the current WebRTC calls are peer-to-peer 1:1), and a **native mobile wrapper** (Capacitor) around the existing PWA.
 
 ---
 
