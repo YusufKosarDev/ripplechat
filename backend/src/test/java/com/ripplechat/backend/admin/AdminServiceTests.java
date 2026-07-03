@@ -1,7 +1,9 @@
 package com.ripplechat.backend.admin;
 
 import com.ripplechat.backend.admin.dto.AdminUserView;
+import com.ripplechat.backend.auth.RefreshTokenService;
 import com.ripplechat.backend.common.exception.ForbiddenException;
+import com.ripplechat.backend.common.exception.InvalidCredentialsException;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
 import com.ripplechat.backend.user.User;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,8 @@ class AdminServiceTests extends AbstractIntegrationTest {
 
     @Autowired
     AdminService adminService;
+    @Autowired
+    RefreshTokenService refreshTokenService;
 
     private User makeAdmin(String username) {
         User u = createUser(username);
@@ -76,6 +80,26 @@ class AdminServiceTests extends AbstractIntegrationTest {
         assertThat(adminService.auditLog("root", PageRequest.of(0, 10)).content())
                 .extracting(e -> e.action())
                 .contains("user_disabled", "user_enabled");
+    }
+
+    @Test
+    void disablingAUserEndsTheirSessionsAndBlocksRefresh() {
+        makeAdmin("root");
+        User bob = createUser("bob");
+        refreshTokenService.issue(bob);
+        assertThat(refreshTokenService.getActiveSessions(bob)).isNotEmpty();
+
+        adminService.setDisabled("root", bob.getId(), true);
+
+        // The ban revoked every live session immediately.
+        assertThat(refreshTokenService.getActiveSessions(bob)).isEmpty();
+
+        // And even a freshly-minted token cannot be rotated while disabled — the
+        // rotate() guard rejects it (defence in depth beyond the login block).
+        String survivor = refreshTokenService.issue(bob);
+        assertThatThrownBy(() -> refreshTokenService.rotate(survivor))
+                .isInstanceOf(InvalidCredentialsException.class);
+        assertThat(refreshTokenService.getActiveSessions(bob)).isEmpty();
     }
 
     @Test

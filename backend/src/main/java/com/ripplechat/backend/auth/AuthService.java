@@ -163,6 +163,14 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid token"));
 
+        // Guard the second login leg too: an account disabled (or erased) after the
+        // password step — while the pre-auth token was still valid — must not be able
+        // to finish signing in by submitting a 2FA code.
+        if (user.isDisabled() || user.isDeleted()) {
+            audit.loginFailed(username, "account_disabled");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "this account has been disabled");
+        }
+
         if (!user.isTwoFactorEnabled()) {
             throw new InvalidCredentialsException("2FA is not enabled for this user");
         }

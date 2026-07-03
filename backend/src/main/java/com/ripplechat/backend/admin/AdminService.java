@@ -5,6 +5,7 @@ import com.ripplechat.backend.admin.dto.AdminUserView;
 import com.ripplechat.backend.admin.dto.AuditLogEntry;
 import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.common.dto.PageResponse;
+import com.ripplechat.backend.auth.RefreshTokenService;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.MessageRepository;
@@ -30,6 +31,7 @@ public class AdminService {
     private final MessageRepository messageRepository;
     private final AuditLogRepository auditLogRepository;
     private final AuditService auditService;
+    private final RefreshTokenService refreshTokenService;
 
     /** Throws unless the caller is a global admin. Returns the admin user. */
     @Transactional(readOnly = true)
@@ -92,6 +94,12 @@ public class AdminService {
         }
         target.setDisabled(value);
         userRepository.save(target);
+        // Banning must end the account's live sessions immediately — otherwise the
+        // rotating refresh token would let a disabled user renew access indefinitely
+        // (login() blocks new sign-ins, but not an already-issued session).
+        if (value) {
+            refreshTokenService.revokeAll(target);
+        }
         auditService.record(actor, value ? "user_disabled" : "user_enabled", target.getUsername(), null);
         return AdminUserView.from(target);
     }

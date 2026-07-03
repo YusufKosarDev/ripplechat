@@ -75,8 +75,16 @@ public class RefreshTokenService {
         RefreshToken token = repository.findByTokenHash(hash(rawToken))
                 .orElseThrow(() -> new InvalidCredentialsException("invalid refresh token"));
         User user = token.getUser();
+
+        // A disabled (banned) or erased account may never renew a session, even
+        // with an otherwise-valid refresh token. Nuke all their tokens on the way out.
+        if (user.isDisabled() || user.isDeleted()) {
+            repository.deleteAllByUser(user);
+            throw new InvalidCredentialsException("account is no longer active");
+        }
+
         boolean expired = token.getExpiresAt().isBefore(Instant.now());
-        
+
         if (token.isRevoked()) {
             // Replay attack detected: token was already used!
             repository.deleteAllByUser(user);
