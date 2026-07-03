@@ -35,7 +35,7 @@ describe('notificationsSlice', () => {
   })
 
   it('caps the list at 50 items', () => {
-    let state = initial
+    let state: ReturnType<typeof reducer> = initial
     for (let i = 0; i < 60; i++) state = reducer(state, notificationReceived(notif(`n${i}`)))
     expect(state.items).toHaveLength(50)
   })

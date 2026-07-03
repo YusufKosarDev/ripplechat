@@ -195,6 +195,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null)
   const [pinned, setPinned] = useState<Message[]>([])
   const [showPinned, setShowPinned] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summarizing, setSummarizing] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [showScheduled, setShowScheduled] = useState(false)
   const [showWebhooks, setShowWebhooks] = useState(false)
@@ -448,6 +451,15 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }, 2000)
     return () => clearTimeout(timer)
   }, [jumpTargetId, messages.length, dispatch])
+
+  // AI features are off unless the backend has an Anthropic API key configured.
+  // Must stay above the early return below so the hook order is stable.
+  useEffect(() => {
+    client
+      .get<{ enabled: boolean }>('/api/ai/status')
+      .then(({ data }) => setAiEnabled(data.enabled))
+      .catch(() => setAiEnabled(false))
+  }, [])
 
   const onMessagesScroll = () => {
     const el = scrollRef.current
@@ -834,6 +846,20 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }
   }
 
+  const onSummarize = async () => {
+    if (!selectedId) return
+    setSummarizing(true)
+    setSummary(null)
+    try {
+      const { data } = await client.post<{ summary: string }>(`/api/ai/channels/${selectedId}/summary`)
+      setSummary(data.summary)
+    } catch {
+      setSummary('Özet oluşturulamadı. Lütfen tekrar dene.')
+    } finally {
+      setSummarizing(false)
+    }
+  }
+
   const hideForMe = async (msg: Message) => {
     if (!selectedId) return
     try {
@@ -1072,6 +1098,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
               📞
             </Button>
           )}
+          {aiEnabled && (
+            <Button variant="secondary" size="sm" onClick={onSummarize} disabled={summarizing} title="Yapay zeka ile özetle">
+              {summarizing ? '✨ ...' : '✨ Özetle'}
+            </Button>
+          )}
           {pinned.length > 0 && (
             <Button variant="secondary" size="sm" onClick={() => setShowPinned(true)} title="Sabitlenenler">
               📌 {pinned.length}
@@ -1089,6 +1120,28 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           )}
         </div>
       </header>
+
+      {summary !== null && (
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16"
+          onClick={() => setSummary(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-border bg-surface-overlay p-4 shadow-elevated"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold tracking-tight">✨ Özet</span>
+              <button onClick={() => setSummary(null)} aria-label="Kapat" className={`text-fg-faint transition hover:text-fg ${focusRing}`}>
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg-secondary">
+              {summary}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Suspense fallback={null}>
         {showMembers && (

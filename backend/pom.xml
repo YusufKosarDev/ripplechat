@@ -78,6 +78,15 @@
 			<version>1.7.1</version>
 		</dependency>
 
+		<!-- Official Anthropic SDK for AI channel/thread summarization. Inactive
+		     unless ANTHROPIC_API_KEY is set (graceful-disable), like the other
+		     credentialed integrations. -->
+		<dependency>
+			<groupId>com.anthropic</groupId>
+			<artifactId>anthropic-java</artifactId>
+			<version>2.34.0</version>
+		</dependency>
+
 		<!-- Operational health endpoint (/actuator/health). -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
