@@ -67,6 +67,32 @@ class AuthServiceTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void disabledUserWithCorrectPasswordIsBlocked() {
+        authService.register(new RegisterRequest("frank", "frank@test.io", null, "password123"));
+        User u = userRepository.findByUsername("frank").orElseThrow();
+        u.setDisabled(true);
+        userRepository.saveAndFlush(u);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("frank", "password123")))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("disabled");
+    }
+
+    @Test
+    void disabledUserWithWrongPasswordLeaksNothing() {
+        // A wrong password must yield the *generic* invalid-credentials error, not
+        // the "disabled" signal — otherwise an unauthenticated caller could probe
+        // ban status / account existence without knowing the password.
+        authService.register(new RegisterRequest("grace", "grace@test.io", null, "password123"));
+        User u = userRepository.findByUsername("grace").orElseThrow();
+        u.setDisabled(true);
+        userRepository.saveAndFlush(u);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("grace", "wrong-password")))
+                .isInstanceOf(InvalidCredentialsException.class);
+    }
+
+    @Test
     void registrationIsThrottledPerIp() {
         String ip = "203.0.113.9";
         // The burst (5) of registrations from one IP is allowed...
