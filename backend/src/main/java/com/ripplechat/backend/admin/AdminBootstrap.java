@@ -18,6 +18,11 @@ import java.util.List;
  * ADMIN_USERNAMES, comma-separated) to global admins on startup. This is the
  * bootstrap for the very first admin; further grants happen in the admin panel.
  * No-op when the property is empty.
+ *
+ * <p>Note: this runs on <em>every</em> boot, so a listed user is effectively a
+ * permanent admin — revoking them in the panel is undone at the next restart.
+ * To demote a listed user for good, remove them from the property first. Only
+ * promotions happen here; the bootstrap never demotes.
  */
 @Component
 public class AdminBootstrap implements ApplicationRunner {
