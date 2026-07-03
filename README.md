@@ -340,7 +340,7 @@ The timer-driven `@Scheduled` tasks are also replica-safe:
 
 > A heavier alternative to the Redis Pub/Sub bridge would be an **external STOMP relay** (RabbitMQ or Redis via `enableStompBrokerRelay`), which moves broker state out of the JVM entirely. The Pub/Sub bridge is the lighter choice and avoids the extra broker dependency.
 
-Larger features still on the roadmap: **group voice/video calls** via an SFU media server (the current WebRTC calls are peer-to-peer 1:1), and a **native mobile wrapper** (Capacitor) around the existing PWA.
+Larger features still on the roadmap: **group voice/video calls** via an SFU media server (the current WebRTC calls are peer-to-peer 1:1 — see the grounded architecture plan in [`docs/group-calls-sfu.md`](docs/group-calls-sfu.md)), and a **native mobile wrapper** (Capacitor) around the existing PWA.
 
 ---
 
