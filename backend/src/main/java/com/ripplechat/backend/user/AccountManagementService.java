@@ -7,6 +7,8 @@ import com.ripplechat.backend.auth.SecurityAuditLogger;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
+import com.ripplechat.backend.media.MediaStorage;
+import com.ripplechat.backend.message.Message;
 import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.notification.NotificationRepository;
 import com.ripplechat.backend.push.PushSubscriptionRepository;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -44,6 +47,7 @@ public class AccountManagementService {
     private final UserBlockRepository blockRepository;
     private final NotificationRepository notificationRepository;
     private final SecurityAuditLogger audit;
+    private final MediaStorage mediaStorage;
 
     @Transactional(readOnly = true)
     public AccountExport export(String username) {
@@ -94,6 +98,20 @@ public class AccountManagementService {
         blockRepository.deleteByBlockerId(id);
         blockRepository.deleteByBlockedId(id);
 
+        // Defer Cloudinary media deletes for user's past messages to run after commit,
+        // and scrub attachment references immediately in the database.
+        List<Message> userMessages = messageRepository.findBySender_IdOrderByCreatedAtAsc(id);
+        for (Message msg : userMessages) {
+            String attachmentUrl = msg.getAttachmentUrl();
+            if (attachmentUrl != null) {
+                safeDeleteMedia(attachmentUrl);
+                msg.setAttachmentUrl(null);
+                msg.setAttachmentName(null);
+                msg.setAttachmentType(null);
+                messageRepository.save(msg);
+            }
+        }
+
         // Scrub personal data on the retained row.
         user.setUsername("deleted_" + id);
         user.setEmail("deleted+" + id + "@deleted.invalid");
@@ -113,5 +131,28 @@ public class AccountManagementService {
         userRepository.save(user);
 
         audit.accountDeleted(username);
+    }
+
+    private void safeDeleteMedia(String url) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            try {
+                                mediaStorage.delete(url);
+                            } catch (Exception e) {
+                                // Log but do not fail
+                            }
+                        }
+                    }
+            );
+        } else {
+            try {
+                mediaStorage.delete(url);
+            } catch (Exception e) {
+                // Log but do not fail
+            }
+        }
     }
 }
