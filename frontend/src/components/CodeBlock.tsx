@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 // Async-light build: the highlighter core is small and each language grammar is
 // loaded on demand, instead of the full Prism build bundling every language.
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -16,11 +16,16 @@ export default function CodeBlock({ language, value }: CodeBlockProps) {
   const theme = useAppSelector((state) => state.ui.theme)
   const [copied, setCopied] = useState(false)
 
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(timer)
+  }, [copied])
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
     } catch {
       // clipboard may be unavailable; ignore
     }
