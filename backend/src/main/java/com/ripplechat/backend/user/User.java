@@ -141,4 +141,14 @@ public class User {
     public boolean isDndActive() {
         return dndUntil != null && dndUntil.isAfter(Instant.now());
     }
+
+    /**
+     * Whether this account may authenticate or hold a session: not erased (GDPR)
+     * and not disabled (banned) by an admin. Every session-minting path (login,
+     * 2FA verify, refresh-token rotation, OAuth2 success) must gate on this so a
+     * new entry point can't accidentally skip the check.
+     */
+    public boolean canAuthenticate() {
+        return !deleted && !disabled;
+    }
 }

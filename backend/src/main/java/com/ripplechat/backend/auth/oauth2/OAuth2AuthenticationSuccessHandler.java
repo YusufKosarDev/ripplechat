@@ -52,7 +52,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         // A disabled (banned) or erased account must not obtain a session through the
         // OAuth2 path either — otherwise "Sign in with Google" would bypass the ban
         // that AuthService.login() enforces. Redirect back with an error, no tokens.
-        if (user.isDisabled() || user.isDeleted()) {
+        if (!user.canAuthenticate()) {
             return UriComponentsBuilder.fromUriString(targetUrl)
                     .queryParam("error", "account_disabled")
                     .build().toUriString();

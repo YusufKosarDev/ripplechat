@@ -168,7 +168,7 @@ public class AuthService {
         // Guard the second login leg too: an account disabled (or erased) after the
         // password step — while the pre-auth token was still valid — must not be able
         // to finish signing in by submitting a 2FA code.
-        if (user.isDisabled() || user.isDeleted()) {
+        if (!user.canAuthenticate()) {
             audit.loginFailed(username, "account_disabled");
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "this account has been disabled");
         }

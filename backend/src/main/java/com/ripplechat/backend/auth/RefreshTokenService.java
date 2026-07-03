@@ -78,7 +78,7 @@ public class RefreshTokenService {
 
         // A disabled (banned) or erased account may never renew a session, even
         // with an otherwise-valid refresh token. Nuke all their tokens on the way out.
-        if (user.isDisabled() || user.isDeleted()) {
+        if (!user.canAuthenticate()) {
             repository.deleteAllByUser(user);
             throw new InvalidCredentialsException("account is no longer active");
         }
