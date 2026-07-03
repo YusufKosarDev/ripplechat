@@ -290,8 +290,14 @@ public class MessageService {
     @Transactional
     public void editMessage(UUID channelId, UUID messageId, String username, String content) {
         Message message = requireOwnMessage(channelId, messageId, username);
-        if (message.isDeleted() || content == null || content.isBlank() || content.length() > MAX_MESSAGE_LENGTH) {
+        // A removed message has nothing to edit — silently ignore (idempotent).
+        if (message.isDeleted()) {
             return;
+        }
+        // Invalid content is a client error, surfaced consistently with send()
+        // rather than silently dropped.
+        if (content == null || content.isBlank() || content.length() > MAX_MESSAGE_LENGTH) {
+            throw new BadRequestException("content must be 1–" + MAX_MESSAGE_LENGTH + " characters");
         }
         String previous = message.getContent();
         if (previous.equals(content)) {

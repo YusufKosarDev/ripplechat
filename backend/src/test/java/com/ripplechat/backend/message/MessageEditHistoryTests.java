@@ -2,6 +2,7 @@ package com.ripplechat.backend.message;
 
 import com.ripplechat.backend.channel.ChannelService;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
+import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MessageEditHistoryEntry;
@@ -44,6 +45,18 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("same", null), "owner");
 
         messageService.editMessage(channel.id(), msg.id(), "owner", "same");
+
+        assertThat(messageService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
+    }
+
+    @Test
+    void blankEditIsRejectedAndRecordsNoHistory() {
+        createUser("owner");
+        var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
+        MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("v1", null), "owner");
+
+        assertThatThrownBy(() -> messageService.editMessage(channel.id(), msg.id(), "owner", "   "))
+                .isInstanceOf(BadRequestException.class);
 
         assertThat(messageService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
     }
