@@ -18,5 +18,18 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: ripplechat-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management UI
+      - "61613:61613"    # STOMP
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    command: sh -c "rabbitmq-plugins enable rabbitmq_stomp && rabbitmq-server"
+
 volumes:
   ripplechat-pgdata:

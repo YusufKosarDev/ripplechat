@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,13 +16,22 @@ public class RedisBroadcastService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    @Value("${app.websocket.broker.type:simple}")
+    private String brokerType;
 
     /**
-     * Serializes the payload to JSON and publishes it to the Redis topic.
-     * All backend instances (including this one) will receive it and broadcast it
-     * via their local SimpMessagingTemplate.
+     * Broadcasts the payload. If the broker type is rabbitmq, it delegates directly
+     * to SimpMessagingTemplate as RabbitMQ natively replicates messages to all nodes.
+     * Otherwise, it serializes and publishes to Redis Pub/Sub STOMP_TOPIC for SimpleBroker.
      */
     public void broadcast(String destination, Object payload) {
+        if ("rabbitmq".equalsIgnoreCase(brokerType)) {
+            messagingTemplate.convertAndSend(destination, payload);
+            return;
+        }
+
         try {
             String payloadJson;
             if (payload instanceof String) {

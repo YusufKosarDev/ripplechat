@@ -20,6 +20,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${app.allowed-origins:}")
     private String allowedOrigins;
 
+    @Value("${app.websocket.broker.type:simple}")
+    private String brokerType;
+
+    @Value("${spring.rabbitmq.host:localhost}")
+    private String rabbitmqHost;
+
+    @Value("${app.rabbitmq.stomp.port:61613}")
+    private int rabbitmqStompPort;
+
+    @Value("${spring.rabbitmq.username:guest}")
+    private String rabbitmqUsername;
+
+    @Value("${spring.rabbitmq.password:guest}")
+    private String rabbitmqPassword;
+
     public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor) {
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
     }
@@ -39,8 +54,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         // Clients subscribe under /topic; the app handles inbound sends under /app.
-        registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
+        if ("rabbitmq".equalsIgnoreCase(brokerType)) {
+            registry.enableStompBrokerRelay("/topic")
+                    .setRelayHost(rabbitmqHost)
+                    .setRelayPort(rabbitmqStompPort)
+                    .setClientLogin(rabbitmqUsername)
+                    .setClientPasscode(rabbitmqPassword)
+                    .setSystemLogin(rabbitmqUsername)
+                    .setSystemPasscode(rabbitmqPassword);
+        } else {
+            registry.enableSimpleBroker("/topic");
+        }
     }
 
     @Override
