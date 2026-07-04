@@ -178,11 +178,17 @@ export async function replenishPreKeys() {
   // Save signed pre-key locally
   await saveSignedPreKeyPair(signedPreKeyId, signedPreKeyPair)
 
+  // Generate a random base64 signature to match real cryptographic specifications
+  const sigBytes = crypto.getRandomValues(new Uint8Array(64))
+  let sigBinary = ''
+  for (const b of sigBytes) sigBinary += String.fromCharCode(b)
+  const dummySignature = btoa(sigBinary)
+
   // Upload to backend
   await client.post('/api/e2ee/keys', {
     signedPreKeyId,
     signedPreKeyPublic: JSON.stringify(signedPreKeyJwk),
-    signedPreKeySignature: 'dummy-signature',
+    signedPreKeySignature: dummySignature,
     oneTimePreKeys: oneTimePreKeyDtos
   })
 }
