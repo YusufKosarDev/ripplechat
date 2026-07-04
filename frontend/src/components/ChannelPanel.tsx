@@ -38,8 +38,8 @@ import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
 import { clearUnread } from '../features/unread/unreadSlice'
 import { toggleBookmark } from '../features/bookmarks/bookmarksSlice'
 import { setPassphrase } from '../features/e2ee/e2eeSlice'
-import { decryptText, encryptText, isEncrypted, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from '../crypto/e2ee'
-import { getAsymmetricKeyPair } from '../db'
+import { decryptText, encryptText, isEncrypted, isEncryptedV2, encryptTextV2, decryptTextV2, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from '../crypto/e2ee'
+import { getAsymmetricKeyPair, getDecryptedCache } from '../db'
 // Pickers and modals are only shown on demand, so load them lazily instead of
 // bundling them into the main chat page chunk.
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
@@ -267,37 +267,63 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     deriveKey()
   }, [selectedId, dmPartner])
 
-  // Decrypt any E2EE messages in the open channel once a passphrase or asymmetric key is set.
+  // Decrypt any E2EE messages in the open channel.
   // Failures (wrong key / corrupt payload) are left locked.
   useEffect(() => {
-    if (!selectedId || (!passphrase && !asymmetricKey)) return
+    if (!selectedId) return
     let cancelled = false
-    const pending = messages.filter((m) => isEncrypted(m.content) && decrypted[m.id] === undefined)
-    if (pending.length === 0) return
-    Promise.all(
-      pending.map(async (m) => {
+
+    const decryptPending = async () => {
+      const pending = messages.filter((m) => isEncrypted(m.content) && decrypted[m.id] === undefined)
+      if (pending.length === 0) return
+
+      const newDecrypted: Record<string, string> = {}
+      // Process messages sequentially to prevent race conditions on Double Ratchet session state
+      for (const m of pending) {
+        if (cancelled) break
         try {
-          if (asymmetricKey) {
-            return [m.id, await decryptTextAsymmetric(asymmetricKey, m.content)] as const
+          if (isEncryptedV2(m.content)) {
+            if (dmPartner) {
+              const cached = await getDecryptedCache(m.content)
+              if (cached) {
+                newDecrypted[m.id] = cached
+              } else {
+                const plaintext = await decryptTextV2(dmPartner.id, m.content)
+                newDecrypted[m.id] = plaintext
+              }
+            } else {
+              newDecrypted[m.id] = DECRYPT_FAILED
+            }
           } else {
-            return [m.id, await decryptText(selectedId, passphrase!, m.content)] as const
+            // v1 E2EE decryption
+            if (asymmetricKey) {
+              newDecrypted[m.id] = await decryptTextAsymmetric(asymmetricKey, m.content)
+            } else if (passphrase) {
+              newDecrypted[m.id] = await decryptText(selectedId, passphrase, m.content)
+            }
           }
-        } catch {
-          return [m.id, DECRYPT_FAILED] as const
+        } catch (err) {
+          console.error('Decryption failed for message:', m.id, err)
+          newDecrypted[m.id] = DECRYPT_FAILED
         }
-      }),
-    ).then((entries) => {
-      if (!cancelled) setDecrypted((prev) => ({ ...prev, ...Object.fromEntries(entries) }))
-    })
+      }
+
+      if (!cancelled && Object.keys(newDecrypted).length > 0) {
+        setDecrypted((prev) => ({ ...prev, ...newDecrypted }))
+      }
+    }
+
+    decryptPending()
+
     return () => {
       cancelled = true
     }
-  }, [selectedId, passphrase, asymmetricKey, messages, decrypted])
+  }, [selectedId, passphrase, asymmetricKey, messages, decrypted, dmPartner])
 
   // Drop cached plaintext when both keys are cleared so messages re-lock.
   useEffect(() => {
-    if (!passphrase && !asymmetricKey) setDecrypted({})
-  }, [passphrase, asymmetricKey, selectedId])
+    if (!passphrase && !asymmetricKey && !dmPartner) setDecrypted({})
+  }, [passphrase, asymmetricKey, dmPartner, selectedId])
 
   const handleTyping = (event: TypingEvent) => {
     if (event.userId === currentUserIdRef.current) return
@@ -565,7 +591,18 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       if (!currentUser) return
       let content = text
       if (text) {
-        if (asymmetricKey) {
+        if (dmPartner) {
+          try {
+            content = await encryptTextV2(dmPartner.id, text)
+          } catch (err) {
+            console.warn('Double Ratchet E2EE initialization failed, falling back to static ECDH:', err)
+            if (asymmetricKey) {
+              content = await encryptTextAsymmetric(asymmetricKey, text)
+            } else if (passphrase) {
+              content = await encryptText(channel.id, passphrase, text)
+            }
+          }
+        } else if (asymmetricKey) {
           content = await encryptTextAsymmetric(asymmetricKey, text)
         } else if (passphrase) {
           content = await encryptText(channel.id, passphrase, text)

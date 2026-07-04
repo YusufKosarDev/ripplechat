@@ -16,6 +16,7 @@ import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
 import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
 import { client } from '../api/client'
+import { replenishPreKeys } from '../crypto/e2ee'
 
 // Loaded on demand the first time the quick switcher (Ctrl/Cmd+K) is opened.
 const QuickSwitcher = lazy(() => import('../components/QuickSwitcher'))
@@ -154,6 +155,16 @@ export default function ChatPage() {
             headers: { 'Content-Type': 'text/plain' }
           })
           dispatch(fetchCurrentUser())
+        }
+
+        // Check and replenish pre-keys if low
+        try {
+          const countRes = await client.get<{ oneTimePreKeyCount: number }>('/api/e2ee/keys/count')
+          if (countRes.data.oneTimePreKeyCount < 5) {
+            await replenishPreKeys()
+          }
+        } catch (err) {
+          console.error('Failed to check or replenish pre-keys:', err)
         }
       } catch (err) {
         console.error('Failed to initialize or upload asymmetric key pair:', err)
