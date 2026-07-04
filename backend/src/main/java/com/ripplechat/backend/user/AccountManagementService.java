@@ -11,6 +11,8 @@ import com.ripplechat.backend.media.MediaStorage;
 import com.ripplechat.backend.message.Message;
 import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.notification.NotificationRepository;
+import com.ripplechat.backend.outbox.OutboxTask;
+import com.ripplechat.backend.outbox.OutboxTaskRepository;
 import com.ripplechat.backend.push.PushSubscriptionRepository;
 import com.ripplechat.backend.user.dto.AccountExport;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,7 @@ public class AccountManagementService {
     private final NotificationRepository notificationRepository;
     private final SecurityAuditLogger audit;
     private final MediaStorage mediaStorage;
+    private final OutboxTaskRepository outboxTaskRepository;
 
     @Transactional(readOnly = true)
     public AccountExport export(String username) {
@@ -134,25 +137,15 @@ public class AccountManagementService {
     }
 
     private void safeDeleteMedia(String url) {
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                    new org.springframework.transaction.support.TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                mediaStorage.delete(url);
-                            } catch (Exception e) {
-                                // Log but do not fail
-                            }
-                        }
-                    }
-            );
-        } else {
-            try {
-                mediaStorage.delete(url);
-            } catch (Exception e) {
-                // Log but do not fail
-            }
+        if (url == null || url.isBlank()) {
+            return;
         }
+        OutboxTask task = new OutboxTask();
+        task.setId(UUID.randomUUID());
+        task.setTaskType("DELETE_MEDIA");
+        task.setPayload(url);
+        task.setStatus(OutboxTask.Status.PENDING);
+        task.setCreatedAt(Instant.now());
+        outboxTaskRepository.save(task);
     }
 }

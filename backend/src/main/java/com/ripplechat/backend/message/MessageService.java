@@ -17,6 +17,8 @@ import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.message.dto.ThreadSummary;
 import com.ripplechat.backend.message.dto.ThreadUpdate;
 import com.ripplechat.backend.media.MediaStorage;
+import com.ripplechat.backend.outbox.OutboxTask;
+import com.ripplechat.backend.outbox.OutboxTaskRepository;
 import com.ripplechat.backend.push.MessageSentEvent;
 import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.user.User;
@@ -66,6 +68,7 @@ public class MessageService {
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher eventPublisher;
     private final com.ripplechat.backend.notification.NotificationService notificationService;
+    private final OutboxTaskRepository outboxTaskRepository;
 
     // Matches @username mentions in message content (letters, digits, _ and .).
     private static final java.util.regex.Pattern MENTION_PATTERN =
@@ -525,22 +528,16 @@ public class MessageService {
         if (url == null || url.isBlank()) {
             return;
         }
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                new org.springframework.transaction.support.TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        try {
-                            mediaStorage.delete(url);
-                        } catch (Exception ignored) {}
-                    }
-                }
-            );
-        } else {
-            try {
-                mediaStorage.delete(url);
-            } catch (Exception ignored) {}
+        if (!url.startsWith(CLOUDINARY_PREFIX)) {
+            return;
         }
+        OutboxTask task = new OutboxTask();
+        task.setId(UUID.randomUUID());
+        task.setTaskType("DELETE_MEDIA");
+        task.setPayload(url);
+        task.setStatus(OutboxTask.Status.PENDING);
+        task.setCreatedAt(Instant.now());
+        outboxTaskRepository.save(task);
     }
 
     private void requireMember(UUID channelId, String username) {
