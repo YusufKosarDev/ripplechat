@@ -8,7 +8,6 @@ import {
   decryptTextAsymmetric,
   encryptTextV2,
   decryptTextV2,
-  replenishPreKeys
 } from './e2ee'
 import { client } from '../api/client'
 

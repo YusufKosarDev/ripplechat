@@ -39,7 +39,11 @@ async function hkdf(
   length: number,
 ): Promise<ArrayBuffer> {
   const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits'])
-  return crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, length * 8)
+  return crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: salt as BufferSource, info: info as BufferSource },
+    key,
+    length * 8,
+  )
 }
 
 /** KDF_RK: Root Key KDF — derives a new root key + chain key from DH output. */
@@ -90,7 +94,7 @@ async function aesEncrypt(messageKey: ArrayBuffer, plaintext: string): Promise<{
 
 async function aesDecrypt(messageKey: ArrayBuffer, iv: Uint8Array, ciphertext: Uint8Array): Promise<string> {
   const key = await crypto.subtle.importKey('raw', messageKey, 'AES-GCM', false, ['decrypt'])
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, ciphertext as BufferSource)
   return decoder.decode(pt)
 }
 
