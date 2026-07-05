@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -84,9 +86,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             return false;
         }
         try {
+            // Prevent open redirect via protocol-relative or backslash-based paths.
+            if (uriStr.startsWith("//") || uriStr.startsWith("\\\\") || uriStr.contains("\\")) {
+                return false;
+            }
             java.net.URI clientRedirectUri = java.net.URI.create(uriStr);
             if (!clientRedirectUri.isAbsolute()) {
-                return true;
+                // If relative path, only allow a path starting with a single '/'
+                return uriStr.startsWith("/") && !uriStr.startsWith("//");
             }
             String host = clientRedirectUri.getHost();
             int port = clientRedirectUri.getPort();
@@ -122,4 +129,3 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         }
     }
 }
-

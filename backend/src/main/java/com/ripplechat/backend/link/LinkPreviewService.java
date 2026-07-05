@@ -141,12 +141,19 @@ public class LinkPreviewService {
         return el == null ? null : el.attr("content");
     }
 
-    /** Rejects non-http(s) schemes and private/loopback/link-local hosts (SSRF guard). */
+    /** Rejects non-http(s) schemes, non-standard ports (SSRF guard), and private/loopback/link-local hosts. */
     private boolean isAllowed(URI uri) {
         String scheme = uri.getScheme();
         if (scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
             return false;
         }
+
+        // Restrict allowed ports to HTTP standard (80) and HTTPS standard (443) to prevent internal port scanning.
+        int port = uri.getPort();
+        if (port != -1 && port != 80 && port != 443) {
+            return false;
+        }
+
         String host = uri.getHost();
         if (host == null) {
             return false;

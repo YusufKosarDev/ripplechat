@@ -66,13 +66,14 @@ public class RefreshTokenService {
     }
 
     /**
-     * Validates and consumes a refresh token (one-time use): the row is deleted
-     * so the same token can never be replayed, and the caller issues a fresh one
-     * (rotation). Throws if the token is unknown or expired.
+     * Validates and consumes a refresh token (one-time use): the row is atomically updated
+     * so that the same token can never be replayed concurrently, and the caller issues a fresh one
+     * (rotation). Throws if the token is unknown, already revoked (replay) or expired.
      */
     @Transactional
     public User rotate(String rawToken) {
-        RefreshToken token = repository.findByTokenHash(hash(rawToken))
+        String tokenHash = hash(rawToken);
+        RefreshToken token = repository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new InvalidCredentialsException("invalid refresh token"));
         User user = token.getUser();
 
@@ -85,14 +86,14 @@ public class RefreshTokenService {
 
         boolean expired = token.getExpiresAt().isBefore(Instant.now());
 
-        if (token.isRevoked()) {
+        // Perform the atomic revocation check.
+        // If it returns 0, it means it was already revoked (race condition or replay).
+        int updatedRows = repository.revokeToken(tokenHash);
+        if (updatedRows == 0 || token.isRevoked()) {
             // Replay attack detected: token was already used!
             repository.deleteAllByUser(user);
             throw new InvalidCredentialsException("refresh token replay detected; all sessions revoked");
         }
-        
-        token.setRevoked(true);
-        repository.save(token);
         
         if (expired) {
             throw new InvalidCredentialsException("refresh token expired");
