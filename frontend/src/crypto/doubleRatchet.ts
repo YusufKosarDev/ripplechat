@@ -12,14 +12,14 @@
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-function toBase64(buf: ArrayBuffer | Uint8Array): string {
+export function toBase64(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
   let binary = ''
   for (const b of bytes) binary += String.fromCharCode(b)
   return btoa(binary)
 }
 
-function fromBase64(s: string): Uint8Array {
+export function fromBase64(s: string): Uint8Array {
   const binary = atob(s)
   const out = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
@@ -67,8 +67,9 @@ async function kdfCK(chainKey: ArrayBuffer): Promise<{ chainKey: ArrayBuffer; me
 
 const ECDH_PARAMS = { name: 'ECDH', namedCurve: 'P-256' } as const
 
+/** Generates a non-extractable ECDH key pair for Double Ratchet steps. */
 export async function generateDHKeyPair(): Promise<CryptoKeyPair> {
-  return crypto.subtle.generateKey(ECDH_PARAMS, true, ['deriveKey', 'deriveBits'])
+  return crypto.subtle.generateKey(ECDH_PARAMS, false, ['deriveKey', 'deriveBits'])
 }
 
 async function dh(privateKey: CryptoKey, publicKey: CryptoKey): Promise<ArrayBuffer> {
@@ -107,7 +108,7 @@ export interface SerializedSession {
   rootKey: string               // base64
   sendChainKey: string | null   // base64
   recvChainKey: string | null   // base64
-  sendRatchetKeyPair: { publicKey: JsonWebKey; privateKey: JsonWebKey } | null
+  sendRatchetKeyPair: { publicKey: JsonWebKey; privateKey: CryptoKey } | null
   recvRatchetPublicKey: JsonWebKey | null
   sendN: number                 // send message counter
   recvN: number                 // recv message counter
@@ -316,7 +317,7 @@ export async function serializeSession(session: RatchetSession): Promise<Seriali
   if (session.sendRatchetKeyPair) {
     sendRatchetKeyPair = {
       publicKey: await exportPublicKey(session.sendRatchetKeyPair.publicKey),
-      privateKey: await crypto.subtle.exportKey('jwk', session.sendRatchetKeyPair.privateKey),
+      privateKey: session.sendRatchetKeyPair.privateKey, // Directly store the non-extractable CryptoKey
     }
   }
 
@@ -348,9 +349,7 @@ export async function deserializeSession(s: SerializedSession): Promise<RatchetS
   if (s.sendRatchetKeyPair) {
     sendRatchetKeyPair = {
       publicKey: await importPublicKey(s.sendRatchetKeyPair.publicKey),
-      privateKey: await crypto.subtle.importKey(
-        'jwk', s.sendRatchetKeyPair.privateKey, ECDH_PARAMS, true, ['deriveBits'],
-      ),
+      privateKey: s.sendRatchetKeyPair.privateKey, // Directly restore the CryptoKey object
     }
   }
 

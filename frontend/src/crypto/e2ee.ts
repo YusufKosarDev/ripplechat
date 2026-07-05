@@ -23,6 +23,8 @@ import {
   ratchetDecrypt,
   serializeSession,
   deserializeSession,
+  toBase64,
+  fromBase64,
   type RatchetSession,
   type MessageHeader,
 } from './doubleRatchet'
@@ -36,19 +38,6 @@ import {
 const PREFIX = 'enc:v1:'
 const PREFIX_V2 = 'enc:v2:'
 const keyCache = new Map<string, Promise<CryptoKey>>()
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (const b of bytes) binary += String.fromCharCode(b)
-  return btoa(binary)
-}
-
-function fromBase64(value: string): Uint8Array {
-  const binary = atob(value)
-  const out = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
-  return out
-}
 
 async function deriveKey(channelId: string, passphrase: string): Promise<CryptoKey> {
   const encoder = new TextEncoder()
@@ -178,17 +167,33 @@ export async function replenishPreKeys() {
   // Save signed pre-key locally
   await saveSignedPreKeyPair(signedPreKeyId, signedPreKeyPair)
 
-  // Generate a random base64 signature to match real cryptographic specifications
-  const sigBytes = crypto.getRandomValues(new Uint8Array(64))
-  let sigBinary = ''
-  for (const b of sigBytes) sigBinary += String.fromCharCode(b)
-  const dummySignature = btoa(sigBinary)
+  // Export our Identity Private Key to JWK
+  const identityPrivateJwk = await crypto.subtle.exportKey('jwk', identityKeyPair.privateKey)
+  // Modify JWK usage for ECDSA signing
+  identityPrivateJwk.key_ops = ['sign']
+  // Import it as an ECDSA Private Key
+  const signingKey = await crypto.subtle.importKey(
+    'jwk',
+    identityPrivateJwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  )
+  
+  // Sign the public key of the Signed Pre-Key
+  const rawSignedPreKeyPublic = new TextEncoder().encode(JSON.stringify(signedPreKeyJwk))
+  const signatureBuffer = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: { name: 'SHA-256' } },
+    signingKey,
+    rawSignedPreKeyPublic
+  )
+  const realSignature = toBase64(new Uint8Array(signatureBuffer))
 
   // Upload to backend
   await client.post('/api/e2ee/keys', {
     signedPreKeyId,
     signedPreKeyPublic: JSON.stringify(signedPreKeyJwk),
-    signedPreKeySignature: dummySignature,
+    signedPreKeySignature: realSignature,
     oneTimePreKeys: oneTimePreKeyDtos
   })
 }

@@ -157,6 +157,7 @@ export interface Message {
   // Set when the channel has a disappearing-messages timer; auto-deleted after this instant.
   expiresAt: string | null
   sending?: boolean
+  e2eeAttachment?: { url: string; name: string | null; type: 'image' | 'file' | 'audio'; key: string; iv: string } | null
 }
 
 export interface MessageReactionUpdate {

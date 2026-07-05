@@ -40,6 +40,7 @@ import { toggleBookmark } from '../features/bookmarks/bookmarksSlice'
 import { setPassphrase } from '../features/e2ee/e2eeSlice'
 import { decryptText, encryptText, isEncrypted, isEncryptedV2, encryptTextV2, decryptTextV2, deriveSharedKey, encryptTextAsymmetric, decryptTextAsymmetric } from '../crypto/e2ee'
 import { getAsymmetricKeyPair, getDecryptedCache } from '../db'
+import { toBase64 } from '../crypto/doubleRatchet'
 // Pickers and modals are only shown on demand, so load them lazily instead of
 // bundling them into the main chat page chunk.
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
@@ -190,6 +191,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     url: string
     name: string | null
     type: 'image' | 'file' | 'audio'
+    e2ee?: { key: string; iv: string }
   } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -590,24 +592,44 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     } else {
       if (!currentUser) return
       let content = text
-      if (text) {
+      let e2eeAttachmentInfo = null
+      const isE2EE = !!(dmPartner || asymmetricKey || passphrase)
+
+      if (isE2EE) {
+        if (attachment && attachment.e2ee) {
+          e2eeAttachmentInfo = {
+            url: attachment.url,
+            name: attachment.name,
+            type: attachment.type,
+            key: attachment.e2ee.key,
+            iv: attachment.e2ee.iv
+          }
+        }
+
+        const e2eePayload = JSON.stringify({
+          _e2ee: true,
+          text: text,
+          attachment: e2eeAttachmentInfo
+        })
+
         if (dmPartner) {
           try {
-            content = await encryptTextV2(dmPartner.id, text)
+            content = await encryptTextV2(dmPartner.id, e2eePayload)
           } catch (err) {
             console.warn('Double Ratchet E2EE initialization failed, falling back to static ECDH:', err)
             if (asymmetricKey) {
-              content = await encryptTextAsymmetric(asymmetricKey, text)
+              content = await encryptTextAsymmetric(asymmetricKey, e2eePayload)
             } else if (passphrase) {
-              content = await encryptText(channel.id, passphrase, text)
+              content = await encryptText(channel.id, passphrase, e2eePayload)
             }
           }
         } else if (asymmetricKey) {
-          content = await encryptTextAsymmetric(asymmetricKey, text)
+          content = await encryptTextAsymmetric(asymmetricKey, e2eePayload)
         } else if (passphrase) {
-          content = await encryptText(channel.id, passphrase, text)
+          content = await encryptText(channel.id, passphrase, e2eePayload)
         }
       }
+
       optIdCounter.current += 1
       const optId = 'opt-' + optIdCounter.current + '-' + selectedId
       const optimisticMsg: Message = {
@@ -628,9 +650,9 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         forwarded: false,
         reactions: [],
         thread: { replyCount: 0, lastRepliers: [] },
-        attachmentUrl: attachment?.url ?? null,
-        attachmentName: attachment?.name ?? null,
-        attachmentType: attachment?.type ?? null,
+        attachmentUrl: isE2EE ? null : attachment?.url ?? null,
+        attachmentName: isE2EE ? null : attachment?.name ?? null,
+        attachmentType: isE2EE ? null : attachment?.type ?? null,
         quotedMessageId: replyingTo?.id ?? null,
         quotedSender: replyingTo ? (replyingTo.sender.displayName ?? replyingTo.sender.username) : null,
         quotedContent: replyingTo ? (replyingTo.content || (replyingTo.attachmentUrl ? '📷 Görsel' : '')) : null,
@@ -638,6 +660,15 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         sending: true,
         parentMessageId: null,
         editedAt: null,
+      }
+
+      if (isE2EE) {
+        const e2eePayload = JSON.stringify({
+          _e2ee: true,
+          text: text,
+          attachment: e2eeAttachmentInfo
+        })
+        setDecrypted(prev => ({ ...prev, [optId]: e2eePayload }))
       }
 
       dispatch(addOptimisticMessage(optimisticMsg))
@@ -656,10 +687,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
           channel.id,
           content,
           undefined,
-          attachment?.url,
+          isE2EE ? undefined : attachment?.url,
           replyingTo?.id,
-          attachment?.name ?? undefined,
-          attachment?.type,
+          isE2EE ? undefined : attachment?.name ?? undefined,
+          isE2EE ? undefined : attachment?.type,
         )
         setTimeout(() => {
           dispatch(removeOptimisticMessage({ channelId: channel.id, id: optId }))
@@ -704,13 +735,51 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     setUploading(true)
     try {
       const form = new FormData()
-      form.append('file', file)
-      if (file.type.startsWith('image/')) {
+      let fileToUpload = file
+      let e2eeKeyB64 = ''
+      let e2eeIvB64 = ''
+
+      const isE2EE = !!(dmPartner || asymmetricKey || passphrase)
+
+      if (isE2EE) {
+        const rawKey = crypto.getRandomValues(new Uint8Array(32))
+        const iv = crypto.getRandomValues(new Uint8Array(12))
+
+        const key = await crypto.subtle.importKey(
+          'raw',
+          rawKey,
+          'AES-GCM',
+          false,
+          ['encrypt']
+        )
+
+        const fileBytes = await file.arrayBuffer()
+        const encryptedBytes = await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv },
+          key,
+          fileBytes
+        )
+
+        e2eeKeyB64 = toBase64(rawKey)
+        e2eeIvB64 = toBase64(iv)
+
+        const encryptedBlob = new Blob([encryptedBytes], { type: 'application/octet-stream' })
+        fileToUpload = new File([encryptedBlob], file.name, { type: 'application/octet-stream' })
+      }
+
+      form.append('file', fileToUpload)
+
+      if (!isE2EE && file.type.startsWith('image/')) {
         const { data } = await client.post<{ url: string }>('/api/uploads/image', form)
         setAttachment({ url: data.url, name: file.name, type: 'image' })
       } else {
         const { data } = await client.post<{ url: string; name: string }>('/api/uploads/file', form)
-        setAttachment({ url: data.url, name: data.name ?? file.name, type: 'file' })
+        setAttachment({
+          url: data.url,
+          name: data.name ?? file.name,
+          type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('audio/') ? 'audio' : 'file',
+          e2ee: isE2EE ? { key: e2eeKeyB64, iv: e2eeIvB64 } : undefined
+        })
       }
     } catch {
       setCmdError('Dosya yüklenemedi — görsel ≤5MB, dosya ≤10MB olmalı.')
@@ -771,7 +840,20 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     const dec = encryptedMsg ? decrypted[msg.id] : undefined
     const decryptFailed = dec === DECRYPT_FAILED
     const shownContent = encryptedMsg ? (dec && !decryptFailed ? dec : null) : msg.content
-    const linkUrl = !msg.deleted && shownContent ? extractFirstUrl(shownContent) : null
+
+    let e2eeAttachment = null
+    let parsedContent = shownContent
+    if (shownContent && shownContent.startsWith('{"_e2ee":')) {
+      try {
+        const parsed = JSON.parse(shownContent)
+        parsedContent = parsed.text
+        e2eeAttachment = parsed.attachment
+      } catch (e) {
+        console.error("Failed to parse E2EE JSON:", e)
+      }
+    }
+
+    const linkUrl = !msg.deleted && parsedContent ? extractFirstUrl(parsedContent) : null
     return (
       <div>
         {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ İletildi</div>}
@@ -792,9 +874,21 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
                 : 'Çözülüyor…'}
           </span>
         ) : (
-          shownContent && <MessageContent content={shownContent} />
+          parsedContent && <MessageContent content={parsedContent} />
         )}
-        <MessageAttachment msg={msg} />
+        <MessageAttachment
+          msg={
+            e2eeAttachment
+              ? ({
+                  ...msg,
+                  attachmentUrl: e2eeAttachment.url,
+                  attachmentName: e2eeAttachment.name,
+                  attachmentType: e2eeAttachment.type,
+                  e2eeAttachment,
+                } as any)
+              : msg
+          }
+        />
         {linkUrl && <LinkPreviewCard url={linkUrl} />}
         {msg.editedAt && (
           <button
@@ -942,9 +1036,46 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         setUploading(true)
         try {
           const form = new FormData()
-          form.append('file', new File([blob], 'sesli-mesaj.webm', { type: blob.type }))
+          let fileToUpload = new File([blob], 'sesli-mesaj.webm', { type: blob.type })
+          let e2eeKeyB64 = ''
+          let e2eeIvB64 = ''
+
+          const isE2EE = !!(dmPartner || asymmetricKey || passphrase)
+
+          if (isE2EE) {
+            const rawKey = crypto.getRandomValues(new Uint8Array(32))
+            const iv = crypto.getRandomValues(new Uint8Array(12))
+
+            const key = await crypto.subtle.importKey(
+              'raw',
+              rawKey,
+              'AES-GCM',
+              false,
+              ['encrypt']
+            )
+
+            const fileBytes = await blob.arrayBuffer()
+            const encryptedBytes = await crypto.subtle.encrypt(
+              { name: 'AES-GCM', iv },
+              key,
+              fileBytes
+            )
+
+            e2eeKeyB64 = toBase64(rawKey)
+            e2eeIvB64 = toBase64(iv)
+
+            const encryptedBlob = new Blob([encryptedBytes], { type: 'application/octet-stream' })
+            fileToUpload = new File([encryptedBlob], 'sesli-mesaj.webm', { type: 'application/octet-stream' })
+          }
+
+          form.append('file', fileToUpload)
           const { data } = await client.post<{ url: string; name: string }>('/api/uploads/file', form)
-          setAttachment({ url: data.url, name: 'Sesli mesaj', type: 'audio' })
+          setAttachment({
+            url: data.url,
+            name: 'Sesli mesaj',
+            type: 'audio',
+            e2ee: isE2EE ? { key: e2eeKeyB64, iv: e2eeIvB64 } : undefined
+          })
         } catch {
           setCmdError('Ses yüklenemedi.')
         } finally {
@@ -1155,7 +1286,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             </Button>
           )}
           {aiEnabled && (
-            <Button variant="secondary" size="sm" onClick={onSummarize} disabled={summarizing} title="Yapay zeka ile özetle">
+            <Button variant="secondary" size="sm" onClick={onSummarize} disabled={summarizing || !!dmPartner} title={dmPartner ? "Şifreli sohbetler özetlenemez" : "Yapay zeka ile özetle"}>
               {summarizing ? '✨ ...' : '✨ Özetle'}
             </Button>
           )}

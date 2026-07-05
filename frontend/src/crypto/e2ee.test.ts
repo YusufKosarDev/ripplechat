@@ -125,11 +125,33 @@ describe('e2ee', () => {
     const bobOneTimePreKeyJwk = await window.crypto.subtle.exportKey('jwk', bobOneTimePreKey.publicKey)
     const bobIdentityJwk = await window.crypto.subtle.exportKey('jwk', bobIdentity.publicKey)
 
+    // Export Bob's Identity Private Key to JWK and import as ECDSA for signing the pre-key
+    const bobIdentityPrivateJwk = await window.crypto.subtle.exportKey('jwk', bobIdentity.privateKey)
+    bobIdentityPrivateJwk.key_ops = ['sign']
+    const bobSigningKey = await window.crypto.subtle.importKey(
+      'jwk',
+      bobIdentityPrivateJwk,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign']
+    )
+
+    const rawSignedPreKeyPublic = new TextEncoder().encode(JSON.stringify(bobSignedPreKeyJwk))
+    const bobSignatureBuffer = await window.crypto.subtle.sign(
+      { name: 'ECDSA', hash: { name: 'SHA-256' } },
+      bobSigningKey,
+      rawSignedPreKeyPublic
+    )
+    const bobSignatureBytes = new Uint8Array(bobSignatureBuffer)
+    let bobSignatureBinary = ''
+    for (const b of bobSignatureBytes) bobSignatureBinary += String.fromCharCode(b)
+    const bobSignatureBase64 = btoa(bobSignatureBinary)
+
     const bobBundle = {
       identityKey: JSON.stringify(bobIdentityJwk),
       signedPreKeyId: 456,
       signedPreKeyPublic: JSON.stringify(bobSignedPreKeyJwk),
-      signedPreKeySignature: 'bob_signature',
+      signedPreKeySignature: bobSignatureBase64,
       oneTimePreKeyId: 789,
       oneTimePreKeyPublic: JSON.stringify(bobOneTimePreKeyJwk),
     }

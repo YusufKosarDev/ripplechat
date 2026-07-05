@@ -8,7 +8,7 @@
  *   https://signal.org/docs/specifications/x3dh/
  */
 
-import { generateDHKeyPair, initSenderSession, initReceiverSession, type RatchetSession } from './doubleRatchet'
+import { generateDHKeyPair, initSenderSession, initReceiverSession, fromBase64, type RatchetSession } from './doubleRatchet'
 
 const ECDH_PARAMS = { name: 'ECDH', namedCurve: 'P-256' } as const
 
@@ -60,6 +60,7 @@ export interface X3DHSenderResult {
 
 /**
  * Perform X3DH as the sender (Alice) to establish a shared secret with Bob.
+ * Verifies Bob's Signed Prekey signature using his Identity Public Key.
  *
  * Alice computes:
  *   DH1 = DH(IK_A, SPK_B)
@@ -74,6 +75,31 @@ export async function x3dhSender(
 ): Promise<X3DHSenderResult> {
   const bobIdentityKey = await importPublicKey(JSON.parse(bundle.identityKey))
   const bobSignedPreKey = await importPublicKey(JSON.parse(bundle.signedPreKeyPublic))
+
+  // Import Bob's Identity Public Key as an ECDSA Public Key for signature verification.
+  const bobIdentityJwk = JSON.parse(bundle.identityKey)
+  bobIdentityJwk.key_ops = ['verify']
+  const bobSigningPublicKey = await crypto.subtle.importKey(
+    'jwk',
+    bobIdentityJwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['verify']
+  )
+
+  // Verify Bob's Signed Pre-Key signature using his Identity Public Key
+  const rawSignedPreKeyPublic = new TextEncoder().encode(bundle.signedPreKeyPublic)
+  const signatureBytes = fromBase64(bundle.signedPreKeySignature)
+  const isValid = await crypto.subtle.verify(
+    { name: 'ECDSA', hash: { name: 'SHA-256' } },
+    bobSigningPublicKey,
+    signatureBytes as any,
+    rawSignedPreKeyPublic
+  )
+
+  if (!isValid) {
+    throw new Error('Bob\'s signed prekey signature verification failed! Potential Man-in-the-Middle attack detected.')
+  }
 
   // Generate ephemeral key pair
   const ephemeralKeyPair = await generateDHKeyPair()
