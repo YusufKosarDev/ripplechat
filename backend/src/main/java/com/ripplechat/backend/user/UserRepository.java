@@ -39,10 +39,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     long countByBotTrue();
 
-    /** Case-insensitive lookup by username or display name (for the direct-message picker). */
+    /** Case-insensitive lookup by username or display name (for the direct-message picker). Excludes disabled (banned) users. */
     @Query("""
             select u from User u
-            where u.bot = false and u.deleted = false
+            where u.bot = false and u.deleted = false and u.disabled = false
               and (lower(u.username) like lower(concat('%', :q, '%'))
                    or lower(u.displayName) like lower(concat('%', :q, '%')))
             order by u.username

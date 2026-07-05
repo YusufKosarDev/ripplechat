@@ -1,5 +1,6 @@
 package com.ripplechat.backend.message;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;
@@ -12,8 +13,10 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
     Optional<MessageReaction> findByMessage_IdAndUser_UsernameAndEmoji(
             UUID messageId, String username, String emoji);
 
+    @EntityGraph(attributePaths = {"user"})
     List<MessageReaction> findByMessage_Id(UUID messageId);
 
+    @EntityGraph(attributePaths = {"user"})
     List<MessageReaction> findByMessage_IdIn(Collection<UUID> messageIds);
 
     void deleteByMessage_Id(UUID messageId);
