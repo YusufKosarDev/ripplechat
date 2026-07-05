@@ -37,7 +37,7 @@ interface RippleChatDB extends DBSchema {
   }
   decrypted_cache: {
     key: string // ciphertext payload
-    value: string // decrypted plaintext
+    value: string // encrypted plaintext wrapper JSON
   }
 }
 
@@ -200,18 +200,72 @@ export async function deleteOneTimePreKeyPair(keyId: number) {
   await db.delete('crypto_keys', `otpk:${keyId}`)
 }
 
-// ─── Decrypted Cache Persistence ──────────────────────────────────────
+// ─── Decrypted Cache Persistence & Session Encryption ────────────────
+
+let cacheEncryptionKey: CryptoKey | null = null
+
+async function getCacheKey(): Promise<CryptoKey> {
+  if (cacheEncryptionKey) return cacheEncryptionKey
+  // Generate a random 256-bit AES-GCM key in memory.
+  // This key is persistent in RAM only during the active tab session.
+  cacheEncryptionKey = await window.crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  )
+  return cacheEncryptionKey
+}
 
 export async function saveDecryptedCache(ciphertext: string, plaintext: string) {
   if (typeof indexedDB === 'undefined') return
   const db = await getDB()
   if (!db) return
-  await db.put('decrypted_cache', plaintext, ciphertext)
+  try {
+    const key = await getCacheKey()
+    const iv = window.crypto.getRandomValues(new Uint8Array(12))
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(plaintext)
+    )
+
+    const payload = {
+      iv: btoa(String.fromCharCode(...iv)),
+      ct: btoa(String.fromCharCode(...new Uint8Array(encrypted)))
+    }
+    await db.put('decrypted_cache', JSON.stringify(payload), ciphertext)
+  } catch (err) {
+    console.error('Failed to encrypt decrypted cache entry:', err)
+  }
 }
 
 export async function getDecryptedCache(ciphertext: string): Promise<string | null> {
   if (typeof indexedDB === 'undefined') return null
   const db = await getDB()
   if (!db) return null
-  return (await db.get('decrypted_cache', ciphertext)) ?? null
+  const raw = await db.get('decrypted_cache', ciphertext)
+  if (!raw) return null
+  try {
+    const payload = JSON.parse(raw)
+    const key = await getCacheKey()
+
+    const ivBin = atob(payload.iv)
+    const iv = new Uint8Array(ivBin.length)
+    for (let i = 0; i < ivBin.length; i++) iv[i] = ivBin.charCodeAt(i)
+
+    const ctBin = atob(payload.ct)
+    const ct = new Uint8Array(ctBin.length)
+    for (let i = 0; i < ctBin.length; i++) ct[i] = ctBin.charCodeAt(i)
+
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      ct
+    )
+    return new TextDecoder().decode(decrypted)
+  } catch (err) {
+    // If decryption fails (e.g. tab reloaded/key reset), return null gracefully
+    // so the client falls back to standard key exchange / ratchet decryption.
+    return null
+  }
 }

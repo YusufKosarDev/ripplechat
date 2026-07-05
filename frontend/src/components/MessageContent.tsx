@@ -9,6 +9,16 @@ import remarkMentions from './remarkMentions'
 // actually contains a code block (keeps the initial bundle small).
 const CodeBlock = lazy(() => import('./CodeBlock'))
 
+function isSafeUrl(url: string | undefined): boolean {
+  if (!url) return false
+  const lower = url.trim().toLowerCase()
+  // Prevent DOM-based XSS via javascript:, data:, or vbscript: URIs
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+    return false
+  }
+  return true
+}
+
 // No rehype-raw: raw HTML in messages is NOT rendered (escaped), so user content
 // cannot inject markup/scripts — safe by default.
 const components: Components = {
@@ -37,16 +47,19 @@ const components: Components = {
       </code>
     )
   },
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-accent underline underline-offset-2 hover:text-accent-hover"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    const safe = isSafeUrl(href)
+    return (
+      <a
+        href={safe ? href : undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-accent underline underline-offset-2 hover:text-accent-hover"
+      >
+        {children}
+      </a>
+    )
+  },
   p: ({ children }) => <p className="whitespace-pre-wrap break-words">{children}</p>,
   ul: ({ children }) => <ul className="list-disc space-y-0.5 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="list-decimal space-y-0.5 pl-5">{children}</ol>,

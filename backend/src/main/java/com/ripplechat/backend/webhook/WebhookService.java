@@ -95,9 +95,14 @@ public class WebhookService {
         Webhook webhook = webhookRepository.findById(id)
                 .filter(w -> w.getChannel().getId().equals(channelId))
                 .orElseThrow(() -> new ResourceNotFoundException("webhook not found: " + id));
-        // Drop the webhook (revokes the token) and remove the bot from the channel,
-        // but keep its user row so messages it already posted keep a valid sender.
-        membershipRepository.findByChannelIdAndUser_Id(channelId, webhook.getBotUser().getId())
+
+        User bot = webhook.getBotUser();
+        // Mark the bot user as deleted so it is not left active or orphaned.
+        // Its past messages will still render correctly using standard deleted-user logic.
+        bot.setDeleted(true);
+        userRepository.save(bot);
+
+        membershipRepository.findByChannelIdAndUser_Id(channelId, bot.getId())
                 .ifPresent(membershipRepository::delete);
         webhookRepository.delete(webhook);
     }
@@ -109,7 +114,7 @@ public class WebhookService {
                 .orElseThrow(() -> new ResourceNotFoundException("webhook not found"));
         if (!rateLimiter.tryAcquire("webhook:" + webhook.getId(), INGEST_BURST, INGEST_REFILL_PER_SEC)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "too many webhook posts, please slow down");
+                     "too many webhook posts, please slow down");
         }
         String text = request.text() == null ? "" : request.text().trim();
         if (text.isBlank()) {
