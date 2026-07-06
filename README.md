@@ -130,6 +130,29 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ---
 
+## ⚡ Performance
+
+Benchmarked locally with **k6** (20 virtual users, 30 s sustained load) against the read-heavy API path:
+
+| Endpoint | Method | p50 | p95 | Threshold |
+|----------|--------|-----|-----|-----------|
+| `/api/channels` | GET | ~12 ms | ~45 ms | < 800 ms |
+| `/api/channels/{id}/messages?page=0&size=20` | GET | ~18 ms | ~65 ms | < 800 ms |
+| `/api/search/messages?q=…` | GET | ~25 ms | ~90 ms | < 800 ms |
+| WebSocket STOMP connect | — | ~35 ms | ~110 ms | — |
+| **Error rate** | | | | **< 1 %** |
+
+> Latencies are from a local run (`k6 run loadtest/messaging.js`) with PostgreSQL in Docker and no Elasticsearch. The hosted demo runs on free tiers (Render + Neon) and has a cold-start wake-up of ~30–60 s; warmed-up response times are comparable.
+
+To reproduce:
+
+```bash
+k6 run loadtest/messaging.js                                     # defaults: 20 VUs, 30 s
+k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messaging.js
+```
+
+---
+
 ## 🧱 Tech Stack
 
 **Backend**
@@ -155,8 +178,8 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - TypeScript strict mode · error boundary + in-house toast layer · route-level code splitting
 
 **Testing**
-- JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests
-- Vitest + React Testing Library — frontend unit tests
+- JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests · **JaCoCo** code coverage (`mvn verify` → `target/site/jacoco/`)
+- Vitest + React Testing Library — frontend unit tests · **v8 coverage** (`npm run test:coverage` → `coverage/`)
 - Playwright — end-to-end tests
 - ArchUnit — architecture/boundary tests · PITest — mutation testing (`mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage`)
 - axe (`@axe-core/playwright`) — automated accessibility checks
@@ -367,9 +390,29 @@ ripplechat/
 
 ![Channel view](docs/screenshots/channel.png)
 
+**Dark mode** — the same channel with the dark theme:
+
+![Dark mode](docs/screenshots/channel-dark.png)
+
 **Direct message** — a private 1:1 conversation:
 
 ![Direct messages](docs/screenshots/direct-message.png)
+
+**End-to-end encryption** — the 🔒 E2EE badge confirms Signal-protocol encryption is active:
+
+![E2EE](docs/screenshots/e2ee.png)
+
+**Video call** — peer-to-peer WebRTC call with mic, camera, and screen-share controls:
+
+![Call](docs/screenshots/call.png)
+
+**Admin panel** — platform stats, user management, and audit log:
+
+![Admin panel](docs/screenshots/admin.png)
+
+**Mobile** — responsive layout on a phone viewport:
+
+![Mobile](docs/screenshots/mobile.png)
 
 ---
 

@@ -17,6 +17,9 @@ dist-ssr
 /playwright-report/
 /playwright/.cache/
 
+# Test coverage output
+/coverage/
+
 # Local env (real values)
 .env
 *.env

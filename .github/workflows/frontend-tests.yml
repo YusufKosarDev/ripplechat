@@ -26,9 +26,16 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: frontend
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
 
       # Fail the build on a known high/critical vulnerability in a shipped
       # (production) dependency. Complements Dependabot's update PRs with a gate.

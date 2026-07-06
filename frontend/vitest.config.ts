@@ -11,5 +11,12 @@ export default defineConfig({
     css: false,
     // Unit tests live under src/; e2e/ is Playwright's and must not be picked up here.
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/test/**', 'src/vite-env.d.ts', 'src/**/*.test.*', 'src/**/*.spec.*'],
+    },
   },
 })

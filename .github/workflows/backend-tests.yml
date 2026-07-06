@@ -22,6 +22,13 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Run tests
+      - name: Run tests + JaCoCo coverage
         working-directory: backend
-        run: chmod +x mvnw && ./mvnw -B test
+        run: chmod +x mvnw && ./mvnw -B verify
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/target/site/jacoco/
