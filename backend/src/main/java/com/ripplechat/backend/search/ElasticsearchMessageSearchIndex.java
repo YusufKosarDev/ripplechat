@@ -31,7 +31,7 @@ public class ElasticsearchMessageSearchIndex implements MessageSearchIndex {
     private final ElasticsearchOperations elasticsearchOperations;
 
     @Override
-    public List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, int page, int size) {
+    public List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, List<String> blockedUsernames, int page, int size) {
         Criteria criteria = new Criteria("content").matches(query)
                 .and(new Criteria("channelId").in(channelIds));
 
@@ -40,6 +40,9 @@ public class ElasticsearchMessageSearchIndex implements MessageSearchIndex {
         }
         if (since != null) {
             criteria = criteria.and(new Criteria("createdAt").greaterThanEqual(since.toEpochMilli()));
+        }
+        if (blockedUsernames != null && !blockedUsernames.isEmpty()) {
+            criteria = criteria.and(new Criteria("senderUsername").in(blockedUsernames).not());
         }
 
         CriteriaQuery criteriaQuery = new CriteriaQuery(criteria)

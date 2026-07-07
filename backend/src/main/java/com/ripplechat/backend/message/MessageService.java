@@ -287,18 +287,10 @@ public class MessageService {
             throw new ResourceNotFoundException("message not found in channel: " + parentMessageId);
         }
 
-        List<Message> replies = messageRepository.findByParent_IdOrderByCreatedAtAsc(parentMessageId);
-
         User viewer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-        List<UUID> blockedIds = blockRepository.findByBlockerId(viewer.getId()).stream()
-                .map(com.ripplechat.backend.user.UserBlock::getBlockedId)
-                .toList();
-        if (!blockedIds.isEmpty()) {
-            replies = replies.stream()
-                    .filter(m -> !blockedIds.contains(m.getSender().getId()))
-                    .toList();
-        }
+
+        List<Message> replies = messageRepository.findThreadReplies(parentMessageId, viewer.getId());
 
         Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(
                 replies.stream().map(Message::getId).toList());

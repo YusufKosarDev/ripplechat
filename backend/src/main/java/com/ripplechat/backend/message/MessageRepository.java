@@ -50,6 +50,16 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             """)
     List<Message> findForSearchByIds(@Param("ids") Collection<UUID> ids);
 
+    /** Loads search hits in bulk, fetch-joining sender and channel. Excludes blocked users. */
+    @Query("""
+            select m from Message m
+            join fetch m.sender
+            join fetch m.channel
+            where m.id in :ids
+              and not exists (select 1 from UserBlock b where b.blockerId = :userId and b.blockedId = m.sender.id)
+            """)
+    List<Message> findForSearchByIdsFiltered(@Param("ids") Collection<UUID> ids, @Param("userId") UUID userId);
+
     /**
      * Top-level channel feed for a viewer: excludes thread replies and messages
      * the viewer has hidden ("delete for me").
@@ -74,6 +84,16 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /** Replies belonging to a thread, oldest first. */
     @EntityGraph(attributePaths = "sender")
     List<Message> findByParent_IdOrderByCreatedAtAsc(UUID parentId);
+
+    /** Replies belonging to a thread, oldest first, excluding blocked users. */
+    @EntityGraph(attributePaths = "sender")
+    @Query("""
+            select m from Message m
+            where m.parent.id = :parentId
+              and not exists (select 1 from UserBlock b where b.blockerId = :userId and b.blockedId = m.sender.id)
+            order by m.createdAt asc
+            """)
+    List<Message> findThreadReplies(@Param("parentId") UUID parentId, @Param("userId") UUID userId);
 
     /** Replies for several threads at once (for batch thread summaries). */
     @EntityGraph(attributePaths = "sender")

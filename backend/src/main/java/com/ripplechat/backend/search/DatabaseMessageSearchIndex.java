@@ -32,7 +32,7 @@ public class DatabaseMessageSearchIndex implements MessageSearchIndex {
     private final MessageRepository messageRepository;
 
     @Override
-    public List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, int page, int size) {
+    public List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, List<String> blockedUsernames, int page, int size) {
         String tsquery = toPrefixTsQuery(query);
         if (tsquery.isBlank()) {
             return List.of();

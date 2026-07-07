@@ -26,7 +26,7 @@ public interface MessageSearchIndex {
      * ranked and paged. {@code from} (sender) and {@code since} are honoured by the
      * Elasticsearch backend; the PostgreSQL fallback applies content + channel + paging only.
      */
-    List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, int page, int size);
+    List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, List<String> blockedUsernames, int page, int size);
 
     /** Adds/updates a message in the index. Best-effort: must never break the send flow. */
     void index(Message message);

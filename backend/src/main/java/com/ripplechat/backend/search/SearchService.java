@@ -67,7 +67,16 @@ public class SearchService {
             return new SearchPageResponse(List.of(), false);
         }
 
-        List<UUID> rankedIds = searchIndex.searchIds(channelIds, query, from, since, pageNumber, pageSize);
+        User viewer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        List<UUID> blockedIds = blockRepository.findByBlockerId(viewer.getId()).stream()
+                .map(UserBlock::getBlockedId)
+                .toList();
+        List<String> blockedUsernames = userRepository.findAllById(blockedIds).stream()
+                .map(User::getUsername)
+                .toList();
+
+        List<UUID> rankedIds = searchIndex.searchIds(channelIds, query, from, since, blockedUsernames, pageNumber, pageSize);
 
         if (rankedIds.isEmpty()) {
             return new SearchPageResponse(List.of(), false);
@@ -75,19 +84,12 @@ public class SearchService {
 
         boolean hasMore = rankedIds.size() == pageSize; // simplistic
 
-        Map<UUID, Message> byId = messageRepository.findForSearchByIds(rankedIds).stream()
+        Map<UUID, Message> byId = messageRepository.findForSearchByIdsFiltered(rankedIds, viewer.getId()).stream()
                 .collect(Collectors.toMap(Message::getId, Function.identity()));
-
-        User viewer = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-        List<UUID> blockedIds = blockRepository.findByBlockerId(viewer.getId()).stream()
-                .map(UserBlock::getBlockedId)
-                .toList();
 
         List<SearchResultResponse> results = rankedIds.stream()
                 .map(byId::get)
                 .filter(Objects::nonNull)
-                .filter(m -> !blockedIds.contains(m.getSender().getId()))
                 .map(SearchResultResponse::from)
                 .toList();
 
