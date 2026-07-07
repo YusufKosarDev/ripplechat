@@ -301,8 +301,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             // v1 E2EE decryption
             if (asymmetricKey) {
               newDecrypted[m.id] = await decryptTextAsymmetric(asymmetricKey, m.content)
-            } else if (passphrase) {
-              newDecrypted[m.id] = await decryptText(selectedId, passphrase, m.content)
+            } else if (passphrase && currentUser) {
+              newDecrypted[m.id] = await decryptText(selectedId, passphrase, m.content, currentUser.id)
             }
           }
         } catch (err) {
@@ -321,7 +321,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     return () => {
       cancelled = true
     }
-  }, [selectedId, passphrase, asymmetricKey, messages, decrypted, dmPartner])
+  }, [selectedId, passphrase, asymmetricKey, messages, decrypted, dmPartner, currentUser])
 
   // Drop cached plaintext when both keys are cleared so messages re-lock.
   useEffect(() => {
@@ -621,13 +621,13 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             if (asymmetricKey) {
               content = await encryptTextAsymmetric(asymmetricKey, e2eePayload)
             } else if (passphrase) {
-              content = await encryptText(channel.id, passphrase, e2eePayload)
+              content = await encryptText(channel.id, passphrase, e2eePayload, currentUser.id, members)
             }
           }
         } else if (asymmetricKey) {
           content = await encryptTextAsymmetric(asymmetricKey, e2eePayload)
         } else if (passphrase) {
-          content = await encryptText(channel.id, passphrase, e2eePayload)
+          content = await encryptText(channel.id, passphrase, e2eePayload, currentUser.id, members)
         }
       }
 

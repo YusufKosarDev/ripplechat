@@ -16,6 +16,7 @@ import {
   getRatchetSession,
   saveDecryptedCache,
   getDecryptedCache,
+  getDB,
 } from '../db'
 import {
   generateDHKeyPair,
@@ -64,8 +65,11 @@ function getKey(channelId: string, passphrase: string): Promise<CryptoKey> {
   return promise
 }
 
+const PREFIX_GROUP = 'enc:group:'
+const groupKeysCache = new Map<string, Map<string, CryptoKey>>()
+
 export function isEncrypted(content: string | null | undefined): boolean {
-  return typeof content === 'string' && (content.startsWith(PREFIX) || content.startsWith(PREFIX_V2))
+  return typeof content === 'string' && (content.startsWith(PREFIX) || content.startsWith(PREFIX_V2) || content.startsWith(PREFIX_GROUP))
 }
 
 export function isEncryptedV2(content: string | null | undefined): boolean {
@@ -74,27 +78,178 @@ export function isEncryptedV2(content: string | null | undefined): boolean {
 
 export { PREFIX_V2 }
 
-export async function encryptText(channelId: string, passphrase: string, plaintext: string): Promise<string> {
-  const key = await getKey(channelId, passphrase)
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    new TextEncoder().encode(plaintext),
-  )
-  return `${PREFIX}${toBase64(iv)}.${toBase64(new Uint8Array(ciphertext))}`
+async function getOrGenerateLocalSenderKey(channelId: string): Promise<string> {
+  const cacheKey = `group_sender_key:${channelId}`
+  const db = await getDB()
+  if (db) {
+    const raw = await db.get('crypto_keys', cacheKey)
+    if (raw) return raw as any
+  }
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
+  const keyB64 = toBase64(randomBytes)
+  if (db) {
+    await db.put('crypto_keys', keyB64, cacheKey)
+  }
+  return keyB64
 }
 
-export async function decryptText(channelId: string, passphrase: string, payload: string): Promise<string> {
+export async function encryptText(
+  channelId: string,
+  passphrase: string,
+  plaintext: string,
+  senderId: string,
+  members: { user: { id: string } }[]
+): Promise<string> {
+  const senderKeyB64 = await getOrGenerateLocalSenderKey(channelId)
+  
+  const uploadFlagKey = `group_sender_key_uploaded:${channelId}`
+  const db = await getDB()
+  let alreadyUploaded = false
+  if (db) {
+    alreadyUploaded = !!(await db.get('crypto_keys', uploadFlagKey))
+  }
+
+  if (!alreadyUploaded) {
+    const stretchedKey = await getKey(channelId, passphrase)
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const encryptedSenderKey = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      stretchedKey,
+      new TextEncoder().encode(senderKeyB64)
+    )
+    const encryptedKeyPayload = `enc:groupkey:${toBase64(iv)}.${toBase64(new Uint8Array(encryptedSenderKey))}`
+
+    const uploadPayload = members
+      .filter((m) => m.user.id !== senderId)
+      .map((m) => ({
+        recipientId: m.user.id,
+        encryptedKey: encryptedKeyPayload
+      }))
+
+    if (uploadPayload.length > 0) {
+      await client.post(`/api/e2ee/group-keys/${channelId}`, uploadPayload)
+    }
+
+    if (db) {
+      await db.put('crypto_keys', 'true', uploadFlagKey)
+    }
+  }
+
+  const keyBytes = fromBase64(senderKeyB64)
+  const aesKey = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt'])
+  const msgIv = crypto.getRandomValues(new Uint8Array(12))
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: msgIv },
+    aesKey,
+    new TextEncoder().encode(plaintext)
+  )
+
+  return `${PREFIX_GROUP}${senderId}:${toBase64(msgIv)}.${toBase64(new Uint8Array(ciphertext))}`
+}
+
+export async function decryptText(
+  channelId: string,
+  passphrase: string,
+  payload: string,
+  currentUserId: string
+): Promise<string> {
   if (!isEncrypted(payload)) return payload
-  const [ivPart, ctPart] = payload.slice(PREFIX.length).split('.')
-  if (!ivPart || !ctPart) throw new Error('malformed ciphertext')
-  const key = await getKey(channelId, passphrase)
+
+  if (payload.startsWith(PREFIX)) {
+    const [ivPart, ctPart] = payload.slice(PREFIX.length).split('.')
+    if (!ivPart || !ctPart) throw new Error('malformed ciphertext')
+    const key = await getKey(channelId, passphrase)
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(ivPart) as BufferSource },
+      key,
+      fromBase64(ctPart) as BufferSource,
+    )
+    return new TextDecoder().decode(plaintext)
+  }
+
+  if (!payload.startsWith(PREFIX_GROUP)) {
+    return payload
+  }
+
+  const parts = payload.slice(PREFIX_GROUP.length).split(':')
+  const senderId = parts[0]
+  const cryptoPart = parts[1]
+  if (!senderId || !cryptoPart) throw new Error('malformed group ciphertext')
+
+  const [ivPart, ctPart] = cryptoPart.split('.')
+  if (!ivPart || !ctPart) throw new Error('malformed group ciphertext parts')
+
+  let senderKey: CryptoKey | null = null
+
+  if (senderId === currentUserId) {
+    const senderKeyB64 = await getOrGenerateLocalSenderKey(channelId)
+    const keyBytes = fromBase64(senderKeyB64)
+    senderKey = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt'])
+  } else {
+    if (!groupKeysCache.has(channelId)) {
+      groupKeysCache.set(channelId, new Map())
+    }
+    const channelKeys = groupKeysCache.get(channelId)!
+
+    if (channelKeys.has(senderId)) {
+      senderKey = channelKeys.get(senderId)!
+    } else {
+      const db = await getDB()
+      const dbKey = `group_member_key:${channelId}:${senderId}`
+      let senderKeyB64: string | null = null
+
+      if (db) {
+        senderKeyB64 = await db.get('crypto_keys', dbKey) as string | null
+      }
+
+      if (!senderKeyB64) {
+        const response = await client.get<{ senderId: string; encryptedKey: string }[]>(`/api/e2ee/group-keys/${channelId}`)
+        const stretchedKey = await getKey(channelId, passphrase)
+
+        for (const entry of response.data) {
+          try {
+            const [kIvPart, kCtPart] = entry.encryptedKey.slice('enc:groupkey:'.length).split('.')
+            const decryptedKeyBytes = await crypto.subtle.decrypt(
+              { name: 'AES-GCM', iv: fromBase64(kIvPart) as BufferSource },
+              stretchedKey,
+              fromBase64(kCtPart) as BufferSource
+            )
+            const decKeyB64 = new TextDecoder().decode(decryptedKeyBytes)
+
+            if (db) {
+              await db.put('crypto_keys', decKeyB64, `group_member_key:${channelId}:${entry.senderId}`)
+            }
+
+            const kBytes = fromBase64(decKeyB64)
+            const cryptoKey = await crypto.subtle.importKey('raw', kBytes, 'AES-GCM', false, ['decrypt'])
+            channelKeys.set(entry.senderId, cryptoKey)
+
+            if (entry.senderId === senderId) {
+              senderKey = cryptoKey
+            }
+          } catch (err) {
+            console.error('Failed to decrypt group sender key entry:', entry.senderId, err)
+          }
+        }
+      } else {
+        const kBytes = fromBase64(senderKeyB64)
+        const cryptoKey = await crypto.subtle.importKey('raw', kBytes, 'AES-GCM', false, ['decrypt'])
+        channelKeys.set(senderId, cryptoKey)
+        senderKey = cryptoKey
+      }
+    }
+  }
+
+  if (!senderKey) {
+    throw new Error('Sender key not found or not decrypted')
+  }
+
   const plaintext = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: fromBase64(ivPart) as BufferSource },
-    key,
-    fromBase64(ctPart) as BufferSource,
+    senderKey,
+    fromBase64(ctPart) as BufferSource
   )
+
   return new TextDecoder().decode(plaintext)
 }
 

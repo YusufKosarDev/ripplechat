@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class PreKeyController {
 
     private final PreKeyService preKeyService;
+    private final GroupCryptoService groupCryptoService;
 
     /** Upload (replace) signed pre-key and append one-time pre-keys. */
     @PostMapping("/keys")
@@ -38,5 +40,24 @@ public class PreKeyController {
     @GetMapping("/keys/count")
     public Map<String, Long> countKeys(@AuthenticationPrincipal String username) {
         return Map.of("oneTimePreKeyCount", preKeyService.countOneTimePreKeys(username));
+    }
+
+    @PostMapping("/group-keys/{channelId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void uploadGroupKeys(@PathVariable UUID channelId,
+                                @RequestBody List<Map<String, String>> request,
+                                @AuthenticationPrincipal String username) {
+        groupCryptoService.uploadGroupKeys(username, channelId, request);
+    }
+
+    @GetMapping("/group-keys/{channelId}")
+    public List<Map<String, Object>> getGroupKeys(@PathVariable UUID channelId,
+                                                  @AuthenticationPrincipal String username) {
+        return groupCryptoService.getGroupKeysForChannel(username, channelId).stream()
+                .map(key -> Map.of(
+                        "senderId", (Object) key.getSenderId(),
+                        "encryptedKey", (Object) key.getEncryptedKey()
+                ))
+                .toList();
     }
 }

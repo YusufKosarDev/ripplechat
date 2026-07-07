@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   decryptText,
   encryptText,
@@ -17,6 +17,11 @@ const CHANNEL = '11111111-1111-1111-1111-111111111111'
 let activeDb = new Map<string, any>()
 
 vi.mock('../db', () => ({
+  getDB: async () => ({
+    get: async (store: string, key: string) => activeDb.get(`${store}:${key}`) || null,
+    put: async (store: string, val: any, key: string) => { activeDb.set(`${store}:${key}`, val) },
+    delete: async (store: string, key: string) => { activeDb.delete(`${store}:${key}`) },
+  }),
   getAsymmetricKeyPair: async () => activeDb.get('asymmetric_keypair') || null,
   saveAsymmetricKeyPair: async (pair: any) => { activeDb.set('asymmetric_keypair', pair) },
   saveSignedPreKeyPair: async (id: number, pair: any) => { activeDb.set('current_spk', { ...pair, keyId: id }) },
@@ -39,28 +44,85 @@ vi.mock('../api/client', () => ({
 }))
 
 describe('e2ee', () => {
+  beforeEach(() => {
+    activeDb.clear()
+  })
   it('round-trips a message with the right passphrase', async () => {
-    const cipher = await encryptText(CHANNEL, 'hunter2', 'gizli mesaj 🙂')
+    const members = [{ user: { id: 'u-bob' } }]
+    let uploadedKeys: any[] = []
+
+    const mockPost = vi.mocked(client.post)
+    mockPost.mockImplementation(async (url, payload) => {
+      if (url.includes('/api/e2ee/group-keys/')) {
+        uploadedKeys = payload as any[]
+      }
+      return { status: 200, data: {} }
+    })
+
+    const mockGet = vi.mocked(client.get)
+    mockGet.mockImplementation(async (url) => {
+      if (url.includes('/api/e2ee/group-keys/')) {
+        return {
+          data: uploadedKeys.map((entry) => ({
+            senderId: 'u-alice',
+            encryptedKey: entry.encryptedKey,
+          })),
+        }
+      }
+      return { data: [] }
+    })
+
+    const cipher = await encryptText(CHANNEL, 'hunter2', 'gizli mesaj 🙂', 'u-alice', members)
     expect(isEncrypted(cipher)).toBe(true)
     expect(cipher).not.toContain('gizli')
-    const plain = await decryptText(CHANNEL, 'hunter2', cipher)
+
+    const plain = await decryptText(CHANNEL, 'hunter2', cipher, 'u-bob')
     expect(plain).toBe('gizli mesaj 🙂')
   })
 
   it('fails to decrypt with the wrong passphrase', async () => {
-    const cipher = await encryptText(CHANNEL, 'correct', 'top secret')
-    await expect(decryptText(CHANNEL, 'wrong', cipher)).rejects.toBeDefined()
+    const members = [{ user: { id: 'u-bob' } }]
+    let uploadedKeys: any[] = []
+
+    const mockPost = vi.mocked(client.post)
+    mockPost.mockImplementation(async (url, payload) => {
+      if (url.includes('/api/e2ee/group-keys/')) {
+        uploadedKeys = payload as any[]
+      }
+      return { status: 200, data: {} }
+    })
+
+    const mockGet = vi.mocked(client.get)
+    mockGet.mockImplementation(async (url) => {
+      if (url.includes('/api/e2ee/group-keys/')) {
+        return {
+          data: uploadedKeys.map((entry) => ({
+            senderId: 'u-alice',
+            encryptedKey: entry.encryptedKey,
+          })),
+        }
+      }
+      return { data: [] }
+    })
+
+    const cipher = await encryptText(CHANNEL, 'correct', 'top secret', 'u-alice', members)
+    // Set Bob's DB as active for decryption attempt with a different passphrase
+    await expect(decryptText(CHANNEL, 'wrong', cipher, 'u-bob')).rejects.toBeDefined()
   })
 
   it('produces different ciphertext each time (random IV)', async () => {
-    const a = await encryptText(CHANNEL, 'p', 'same text')
-    const b = await encryptText(CHANNEL, 'p', 'same text')
+    const members = [{ user: { id: 'u-bob' } }]
+    const mockPost = vi.mocked(client.post)
+    mockPost.mockResolvedValue({ status: 200, data: {} })
+
+    const a = await encryptText(CHANNEL, 'p', 'same text', 'u-alice', members)
+    const b = await encryptText(CHANNEL, 'p', 'same text', 'u-alice', members)
     expect(a).not.toBe(b)
   })
 
   it('treats plain text as not encrypted and passes it through', async () => {
     expect(isEncrypted('hello')).toBe(false)
-    expect(await decryptText(CHANNEL, 'p', 'hello')).toBe('hello')
+    expect(await decryptText(CHANNEL, 'p', 'hello', 'u-alice')).toBe('hello')
   })
 
   it('round-trips asymmetric encryption with ECDH key agreement', async () => {
