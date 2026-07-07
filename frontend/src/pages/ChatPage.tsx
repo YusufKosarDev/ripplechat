@@ -17,6 +17,7 @@ import ThreadPanel from '../components/ThreadPanel'
 import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
 import { client } from '../api/client'
 import { replenishPreKeys } from '../crypto/e2ee'
+import { syncPendingMessages } from '../sync/syncManager'
 
 // Loaded on demand the first time the quick switcher (Ctrl/Cmd+K) is opened.
 const QuickSwitcher = lazy(() => import('../components/QuickSwitcher'))
@@ -71,6 +72,14 @@ export default function ChatPage() {
     mutedRef.current = muted
     blockedRef.current = blockedIds
   }, [selectedId, currentUserId, currentUsername, muted, blockedIds])
+
+  const connectionStatus = useAppSelector((state) => state.connection.status)
+
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      void syncPendingMessages()
+    }
+  }, [connectionStatus])
 
   useEffect(() => {
     connectChat({
