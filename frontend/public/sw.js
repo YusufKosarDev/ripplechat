@@ -61,6 +61,83 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
+function getIndexedDBKey(storeName, key) {
+  return new Promise((resolve) => {
+    const request = indexedDB.open('ripplechat-db', 4)
+    request.onerror = () => resolve(null)
+    request.onsuccess = (event) => {
+      const db = event.target.result
+      try {
+        const transaction = db.transaction(storeName, 'readonly')
+        const store = transaction.objectStore(storeName)
+        const getReq = store.get(key)
+        getReq.onsuccess = () => resolve(getReq.result || null)
+        getReq.onerror = () => resolve(null)
+      } catch {
+        resolve(null)
+      }
+    }
+  })
+}
+
+function fromBase64(str) {
+  const binary = atob(str.replace(/-/g, '+').replace(/_/g, '/'))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+async function decryptPayload(payload, channelId, senderId) {
+  try {
+    let rawCipher = payload
+    // If body has sender prefix e.g. "Elif: enc:group:...", strip prefix
+    const encIndex = payload.indexOf('enc:group:')
+    if (encIndex > 0) {
+      rawCipher = payload.slice(encIndex)
+    }
+
+    if (!rawCipher.startsWith('enc:group:')) {
+      return null
+    }
+
+    const parts = rawCipher.slice('enc:group:'.length).split(':')
+    const msgSenderId = parts[0]
+    const cryptoPart = parts[1]
+    if (!msgSenderId || !cryptoPart) return null
+
+    const [ivPart, ctPart] = cryptoPart.split('.')
+    if (!ivPart || !ctPart) return null
+
+    const dbKey = `group_member_key:${channelId}:${msgSenderId}`
+    const senderKeyB64 = await getIndexedDBKey('crypto_keys', dbKey)
+    if (!senderKeyB64) return null
+
+    const keyBytes = fromBase64(senderKeyB64)
+    const senderKey = await crypto.subtle.importKey(
+      'raw',
+      keyBytes,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    )
+
+    const plaintextBytes = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(ivPart) },
+      senderKey,
+      fromBase64(ctPart)
+    )
+
+    const decryptedStr = new TextDecoder().decode(plaintextBytes)
+    const parsed = JSON.parse(decryptedStr)
+    return parsed.text || null
+  } catch (err) {
+    console.error('SW decryption failed:', err)
+    return null
+  }
+}
+
 self.addEventListener('push', (event) => {
   let data = {}
   try {
@@ -69,14 +146,30 @@ self.addEventListener('push', (event) => {
     data = {}
   }
   const title = data.title || 'RippleChat'
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || '',
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      data: { url: data.url || '/' },
-    }),
-  )
+
+  if (data.encrypted && data.channelId && data.senderId) {
+    event.waitUntil(
+      decryptPayload(data.body, data.channelId, data.senderId)
+        .then((decryptedBody) => {
+          const bodyText = decryptedBody || '[Şifreli Mesaj]'
+          return self.registration.showNotification(title, {
+            body: bodyText,
+            icon: '/favicon.svg',
+            badge: '/favicon.svg',
+            data: { url: data.url || '/' },
+          })
+        })
+    )
+  } else {
+    event.waitUntil(
+      self.registration.showNotification(title, {
+        body: data.body || '',
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        data: { url: data.url || '/' },
+      }),
+    )
+  }
 })
 
 self.addEventListener('notificationclick', (event) => {

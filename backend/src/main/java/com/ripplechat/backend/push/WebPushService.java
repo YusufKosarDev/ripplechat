@@ -135,8 +135,12 @@ public class WebPushService {
                 ? message.getSender().getDisplayName() : message.getSender().getUsername();
         boolean direct = channel.getType() == ChannelType.DIRECT;
         String title = direct ? senderName : "#" + channel.getName();
-        String body = direct ? snippet(message) : senderName + ": " + snippet(message);
-        send(recipients, new PushPayload(title, body, "/chat"));
+        
+        String rawBody = snippet(message);
+        boolean isEncrypted = rawBody.startsWith("enc:v1:") || rawBody.startsWith("enc:v2:") || rawBody.startsWith("enc:group:");
+        String body = direct ? rawBody : senderName + ": " + rawBody;
+        
+        send(recipients, new PushPayload(title, body, "/chat", isEncrypted, channel.getId(), senderId));
     }
 
     private void send(Set<UUID> userIds, PushPayload payload) {
