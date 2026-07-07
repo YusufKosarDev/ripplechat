@@ -5,6 +5,11 @@ import com.ripplechat.backend.message.Message;
 import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.search.dto.SearchPageResponse;
 import com.ripplechat.backend.search.dto.SearchResultResponse;
+import com.ripplechat.backend.user.User;
+import com.ripplechat.backend.user.UserRepository;
+import com.ripplechat.backend.user.UserBlock;
+import com.ripplechat.backend.user.UserBlockRepository;
+import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +33,8 @@ public class SearchService {
     private final ChannelMembershipRepository membershipRepository;
     private final MessageRepository messageRepository;
     private final MessageSearchIndex searchIndex;
+    private final UserRepository userRepository;
+    private final UserBlockRepository blockRepository;
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> searchMessages(String username, String query) {
@@ -71,9 +78,16 @@ public class SearchService {
         Map<UUID, Message> byId = messageRepository.findForSearchByIds(rankedIds).stream()
                 .collect(Collectors.toMap(Message::getId, Function.identity()));
 
+        User viewer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        List<UUID> blockedIds = blockRepository.findByBlockerId(viewer.getId()).stream()
+                .map(UserBlock::getBlockedId)
+                .toList();
+
         List<SearchResultResponse> results = rankedIds.stream()
                 .map(byId::get)
                 .filter(Objects::nonNull)
+                .filter(m -> !blockedIds.contains(m.getSender().getId()))
                 .map(SearchResultResponse::from)
                 .toList();
 

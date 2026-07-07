@@ -6,6 +6,7 @@ import com.ripplechat.backend.notification.dto.NotificationResponse;
 import com.ripplechat.backend.redis.RedisBroadcastService;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
+import com.ripplechat.backend.user.UserBlockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class NotificationService {
     private final NotificationRepository repository;
     private final UserRepository userRepository;
     private final RedisBroadcastService broadcast;
+    private final UserBlockRepository blockRepository;
 
     /**
      * Records a notification and pushes it live. No-op when the actor is the
@@ -37,6 +39,9 @@ public class NotificationService {
         if (recipient == null || actor == null
                 || recipient.getId().equals(actor.getId())
                 || recipient.isDeleted()) {
+            return;
+        }
+        if (blockRepository.existsByBlockerIdAndBlockedId(recipient.getId(), actor.getId())) {
             return;
         }
         Notification n = new Notification();

@@ -9,6 +9,7 @@ import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.presence.PresenceService;
 import com.ripplechat.backend.push.PushConfig.WebPushKeys;
 import com.ripplechat.backend.push.dto.PushPayload;
+import com.ripplechat.backend.user.UserBlockRepository;
 import jakarta.annotation.PostConstruct;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
@@ -41,6 +42,7 @@ public class WebPushService {
     private final MessageRepository messageRepository;
     private final PresenceService presenceService;
     private final ObjectMapper objectMapper;
+    private final UserBlockRepository blockRepository;
     private PushService pushService;
 
     public WebPushService(WebPushKeys keys,
@@ -48,13 +50,15 @@ public class WebPushService {
                           ChannelMembershipRepository membershipRepository,
                           MessageRepository messageRepository,
                           PresenceService presenceService,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          UserBlockRepository blockRepository) {
         this.keys = keys;
         this.subscriptionRepository = subscriptionRepository;
         this.membershipRepository = membershipRepository;
         this.messageRepository = messageRepository;
         this.presenceService = presenceService;
         this.objectMapper = objectMapper;
+        this.blockRepository = blockRepository;
     }
 
     @PostConstruct
@@ -108,6 +112,7 @@ public class WebPushService {
         if (message == null) {
             return;
         }
+        UUID senderId = message.getSender().getId();
         Set<String> online = presenceService.onlineUsernames();
         Set<UUID> recipients = new HashSet<>();
         for (var membership : membershipRepository.findByChannelId(channelId)) {
@@ -115,7 +120,10 @@ public class WebPushService {
             // Skip the sender, anyone currently online, and anyone in Do-Not-Disturb.
             if (!username.equals(senderUsername) && !online.contains(username)
                     && !membership.getUser().isDndActive()) {
-                recipients.add(membership.getUser().getId());
+                UUID recipientId = membership.getUser().getId();
+                if (!blockRepository.existsByBlockerIdAndBlockedId(recipientId, senderId)) {
+                    recipients.add(recipientId);
+                }
             }
         }
         if (recipients.isEmpty()) {

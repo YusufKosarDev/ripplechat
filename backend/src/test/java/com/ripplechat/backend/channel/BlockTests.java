@@ -13,6 +13,7 @@ import com.ripplechat.backend.user.dto.UserSummary;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import com.ripplechat.backend.notification.NotificationService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +30,8 @@ class BlockTests extends AbstractIntegrationTest {
     ChannelMembershipService membershipService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    NotificationService notificationService;
 
     @Test
     void blockedUsersCannotOpenADmEitherWay() {
@@ -69,5 +72,76 @@ class BlockTests extends AbstractIntegrationTest {
 
         blockService.unblock("alice", bob.getId());
         assertThat(blockService.listBlocked("alice")).isEmpty();
+    }
+
+    @Test
+    void blockedSenderCannotSendMessageOrForwardToDm() {
+        createUser("alice");
+        User bob = createUser("bob");
+
+        // First open direct channel so we have a channelId
+        var dm = directMessageService.openOrCreate("alice", bob.getId());
+        
+        // Alice blocks Bob
+        blockService.block("alice", bob.getId());
+
+        // Bob tries to send a message to the DM channel -> should throw ForbiddenException
+        assertThatThrownBy(() -> messageService.send(dm.id(), new CreateMessageRequest("hello", null), "bob"))
+                .isInstanceOf(ForbiddenException.class);
+
+        // Bob tries to forward a message to the DM channel -> should throw ForbiddenException
+        var publicChannel = channelService.create(new CreateChannelRequest("pub", null, false), "alice");
+        membershipService.join(publicChannel.id(), "bob");
+        var msg = messageService.send(publicChannel.id(), new CreateMessageRequest("to-forward", null), "bob");
+
+        assertThatThrownBy(() -> messageService.forward(dm.id(), msg.id(), "bob"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void blockedRepliesAreHiddenFromThreads() {
+        createUser("alice");
+        User bob = createUser("bob");
+        var channel = channelService.create(new CreateChannelRequest("c2", null, false), "alice");
+        membershipService.join(channel.id(), "bob");
+
+        // Alice sends parent message
+        var parent = messageService.send(channel.id(), new CreateMessageRequest("parent", null), "alice");
+
+        // Bob replies
+        messageService.send(channel.id(), new CreateMessageRequest("reply", parent.id()), "bob");
+
+        // Verify thread has 1 reply
+        var repliesBefore = messageService.listThread(channel.id(), parent.id(), "alice");
+        assertThat(repliesBefore).hasSize(1);
+
+        // Alice blocks Bob
+        blockService.block("alice", bob.getId());
+
+        // Verify thread now hides the reply from Alice's view
+        var repliesAfterAlice = messageService.listThread(channel.id(), parent.id(), "alice");
+        assertThat(repliesAfterAlice).isEmpty();
+
+        // Verify Bob can still see his reply
+        var repliesAfterBob = messageService.listThread(channel.id(), parent.id(), "bob");
+        assertThat(repliesAfterBob).hasSize(1);
+    }
+
+    @Test
+    void blockedSenderDoesNotGenerateNotification() {
+        createUser("alice");
+        User bob = createUser("bob");
+        var channel = channelService.create(new CreateChannelRequest("c3", null, false), "alice");
+        membershipService.join(channel.id(), "bob");
+
+        // Alice blocks Bob
+        blockService.block("alice", bob.getId());
+
+        // Bob @mentions alice
+        messageService.send(channel.id(), new CreateMessageRequest("hello @alice", null), "bob");
+
+        // Verify Alice has no notifications
+        var aliceNotifications = notificationService.list("alice", PageRequest.of(0, 50));
+        assertThat(aliceNotifications.content()).isEmpty();
     }
 }

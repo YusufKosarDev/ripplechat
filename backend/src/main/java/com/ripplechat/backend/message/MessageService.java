@@ -24,6 +24,8 @@ import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.dto.UserSummary;
 import com.ripplechat.backend.user.UserRepository;
+import com.ripplechat.backend.user.UserBlockRepository;
+import com.ripplechat.backend.channel.ChannelType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
@@ -69,6 +71,7 @@ public class MessageService {
     private final ApplicationEventPublisher eventPublisher;
     private final com.ripplechat.backend.notification.NotificationService notificationService;
     private final OutboxTaskRepository outboxTaskRepository;
+    private final UserBlockRepository blockRepository;
 
     // Matches @username mentions in message content (letters, digits, _ and .).
     private static final java.util.regex.Pattern MENTION_PATTERN =
@@ -109,6 +112,7 @@ public class MessageService {
 
         User sender = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        validateBlockState(channel, sender.getId());
 
         Message message = new Message();
         message.setContent(content);
@@ -238,6 +242,7 @@ public class MessageService {
 
         User sender = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        validateBlockState(target, sender.getId());
 
         Message message = new Message();
         message.setContent(source.getContent() == null ? "" : source.getContent());
@@ -283,6 +288,18 @@ public class MessageService {
         }
 
         List<Message> replies = messageRepository.findByParent_IdOrderByCreatedAtAsc(parentMessageId);
+
+        User viewer = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        List<UUID> blockedIds = blockRepository.findByBlockerId(viewer.getId()).stream()
+                .map(com.ripplechat.backend.user.UserBlock::getBlockedId)
+                .toList();
+        if (!blockedIds.isEmpty()) {
+            replies = replies.stream()
+                    .filter(m -> !blockedIds.contains(m.getSender().getId()))
+                    .toList();
+        }
+
         Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(
                 replies.stream().map(Message::getId).toList());
         return replies.stream()
@@ -538,6 +555,22 @@ public class MessageService {
         task.setStatus(OutboxTask.Status.PENDING);
         task.setCreatedAt(Instant.now());
         outboxTaskRepository.save(task);
+    }
+
+    private void validateBlockState(Channel channel, UUID senderId) {
+        if (channel.getType() == ChannelType.DIRECT) {
+            UUID otherParticipantId = membershipRepository.findByChannelId(channel.getId()).stream()
+                    .map(m -> m.getUser().getId())
+                    .filter(id -> !id.equals(senderId))
+                    .findFirst()
+                    .orElse(null);
+            if (otherParticipantId != null) {
+                if (blockRepository.existsByBlockerIdAndBlockedId(senderId, otherParticipantId)
+                        || blockRepository.existsByBlockerIdAndBlockedId(otherParticipantId, senderId)) {
+                    throw new ForbiddenException("cannot message a blocked user");
+                }
+            }
+        }
     }
 
     private void requireMember(UUID channelId, String username) {
