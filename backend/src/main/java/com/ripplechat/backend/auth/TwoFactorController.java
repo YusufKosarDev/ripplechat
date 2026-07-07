@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.ripplechat.backend.redis.RateLimiter;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -22,9 +25,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TwoFactorController {
 
+    private static final double TWO_FACTOR_BURST = 5;
+    private static final double TWO_FACTOR_REFILL_PER_SEC = 0.1;
+
     private final TwoFactorService twoFactorService;
     private final RecoveryCodeService recoveryCodeService;
     private final UserRepository userRepository;
+    private final RateLimiter rateLimiter;
 
     @PostMapping("/setup")
     public Map<String, String> setup2Fa(@AuthenticationPrincipal String username) {
@@ -45,6 +52,9 @@ public class TwoFactorController {
 
     @PostMapping("/enable")
     public RecoveryCodesResponse enable2Fa(@AuthenticationPrincipal String username, @Valid @RequestBody CodeRequest request) {
+        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many 2FA attempts, please wait a moment and try again");
+        }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -69,6 +79,9 @@ public class TwoFactorController {
 
     @PostMapping("/disable")
     public Map<String, Boolean> disable2Fa(@AuthenticationPrincipal String username, @Valid @RequestBody CodeRequest request) {
+        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many 2FA attempts, please wait a moment and try again");
+        }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -99,6 +112,9 @@ public class TwoFactorController {
     @PostMapping("/recovery-codes/regenerate")
     public RecoveryCodesResponse regenerateRecoveryCodes(@AuthenticationPrincipal String username,
                                                          @Valid @RequestBody CodeRequest request) {
+        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many 2FA attempts, please wait a moment and try again");
+        }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
