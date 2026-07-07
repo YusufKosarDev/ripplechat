@@ -230,6 +230,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const otherLastRead = dm?.otherUser ? reads?.[dm.otherUser.id] : undefined
   const partnerOnline = dm?.otherUser ? onlineUserIds.includes(dm.otherUser.id) : false
   const dmPartner = dm?.otherUser ?? null
+  const isE2EE = !!(dmPartner || asymmetricKey || passphrase)
   const blockedIds = useAppSelector((state) => state.blocks.ids)
   const blockedRef = useRef(blockedIds)
   useLayoutEffect(() => {
@@ -1286,7 +1287,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             </Button>
           )}
           {aiEnabled && (
-            <Button variant="secondary" size="sm" onClick={onSummarize} disabled={summarizing || !!dmPartner} title={dmPartner ? "Şifreli sohbetler özetlenemez" : "Yapay zeka ile özetle"}>
+            <Button variant="secondary" size="sm" onClick={onSummarize} disabled={summarizing || isE2EE} title={isE2EE ? "Şifreli sohbetler özetlenemez" : "Yapay zeka ile özetle"}>
               {summarizing ? '✨ ...' : '✨ Özetle'}
             </Button>
           )}
