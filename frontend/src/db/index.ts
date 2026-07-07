@@ -25,7 +25,7 @@ interface RippleChatDB extends DBSchema {
   }
   crypto_keys: {
     key: string
-    value: { publicKey: CryptoKey; privateKey: CryptoKey }
+    value: any
   }
   ratchet_sessions: {
     key: string // channelId or recipientUserId
