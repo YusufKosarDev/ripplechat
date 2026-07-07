@@ -62,5 +62,29 @@ class OutboxIntegrationTests extends AbstractIntegrationTest {
         assertThat(processedTask.getStatus()).isEqualTo(OutboxTask.Status.FAILED);
         assertThat(processedTask.getAttempts()).isEqualTo(1);
         assertThat(processedTask.getErrorMessage()).isEqualTo("Cloudinary API failure");
+        assertThat(processedTask.getNextAttemptAt()).isNotNull();
+    }
+
+    @Test
+    void testFailedTaskWillNotBeProcessedBeforeNextAttemptAt() throws Exception {
+        OutboxTask task = new OutboxTask();
+        task.setId(UUID.randomUUID());
+        task.setTaskType("DELETE_MEDIA");
+        task.setPayload("https://res.cloudinary.com/fail-image-2.jpg");
+        task.setStatus(OutboxTask.Status.FAILED);
+        task.setAttempts(1);
+        // next attempt is scheduled 10 seconds in the future
+        task.setNextAttemptAt(Instant.now().plusSeconds(10));
+        task.setCreatedAt(Instant.now().minusSeconds(20));
+        outboxTaskRepository.saveAndFlush(task);
+
+        // Execute processor
+        outboxTaskProcessor.processTasks();
+
+        // The task should NOT be processed again because nextAttemptAt is in the future.
+        // So attempts count should remain 1.
+        OutboxTask processedTask = outboxTaskRepository.findById(task.getId()).orElseThrow();
+        assertThat(processedTask.getAttempts()).isEqualTo(1);
+        assertThat(processedTask.getStatus()).isEqualTo(OutboxTask.Status.FAILED);
     }
 }

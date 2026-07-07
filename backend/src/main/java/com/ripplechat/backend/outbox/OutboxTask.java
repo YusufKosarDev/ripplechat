@@ -39,6 +39,9 @@ public class OutboxTask {
     @Column(name = "last_attempt_at")
     private Instant lastAttemptAt;
 
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 

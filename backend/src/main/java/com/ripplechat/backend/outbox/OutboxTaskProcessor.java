@@ -21,7 +21,7 @@ public class OutboxTaskProcessor {
     @Scheduled(fixedDelayString = "${ripplechat.outbox.sweep-ms:5000}")
     @SchedulerLock(name = "outboxTaskSweep", lockAtMostFor = "PT2M", lockAtLeastFor = "PT0S")
     public void processTasks() {
-        List<OutboxTask> pendingTasks = outboxTaskRepository.findPendingTasks(5);
+        List<OutboxTask> pendingTasks = outboxTaskRepository.findPendingTasks(5, Instant.now());
         if (pendingTasks.isEmpty()) {
             return;
         }
@@ -39,11 +39,14 @@ public class OutboxTaskProcessor {
 
                 task.setStatus(OutboxTask.Status.COMPLETED);
                 task.setErrorMessage(null);
+                task.setNextAttemptAt(null);
                 outboxTaskRepository.saveAndFlush(task);
             } catch (Exception e) {
                 log.error("Failed to execute outbox task: {}", task.getId(), e);
                 task.setStatus(OutboxTask.Status.FAILED);
                 task.setErrorMessage(e.getMessage());
+                long backoffSeconds = (long) Math.pow(2, task.getAttempts() - 1) * 10;
+                task.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
                 outboxTaskRepository.saveAndFlush(task);
             }
         }

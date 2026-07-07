@@ -9,6 +9,6 @@ import java.util.UUID;
 
 public interface OutboxTaskRepository extends JpaRepository<OutboxTask, UUID> {
 
-    @Query("SELECT t FROM OutboxTask t WHERE t.status = com.ripplechat.backend.outbox.OutboxTask.Status.PENDING OR (t.status = com.ripplechat.backend.outbox.OutboxTask.Status.FAILED AND t.attempts < :maxAttempts) ORDER BY t.createdAt ASC")
-    List<OutboxTask> findPendingTasks(@Param("maxAttempts") int maxAttempts);
+    @Query("SELECT t FROM OutboxTask t WHERE (t.status = com.ripplechat.backend.outbox.OutboxTask.Status.PENDING OR (t.status = com.ripplechat.backend.outbox.OutboxTask.Status.FAILED AND t.attempts < :maxAttempts)) AND (t.nextAttemptAt IS NULL OR t.nextAttemptAt <= :now) ORDER BY t.createdAt ASC")
+    List<OutboxTask> findPendingTasks(@Param("maxAttempts") int maxAttempts, @Param("now") java.time.Instant now);
 }
