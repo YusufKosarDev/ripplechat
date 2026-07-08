@@ -147,7 +147,6 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [focusTrigger, setFocusTrigger] = useState(0)
-  const prevHeightRef = useRef<number | null>(null)
   const stopTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const optIdCounter = useRef(0)
   const isTypingRef = useRef(false)
@@ -297,16 +296,6 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }
   }, [selectedId, dispatch])
 
-  useLayoutEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    if (prevHeightRef.current != null) {
-      el.scrollTop += el.scrollHeight - prevHeightRef.current
-      prevHeightRef.current = null
-    } else {
-      el.scrollTop = el.scrollHeight
-    }
-  }, [selectedId, messages.length])
 
   useEffect(() => {
     if (selectedId && messages.length > 0) sendRead(selectedId)
@@ -336,10 +325,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   }, [])
 
   const onMessagesScroll = () => {
-    const el = scrollRef.current
-    if (!el || !selectedId || !channelPaging) return
-    if (el.scrollTop < 80 && channelPaging.hasMore && !channelPaging.loadingOlder) {
-      prevHeightRef.current = el.scrollHeight
+    if (!selectedId || !channelPaging) return
+    if (channelPaging.hasMore && !channelPaging.loadingOlder) {
       dispatch(fetchOlderMessages({ channelId: selectedId, page: channelPaging.nextPage }))
     }
   }

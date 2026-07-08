@@ -1,4 +1,6 @@
+import { useRef, useEffect } from 'react'
 import type { RefObject } from 'react'
+import { Virtuoso } from 'react-virtuoso'
 import type { Message, Poll, DirectChannel } from '../../api/types'
 import SkeletonLoader from '../ui/SkeletonLoader'
 import PollCard from '../PollCard'
@@ -42,6 +44,7 @@ interface MessageListProps {
 }
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
+const START_INDEX = 10000
 
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
@@ -93,50 +96,91 @@ export default function MessageList({
   flying,
   scrollRef,
 }: MessageListProps) {
+  const firstItemIndex = Math.max(0, START_INDEX - messages.length)
+  const virtuosoRef = useRef<any>(null)
+
+  // Scroll to bottom when a new message is added
+  useEffect(() => {
+    if (messages.length > 0 && virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex({
+        index: messages.length - 1,
+        behavior: 'auto',
+      })
+    }
+  }, [messages.length])
+
+  const ListHeader = () => (
+    <div className="pt-4 px-6">
+      {channelPaging?.loadingOlder && (
+        <div className="py-2 text-center text-xs text-fg-muted">Daha eski mesajlar yükleniyor…</div>
+      )}
+      {polls.length > 0 && (
+        <div className="mb-4 space-y-3">
+          {polls.map((poll) => (
+            <PollCard
+              key={poll.id}
+              poll={poll}
+              myVote={myVotes[poll.id]}
+              onVote={(optionId) => onVote(poll, optionId)}
+            />
+          ))}
+        </div>
+      )}
+
+      {loadingMessages && <SkeletonLoader type="message-list" count={6} />}
+
+      {!loadingMessages && messages.length === 0 && polls.length === 0 && (
+        <div className="flex h-64 flex-col items-center justify-center text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
+            👋
+          </div>
+          <p className="mt-4 font-medium text-fg">Burada henüz mesaj yok.</p>
+          <p className="mt-1 text-sm text-fg-muted">İlk mesajı sen gönder.</p>
+        </div>
+      )}
+    </div>
+  )
+
+  const ListFooter = () => <div className="pb-4" />
+
   return (
-    <div className="relative flex-1 overflow-hidden">
-      <div ref={scrollRef} onScroll={onMessagesScroll} className="h-full overflow-y-auto px-6 py-4">
-        {channelPaging?.loadingOlder && (
-          <div className="py-2 text-center text-xs text-fg-muted">Daha eski mesajlar yükleniyor…</div>
-        )}
-        {polls.length > 0 && (
-          <div className="mb-4 space-y-3">
-            {polls.map((poll) => (
-              <PollCard
-                key={poll.id}
-                poll={poll}
-                myVote={myVotes[poll.id]}
-                onVote={(optionId) => onVote(poll, optionId)}
-              />
-            ))}
-          </div>
-        )}
+    <div className="relative flex-1 overflow-hidden h-full">
+      <Virtuoso
+        ref={virtuosoRef}
+        data={messages}
+        firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+        scrollerRef={(el) => {
+          if (scrollRef) {
+            scrollRef.current = el as HTMLDivElement
+          }
+        }}
+        style={{ height: '100%' }}
+        className="h-full"
+        computeItemKey={(_index, msg) => msg.id}
+        startReached={() => {
+          if (channelPaging?.hasMore && !channelPaging.loadingOlder) {
+            onMessagesScroll()
+          }
+        }}
+        followOutput={(isAtBottom) => (isAtBottom ? 'scrollToBottom' : false)}
+        components={{
+          Header: ListHeader,
+          Footer: ListFooter,
+        }}
+        itemContent={(index, msg) => {
+          const arrayIndex = index - firstItemIndex
+          const prev = arrayIndex > 0 ? messages[arrayIndex - 1] : null
+          const showDate = !prev || !sameDay(prev.createdAt, msg.createdAt)
+          const grouped =
+            !showDate &&
+            prev !== null &&
+            prev.sender.id === msg.sender.id &&
+            new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS
 
-        {loadingMessages && <SkeletonLoader type="message-list" count={6} />}
-
-        {!loadingMessages && messages.length === 0 && polls.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
-              👋
-            </div>
-            <p className="mt-4 font-medium text-fg">Burada henüz mesaj yok.</p>
-            <p className="mt-1 text-sm text-fg-muted">İlk mesajı sen gönder.</p>
-          </div>
-        )}
-
-        {!loadingMessages &&
-          messages.map((msg, index) => {
-            const prev = index > 0 ? messages[index - 1] : null
-            const showDate = !prev || !sameDay(prev.createdAt, msg.createdAt)
-            const grouped =
-              !showDate &&
-              prev !== null &&
-              prev.sender.id === msg.sender.id &&
-              new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS
-
-            return (
+          return (
+            <div className="px-6">
               <MessageItem
-                key={msg.id}
                 msg={msg}
                 currentUser={currentUser}
                 canModerate={canModerate}
@@ -165,9 +209,10 @@ export default function MessageList({
                 showDate={showDate}
                 dateLabelText={showDate ? dateLabel(msg.createdAt) : undefined}
               />
-            )
-          })}
-      </div>
+            </div>
+          )
+        }}
+      />
 
       <ReactionOverlay items={flying} />
     </div>
