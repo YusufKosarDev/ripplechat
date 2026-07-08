@@ -56,6 +56,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     e.preventDefault()
     const name = newName.trim()
     if (!name) return
+    if (name.length > 80) {
+      alert('Kanal adı en fazla 80 karakter olabilir.')
+      return
+    }
     dispatch(createChannel({ name }))
     setNewName('')
   }
@@ -308,6 +312,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               inputSize="sm"
               className="min-w-0 flex-1"
               value={newName}
+              maxLength={80}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={t('sidebar.newChannel')}
             />

@@ -372,6 +372,10 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const submit = async () => {
     const text = draft.trim()
     if (!text && !attachment) return
+    if (text.length > 4000) {
+      setCmdError('Mesajınız en fazla 4000 karakter olabilir.')
+      return
+    }
     setCmdError(null)
 
     if (!passphrase && !asymmetricKey && text.startsWith('/') && !attachment && !replyingTo) {
@@ -735,7 +739,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         onSetCategory={() => {
           if (!selectedId) return
           const name = window.prompt('Kategori adı (boş = kategorisiz):', currentCategory)
-          if (name !== null) dispatch(setCategory({ channelId: selectedId, name: name.trim() }))
+          if (name !== null) {
+            const trimmed = name.trim()
+            if (trimmed.length > 80) {
+              alert('Kategori adı en fazla 80 karakter olabilir.')
+              return
+            }
+            dispatch(setCategory({ channelId: selectedId, name: trimmed }))
+          }
         }}
         onToggleArchive={() => selectedId && dispatch(toggleArchive(selectedId))}
         onSetDisappearing={(ttl) => selectedId && dispatch(setDisappearing({ channelId: selectedId, ttlSeconds: ttl }))}

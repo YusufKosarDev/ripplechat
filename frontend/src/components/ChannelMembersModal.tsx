@@ -44,9 +44,21 @@ export default function ChannelMembersModal({
   const panelRef = useDialog<HTMLDivElement>(onClose)
 
   const onSaveChannel = () => {
-    if (name.trim()) {
-      dispatch(updateChannel({ channelId, name: name.trim(), description: description.trim() || undefined }))
+    const trimmedName = name.trim()
+    const trimmedDesc = description.trim()
+    if (!trimmedName) {
+      alert('Kanal adı gereklidir.')
+      return
     }
+    if (trimmedName.length > 80) {
+      alert('Kanal adı en fazla 80 karakter olabilir.')
+      return
+    }
+    if (trimmedDesc.length > 500) {
+      alert('Kanal açıklaması en fazla 500 karakter olabilir.')
+      return
+    }
+    dispatch(updateChannel({ channelId, name: trimmedName, description: trimmedDesc || undefined }))
   }
   const onDeleteChannel = () => {
     if (window.confirm('Bu kanalı silmek istediğine emin misin? Geri alınamaz.')) {
@@ -144,12 +156,14 @@ export default function ChannelMembersModal({
             <h4 className="mb-2 text-sm font-medium text-fg-secondary">Kanal ayarları</h4>
             <Input
               value={name}
+              maxLength={80}
               onChange={(e) => setName(e.target.value)}
               placeholder="Kanal adı"
               className="mb-2"
             />
             <Input
               value={description}
+              maxLength={500}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Açıklama"
               className="mb-3"

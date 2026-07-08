@@ -8,6 +8,7 @@ import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.ChannelMembershipService;
 import com.ripplechat.backend.channel.membership.MembershipRole;
+import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.user.User;
@@ -32,11 +33,21 @@ public class ChannelService {
 
     @Transactional
     public ChannelResponse create(CreateChannelRequest request, String username) {
+        if (request.name() == null || request.name().isBlank()) {
+            throw new BadRequestException("name is required");
+        }
+        if (request.name().length() > 80) {
+            throw new BadRequestException("name must be at most 80 characters");
+        }
+        if (request.description() != null && request.description().length() > 500) {
+            throw new BadRequestException("description must be at most 500 characters");
+        }
+
         User creator = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
         Channel channel = new Channel();
-        channel.setName(request.name());
+        channel.setName(request.name().trim());
         channel.setDescription(request.description());
         channel.setPrivate(Boolean.TRUE.equals(request.isPrivate()));
         channel.setCreatedBy(creator);
@@ -76,6 +87,16 @@ public class ChannelService {
 
     @Transactional
     public ChannelResponse update(UUID channelId, String username, UpdateChannelRequest request) {
+        if (request.name() == null || request.name().isBlank()) {
+            throw new BadRequestException("name is required");
+        }
+        if (request.name().length() > 80) {
+            throw new BadRequestException("name must be at most 80 characters");
+        }
+        if (request.description() != null && request.description().length() > 500) {
+            throw new BadRequestException("description must be at most 500 characters");
+        }
+
         Channel channel = getActiveChannel(channelId);
         requireOwner(channelId, username);
         channel.setName(request.name().trim());

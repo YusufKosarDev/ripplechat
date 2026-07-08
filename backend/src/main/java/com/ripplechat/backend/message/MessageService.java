@@ -99,8 +99,16 @@ public class MessageService {
         if (content.length() > MAX_MESSAGE_LENGTH) {
             throw new BadRequestException("content must be at most " + MAX_MESSAGE_LENGTH + " characters");
         }
-        if (hasAttachment && !isAllowedAttachmentUrl(attachmentUrl)) {
-            throw new BadRequestException("invalid attachment url");
+        if (hasAttachment) {
+            if (!isAllowedAttachmentUrl(attachmentUrl)) {
+                throw new BadRequestException("invalid attachment url");
+            }
+            if (request.attachmentName() != null && request.attachmentName().length() > 255) {
+                throw new BadRequestException("attachment name must be at most 255 characters");
+            }
+            if (request.attachmentType() != null && request.attachmentType().length() > 16) {
+                throw new BadRequestException("attachment type must be at most 16 characters");
+            }
         }
 
         Channel channel = channelRepository.findById(channelId)

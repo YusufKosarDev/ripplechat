@@ -241,11 +241,18 @@ export default function MessageComposer({
           Gönder
         </Button>
       </form>
-      <p className="mt-2 text-xs text-fg-faint">
-        Markdown destekli · <span className="text-fg-muted">**kalın**</span>{' '}
-        <span className="text-fg-muted">*italik*</span>{' '}
-        <span className="text-fg-muted">`kod`</span> · ``` ile kod bloğu · Enter gönderir, Shift+Enter yeni satır
-      </p>
+      <div className="mt-2 flex items-center justify-between text-xs text-fg-faint">
+        <p>
+          Markdown destekli · <span className="text-fg-muted">**kalın**</span>{' '}
+          <span className="text-fg-muted">*italik*</span>{' '}
+          <span className="text-fg-muted">`kod`</span> · ``` ile kod bloğu · Enter gönderir, Shift+Enter yeni satır
+        </p>
+        {draft.length > 3000 && (
+          <span className={`font-semibold shrink-0 select-none ${draft.length > 4000 ? 'text-danger animate-pulse' : ''}`}>
+            {draft.length} / 4000
+          </span>
+        )}
+      </div>
     </div>
   )
 }
