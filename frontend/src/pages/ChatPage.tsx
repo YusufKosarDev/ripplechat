@@ -18,6 +18,8 @@ import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
 import { client } from '../api/client'
 import { replenishPreKeys } from '../crypto/e2ee'
 import { syncPendingMessages } from '../sync/syncManager'
+import ConnectionBanner from '../components/ui/ConnectionBanner'
+
 
 // Loaded on demand the first time the quick switcher (Ctrl/Cmd+K) is opened.
 const QuickSwitcher = lazy(() => import('../components/QuickSwitcher'))
@@ -199,6 +201,7 @@ export default function ChatPage() {
       >
         İçeriğe geç
       </a>
+      <ConnectionBanner status={connectionStatus} />
       <div className="relative flex flex-1 overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <ChannelPanel onOpenSidebar={() => setSidebarOpen(true)} />

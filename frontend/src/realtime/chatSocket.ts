@@ -423,3 +423,18 @@ export function disconnectChat() {
   void client?.deactivate()
   client = null
 }
+
+export function forceReconnectChat() {
+  if (client) {
+    if (!client.active) {
+      void client.activate()
+    } else {
+      void client.deactivate().then(() => {
+        void client?.activate()
+      })
+    }
+  } else {
+    connectChat(handlers)
+  }
+}
+
