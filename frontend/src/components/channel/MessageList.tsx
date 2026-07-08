@@ -1,0 +1,175 @@
+import type { RefObject } from 'react'
+import type { Message, Poll, DirectChannel } from '../../api/types'
+import SkeletonLoader from '../ui/SkeletonLoader'
+import PollCard from '../PollCard'
+import MessageItem from './MessageItem'
+import ReactionOverlay from '../ReactionOverlay'
+import type { FlyingEmoji } from '../ReactionOverlay'
+
+interface MessageListProps {
+  messages: Message[]
+  polls: Poll[]
+  myVotes: Record<string, string>
+  onVote: (poll: Poll, optionId: string) => void
+  loadingMessages: boolean
+  channelPaging?: { loadingOlder: boolean; hasMore: boolean }
+  onMessagesScroll: () => void
+  currentUser: { id: string; username: string; displayName?: string | null; avatarColor?: string | null; avatarUrl?: string | null } | null
+  canModerate: boolean
+  otherLastRead: string | undefined
+  dm: DirectChannel | null
+  decrypted: Record<string, string>
+  passphrase?: string
+  asymmetricKey: CryptoKey | null
+  onlineUserIds: string[]
+  bookmarkedIds: string[]
+  onShowHistory: (msg: Message) => void
+  onStartEdit: (msg: Message) => void
+  onDelete: (msg: Message) => void
+  onHideForMe: (msg: Message) => void
+  onQuote: (msg: Message) => void
+  onForward: (msg: Message) => void
+  onTogglePin: (msg: Message) => void
+  onToggleBookmark: (msg: Message) => void
+  onEmojiReact: (msgId: string, emoji: string) => void
+  editingId: string | null
+  editDraft: string
+  onEditDraftChange: (val: string) => void
+  onSaveEdit: (msg: Message) => void
+  onCancelEdit: () => void
+  flying: FlyingEmoji[]
+  scrollRef: RefObject<HTMLDivElement | null>
+}
+
+const GROUP_WINDOW_MS = 5 * 60 * 1000
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+}
+
+function sameDay(a: string, b: string): boolean {
+  return startOfDay(new Date(a)) === startOfDay(new Date(b))
+}
+
+function dateLabel(iso: string): string {
+  const today = startOfDay(new Date())
+  const that = startOfDay(new Date(iso))
+  if (that === today) return 'Bugün'
+  if (that === today - 86_400_000) return 'Dün'
+  return new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+export default function MessageList({
+  messages,
+  polls,
+  myVotes,
+  onVote,
+  loadingMessages,
+  channelPaging,
+  onMessagesScroll,
+  currentUser,
+  canModerate,
+  otherLastRead,
+  dm,
+  decrypted,
+  passphrase,
+  asymmetricKey,
+  onlineUserIds,
+  bookmarkedIds,
+  onShowHistory,
+  onStartEdit,
+  onDelete,
+  onHideForMe,
+  onQuote,
+  onForward,
+  onTogglePin,
+  onToggleBookmark,
+  onEmojiReact,
+  editingId,
+  editDraft,
+  onEditDraftChange,
+  onSaveEdit,
+  onCancelEdit,
+  flying,
+  scrollRef,
+}: MessageListProps) {
+  return (
+    <div className="relative flex-1 overflow-hidden">
+      <div ref={scrollRef} onScroll={onMessagesScroll} className="h-full overflow-y-auto px-6 py-4">
+        {channelPaging?.loadingOlder && (
+          <div className="py-2 text-center text-xs text-fg-muted">Daha eski mesajlar yükleniyor…</div>
+        )}
+        {polls.length > 0 && (
+          <div className="mb-4 space-y-3">
+            {polls.map((poll) => (
+              <PollCard
+                key={poll.id}
+                poll={poll}
+                myVote={myVotes[poll.id]}
+                onVote={(optionId) => onVote(poll, optionId)}
+              />
+            ))}
+          </div>
+        )}
+
+        {loadingMessages && <SkeletonLoader type="message-list" count={6} />}
+
+        {!loadingMessages && messages.length === 0 && polls.length === 0 && (
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
+              👋
+            </div>
+            <p className="mt-4 font-medium text-fg">Burada henüz mesaj yok.</p>
+            <p className="mt-1 text-sm text-fg-muted">İlk mesajı sen gönder.</p>
+          </div>
+        )}
+
+        {!loadingMessages &&
+          messages.map((msg, index) => {
+            const prev = index > 0 ? messages[index - 1] : null
+            const showDate = !prev || !sameDay(prev.createdAt, msg.createdAt)
+            const grouped =
+              !showDate &&
+              prev !== null &&
+              prev.sender.id === msg.sender.id &&
+              new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_WINDOW_MS
+
+            return (
+              <MessageItem
+                key={msg.id}
+                msg={msg}
+                currentUser={currentUser}
+                canModerate={canModerate}
+                otherLastRead={otherLastRead}
+                dm={dm}
+                decrypted={decrypted}
+                passphrase={passphrase}
+                asymmetricKey={asymmetricKey}
+                onlineUserIds={onlineUserIds}
+                bookmarkedIds={bookmarkedIds}
+                onShowHistory={onShowHistory}
+                onStartEdit={onStartEdit}
+                onDelete={onDelete}
+                onHideForMe={onHideForMe}
+                onQuote={() => onQuote(msg)}
+                onForward={() => onForward(msg)}
+                onTogglePin={() => onTogglePin(msg)}
+                onToggleBookmark={() => onToggleBookmark(msg)}
+                onEmojiReact={(emoji) => onEmojiReact(msg.id, emoji)}
+                editingId={editingId}
+                editDraft={editDraft}
+                onEditDraftChange={onEditDraftChange}
+                onSaveEdit={onSaveEdit}
+                onCancelEdit={onCancelEdit}
+                grouped={grouped}
+                showDate={showDate}
+                dateLabelText={showDate ? dateLabel(msg.createdAt) : undefined}
+              />
+            )
+          })}
+      </div>
+
+      <ReactionOverlay items={flying} />
+    </div>
+  )
+}
