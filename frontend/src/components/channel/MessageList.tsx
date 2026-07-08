@@ -103,7 +103,7 @@ export default function MessageList({
   useEffect(() => {
     if (messages.length > 0 && virtuosoRef.current) {
       virtuosoRef.current.scrollToIndex({
-        index: messages.length - 1,
+        index: START_INDEX - 1,
         behavior: 'auto',
       })
     }
@@ -149,7 +149,7 @@ export default function MessageList({
         ref={virtuosoRef}
         data={messages}
         firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+        initialTopMostItemIndex={messages.length > 0 ? START_INDEX - 1 : 0}
         scrollerRef={(el) => {
           if (scrollRef) {
             scrollRef.current = el as HTMLDivElement

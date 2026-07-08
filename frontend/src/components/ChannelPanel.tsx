@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, react-hooks/purity */
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { showToast } from '../features/toast/toastSlice'
@@ -171,12 +171,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const { incomingCall } = useAppSelector((state) => state.call)
 
-  const refreshPinned = (chanId: string) => {
+  const refreshPinned = useCallback((chanId: string) => {
     client
       .get<Message[]>(`/api/channels/${chanId}/messages/pinned`)
       .then((r) => setPinned(r.data))
       .catch(() => setPinned([]))
-  }
+  }, [])
 
   const { typingUsers, flying } = useChannelSocket({
     channelId: selectedId ?? '',
