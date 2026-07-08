@@ -15,7 +15,7 @@ import { closeThread, threadReplyUpdated } from '../features/threads/threadsSlic
 import { clearCall, setIncomingCall } from '../features/call/callSlice'
 import { watchChannel } from '../realtime/chatSocket'
 import type { ReactionEvent, TypingEvent, Message, Poll } from '../api/types'
-import { FlyingEmoji } from '../components/ReactionOverlay'
+import type { FlyingEmoji } from '../components/ReactionOverlay'
 
 const TYPING_TTL = 4000
 const MAX_FLYING = 40

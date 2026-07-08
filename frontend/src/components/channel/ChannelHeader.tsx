@@ -19,7 +19,6 @@ interface ChannelHeaderProps {
   aiEnabled: boolean
   isE2EE: boolean
   passphrase?: string
-  asymmetricKey: CryptoKey | null
   dmPartner: { id: string; username: string; displayName?: string | null; avatarColor?: string | null; avatarUrl?: string | null; lastSeenAt?: string | null; publicKey?: string | null } | null
   blockedIds: string[]
   onlineUserIds: string[]
@@ -27,7 +26,6 @@ interface ChannelHeaderProps {
   membersLength: number
   pinnedLength: number
   canModerate: boolean
-  currentCategory: string
   isArchived: boolean
   onOpenSidebar: () => void
   onCallStart: () => void
@@ -66,7 +64,6 @@ export default function ChannelHeader({
   aiEnabled,
   isE2EE,
   passphrase,
-  asymmetricKey,
   dmPartner,
   blockedIds,
   onlineUserIds,
@@ -74,7 +71,6 @@ export default function ChannelHeader({
   membersLength,
   pinnedLength,
   canModerate,
-  currentCategory,
   isArchived,
   onOpenSidebar,
   onCallStart,

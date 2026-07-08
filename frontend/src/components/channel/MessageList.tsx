@@ -163,7 +163,7 @@ export default function MessageList({
             onMessagesScroll()
           }
         }}
-        followOutput={(isAtBottom) => (isAtBottom ? 'scrollToBottom' : false)}
+        followOutput={(isAtBottom) => isAtBottom}
         components={{
           Header: ListHeader,
           Footer: ListFooter,

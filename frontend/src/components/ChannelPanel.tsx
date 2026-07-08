@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, react-hooks/purity */
-import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { showToast } from '../features/toast/toastSlice'
@@ -83,7 +83,6 @@ const WebhooksModal = lazy(() => import('./WebhooksModal'))
 const TYPING_STOP_DELAY = 2000
 const DECRYPT_FAILED = '__rc_decrypt_failed__'
 const MAX_MESSAGE_LENGTH = 4000
-const CLOUDINARY_PREFIX = 'https://res.cloudinary.com/'
 
 function dmAsChannel(dm: DirectChannel): Channel {
   const name = dm.group ? (dm.name ?? 'Grup') : (dm.otherUser?.displayName ?? dm.otherUser?.username ?? 'DM')
@@ -179,17 +178,14 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       .catch(() => setPinned([]))
   }
 
-  // Socket subscription integration via hook
-  const { typingUsers, flying, setFlying } = useChannelSocket({
+  const { typingUsers, flying } = useChannelSocket({
     channelId: selectedId ?? '',
     currentUserId: currentUser?.id,
     blockedIds,
     onRefreshPinned: refreshPinned,
   })
 
-  // Audio recording integration via hook
   const { recording, startRecording, stopRecording } = useAudioRecorder({
-    channelId: selectedId ?? '',
     dmPartner,
     asymmetricKey,
     passphrase,
@@ -273,7 +269,6 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   useEffect(() => {
     if (!selectedId) return
-    prevHeightRef.current = null
     dispatch(loadOfflineMessages(selectedId))
     dispatch(fetchMessages(selectedId))
     dispatch(fetchPolls(selectedId))
@@ -357,23 +352,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     }, TYPING_STOP_DELAY)
   }
 
-  const isAllowedAttachmentUrl = (url: string) => {
-    if (url.startsWith(CLOUDINARY_PREFIX)) {
-      return true
-    }
-    try {
-      const host = new URL(url).hostname
-      return host === 'giphy.com' || host.endsWith('.giphy.com')
-    } catch {
-      return false
-    }
-  }
-
   const submit = async () => {
     const text = draft.trim()
     if (!text && !attachment) return
-    if (text.length > 4000) {
-      setCmdError('Mesajınız en fazla 4000 karakter olabilir.')
+    if (text.length > MAX_MESSAGE_LENGTH) {
+      setCmdError(`Mesajınız en fazla ${MAX_MESSAGE_LENGTH} karakter olabilir.`)
       return
     }
     setCmdError(null)
@@ -724,7 +707,6 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         aiEnabled={aiEnabled}
         isE2EE={isE2EE}
         passphrase={passphrase}
-        asymmetricKey={asymmetricKey}
         dmPartner={dmPartner}
         blockedIds={blockedIds}
         onlineUserIds={onlineUserIds}
@@ -732,7 +714,6 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         membersLength={members.length}
         pinnedLength={pinned.length}
         canModerate={canModerate}
-        currentCategory={currentCategory}
         isArchived={isArchived}
         onOpenSidebar={onOpenSidebar}
         onCallStart={() => selectedId && dispatch(setActiveCall({ channelId: selectedId, peerId: dmPartner!.id, isIncoming: false }))}

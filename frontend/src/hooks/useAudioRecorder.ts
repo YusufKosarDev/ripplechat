@@ -3,8 +3,7 @@ import { client } from '../api/client'
 import { toBase64 } from '../crypto/doubleRatchet'
 
 interface UseAudioRecorderProps {
-  channelId: string
-  dmPartner: { id: string; publicKey?: string } | null
+  dmPartner: { id: string; publicKey?: string | null } | null
   asymmetricKey: CryptoKey | null
   passphrase?: string
   onUploadSuccess: (attachment: { url: string; name: string; type: 'audio'; e2ee?: { key: string; iv: string } }) => void
@@ -12,7 +11,6 @@ interface UseAudioRecorderProps {
 }
 
 export function useAudioRecorder({
-  channelId,
   dmPartner,
   asymmetricKey,
   passphrase,
