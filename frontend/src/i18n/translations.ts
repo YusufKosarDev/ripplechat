@@ -17,6 +17,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.demoError': 'Demo girişi şu an yapılamadı, lütfen tekrar dene.',
     'landing.demoHint': 'Demo’yu Dene: hazır bir hesapla tek tıkla, kayıt gerekmez.',
 
+    'wake.starting': 'Sunucu uyanıyor…',
+    'wake.slow': 'Ücretsiz sunucu uykudan kalkıyor — ilk ziyaret birkaç dakika sürebilir.',
+    'wake.elapsedSec': '{s} sn',
+    'wake.elapsedMin': '{m} dk {s} sn',
+
     'feat.realtime.title': 'Gerçek zamanlı',
     'feat.realtime.desc': 'Mesajlar, “yazıyor” göstergesi ve çevrimiçi durum anında akar.',
     'feat.reactions.title': 'Reaksiyonlar',
@@ -142,6 +147,11 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.register': 'Sign up',
     'landing.demoError': 'Demo sign-in is unavailable right now, please try again.',
     'landing.demoHint': 'Try the demo: one click with a ready account, no sign-up needed.',
+
+    'wake.starting': 'Server is waking up…',
+    'wake.slow': 'The free-tier server is waking from sleep — the first visit can take a few minutes.',
+    'wake.elapsedSec': '{s} s',
+    'wake.elapsedMin': '{m} min {s} s',
 
     'feat.realtime.title': 'Real-time',
     'feat.realtime.desc': 'Messages, the “typing” indicator and presence update instantly.',

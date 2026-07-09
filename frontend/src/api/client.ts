@@ -16,8 +16,12 @@ export const client = axios.create({
  * the first hit can time out or return 502/503/504 while waking; those are
  * retried with a short backoff. Real errors (4xx like 401/409) are not retried.
  * Used for the auth calls behind the landing/login/demo buttons.
+ *
+ * Budget: attempts × the 30 s client timeout (+ the small delays) ≈ 4.8 min —
+ * a full JVM wake-up on the free tier is measured in minutes, and a budget
+ * shorter than that made the retry give up (and error out) mid-wake.
  */
-export async function withColdStartRetry<T>(fn: () => Promise<T>, attempts = 4, delayMs = 2000): Promise<T> {
+export async function withColdStartRetry<T>(fn: () => Promise<T>, attempts = 9, delayMs = 2000): Promise<T> {
   for (let i = 1; i <= attempts; i += 1) {
     try {
       return await fn()

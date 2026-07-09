@@ -7,6 +7,7 @@ import './sync/syncManager'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
 import { LanguageProvider, getInitialLang } from './i18n'
+import { warmUpBackend } from './api/warmup'
 import { applyTheme, getInitialTheme } from './theme'
 import '@fontsource-variable/inter/index.css'
 import './index.css'
@@ -14,6 +15,9 @@ import './index.css'
 // Apply the persisted/system theme before first paint to avoid a flash.
 applyTheme(getInitialTheme())
 document.documentElement.lang = getInitialLang()
+
+// Start waking the (possibly sleeping) backend before any user interaction.
+warmUpBackend()
 
 // Register the service worker for PWA install + offline app shell. Production
 // only, so dev never serves stale cached assets. Same worker also powers push.

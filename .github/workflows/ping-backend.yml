@@ -1,12 +1,11 @@
 name: Ping Backend (Keep Alive)
 
 on:
-  schedule:
-    # Render free tier spins the service down after ~15 min idle. GitHub's
-    # scheduled runs are often delayed several minutes, so ping every 10 min to
-    # keep a safety margin (a single delayed/skipped run no longer lets it sleep).
-    # For a hard guarantee, point an external uptime monitor at /actuator/health.
-    - cron: '*/10 * * * *'
+  # Scheduled pings are retired: GitHub throttles cron workflows under load
+  # (observed gaps of 1–4.5 hours between nominally 10-minute runs), so the
+  # free-tier backend slept between pings anyway. An external uptime monitor
+  # now hits /actuator/health every 5 minutes instead. This workflow remains
+  # as a manual warm-up trigger (e.g. right before a live demo).
   workflow_dispatch:
 
 jobs:
