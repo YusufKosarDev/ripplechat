@@ -51,7 +51,9 @@ const dmMessages = [
 
 const page0 = (content: unknown[]) => ({ content, page: 0, size: 50, totalElements: content.length, totalPages: 1, last: true })
 
-const HIDE_BANNER = 'div[class*="bg-amber-500"]{display:none!important}'
+// Hide the connection-status banner (no WebSocket server in screenshot mode,
+// so it would show "disconnected" in every shot).
+const HIDE_BANNER = 'div[role="alert"]{display:none!important}'
 
 async function stub(page: Page, authed = true) {
   await page.route('**/ws/**', (route) => route.abort())
@@ -141,7 +143,9 @@ test('mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await stub(page)
   await page.goto('/chat')
-  // On mobile the sidebar may auto-show; tap the first channel to open the panel.
+  // The sidebar is off-canvas on mobile — open it with the "☰ Kanallar"
+  // button first; picking a channel closes it again.
+  await page.getByRole('button', { name: '☰ Kanallar' }).click()
   await page.getByRole('button', { name: /genel/i }).first().click()
   await expect(page.getByText('hoş geldiniz', { exact: false })).toBeVisible()
   await page.addStyleTag({ content: HIDE_BANNER })

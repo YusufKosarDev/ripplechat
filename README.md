@@ -395,9 +395,25 @@ ripplechat/
 
 ![Channel view](docs/screenshots/channel.png)
 
+**Dark mode** — the same channel with the dark theme:
+
+![Dark mode](docs/screenshots/channel-dark.png)
+
 **Direct message** — a private 1:1 conversation:
 
 ![Direct messages](docs/screenshots/direct-message.png)
+
+**End-to-end encryption** — the 🔒 badge in the DM header confirms E2EE is active, next to delivery/read ticks:
+
+![E2EE](docs/screenshots/e2ee.png)
+
+**Admin panel** — platform stats, user management, and the audit log:
+
+![Admin panel](docs/screenshots/admin.png)
+
+**Mobile** — responsive layout on a phone viewport:
+
+![Mobile](docs/screenshots/mobile.png)
 
 ---
 
