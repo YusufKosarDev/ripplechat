@@ -27,7 +27,7 @@
 - **App:** <https://ripplechat-app.vercel.app>
 - **API docs (Swagger UI):** <https://ripplechat-backend.onrender.com/swagger-ui.html>
 
-> Hosted on free tiers, so the backend may take ~30–60s to wake on the first request (the UI shows a "waking up" notice). On the landing page, click **“Demo’yu Dene”** for a one-click guided account — no signup needed.
+> Hosted on free tiers. The backend (Render) is kept awake by an external uptime monitor, and the frontend additionally pings it on page load, so the demo is usually ready immediately. Rarely — right after a redeploy or a missed monitor ping — the first request can still hit a cold start of a few minutes; the UI shows a "waking up" notice while it boots. On the landing page, click **“Demo’yu Dene”** for a one-click guided account — no signup needed.
 
 **Demo account** (or log in manually):
 
@@ -61,7 +61,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Saved messages** — bookmark any message and revisit them in a dedicated saved-items list (per-user, jump straight back to the message)
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
-- **AI channel summarization (Claude)** — a "✨ Özetle" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-opus-4-8` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
+- **AI channel summarization (Claude)** — a "✨ Özetle" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-3-5-sonnet-20241022` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
 - **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying. **Gracefully degrades** to PostgreSQL full-text when Elasticsearch is unavailable, so the app still boots and search keeps working
 - **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
@@ -142,7 +142,7 @@ Benchmarked locally with **k6** (20 virtual users, 30 s sustained load) against 
 | WebSocket STOMP connect | — | ~35 ms | ~110 ms | — |
 | **Error rate** | | | | **< 1 %** |
 
-> Latencies are from a local run (`k6 run loadtest/messaging.js`) with PostgreSQL in Docker and no Elasticsearch. The hosted demo runs on free tiers (Render + Neon) and has a cold-start wake-up of ~30–60 s; warmed-up response times are comparable.
+> Latencies are from a local run (`k6 run loadtest/messaging.js`) with PostgreSQL in Docker and no Elasticsearch. The hosted demo runs on free tiers (Render + Neon); an uptime monitor keeps the backend awake, but on the rare cold start (after a redeploy or missed ping) the JVM takes a few minutes to boot on the free instance. Warmed-up response times are comparable to the local numbers.
 
 To reproduce:
 
@@ -186,7 +186,7 @@ k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messa
 - k6 — load test for the read-heavy API path (`k6 run loadtest/messaging.js` against a local instance)
 
 **DevOps**
-- Docker Compose (PostgreSQL)
+- Docker Compose (PostgreSQL + optional STOMP-enabled RabbitMQ)
 - Flyway (production schema migrations)
 - Maven · Spring profiles (dev / prod)
 - GitHub Actions CI (backend, frontend, e2e) · container image build & publish to GHCR on push to `main` (with an optional deploy-hook step) · Dependabot (Maven, npm, Actions) · `npm audit` gate on shipped dependencies
@@ -218,7 +218,7 @@ flowchart TB
 
     subgraph Data["🗄️ Stateful infrastructure"]
         direction LR
-        PG[("PostgreSQL 16<br/>Flyway V1–V35")]
+        PG[("PostgreSQL 16<br/>Flyway V1–V37")]
         RD[("Redis<br/>pub/sub · rate limit<br/>lockout · ShedLock")]
         ES[("Elasticsearch<br/>search + PG fallback")]
     end
@@ -247,6 +247,7 @@ flowchart TB
 auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards · scheduled · edit history)
 presence · typing · reaction · poll · search (full-text) · read receipts · push · notification · bookmark · link previews · media · gif
 webhook · mail · scheduling (ShedLock) · ai (Claude summarization) · admin (moderation + audit log) · websocket
+e2ee (X3DH prekeys · group sender keys) · outbox (transactional async cleanup) · redis (rate limiting · pub/sub fan-out) · demo (seeded demo workspace)
 ```
 
 **WebSocket layer.** Clients open a single STOMP connection authenticated with a JWT on `CONNECT`. The server broadcasts to `/topic/...` destinations (e.g. `/topic/channels/{id}`); clients publish via `/app/...`. Messages, reactions, presence, typing, and polls all travel over this channel for instant fan-out.
@@ -327,7 +328,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V35__e2ee_prekeys`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V37__group_sender_keys`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
@@ -343,6 +344,7 @@ ripplechat/
 │   │   ├── user/                # Profiles, status/DND, settings, password, avatars, blocking
 │   │   ├── channel/             # Channels, membership & roles, direct/group messages
 │   │   ├── admin/               # Platform admin panel: user moderation + audit log
+│   │   ├── demo/                # One-click demo account + seeded demo workspace
 │   │   ├── message/             # Messages, threads, edit history, pins, forwards, quotes
 │   │   │   └── scheduled/       # Scheduled messages + background dispatcher
 │   │   ├── ai/                  # Claude channel summarization (Anthropic SDK, graceful-disable)
@@ -355,15 +357,18 @@ ripplechat/
 │   │   ├── notification/        # Activity center (mentions, replies, reactions)
 │   │   ├── bookmark/            # Saved / bookmarked messages
 │   │   ├── search/              # Message search (Elasticsearch, PostgreSQL tsvector fallback)
+│   │   ├── e2ee/                # Server side of E2EE: X3DH prekey storage, group sender keys
 │   │   ├── push/                # Web push (VAPID) subscriptions & sending
 │   │   ├── mail/                # Transactional email (reset / verification; logs when no SMTP)
 │   │   ├── scheduling/          # ShedLock single-runner locking for @Scheduled tasks
+│   │   ├── outbox/              # Transactional outbox for reliable async work (media cleanup)
 │   │   ├── link/                # Link-preview unfurling (jsoup, SSRF-guarded)
 │   │   ├── media/ · gif/        # Cloudinary uploads · Giphy GIF search
+│   │   ├── redis/               # Redis rate limiter + cross-replica STOMP pub/sub bridge
 │   │   ├── websocket/           # STOMP config & subscription auth
-│   │   └── common/              # Shared errors, exceptions, rate limiter
+│   │   └── common/              # Shared errors, exceptions, request-id filter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations V1–V35 (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V37 (prod schema)
 ├── frontend/                    # React + TypeScript app
 │   ├── public/                  # PWA manifest + service worker (sw.js)
 │   └── src/
@@ -378,7 +383,7 @@ ripplechat/
 │       ├── components/          # UI components (+ ui/ primitives & useDialog)
 │       ├── pages/               # Route-level views
 │       └── ../e2e/              # Playwright end-to-end tests
-├── docker-compose.yml           # PostgreSQL service
+├── docker-compose.yml           # PostgreSQL (+ STOMP-enabled RabbitMQ for the opt-in relay)
 └── .env.example                 # Environment template
 ```
 
@@ -390,29 +395,9 @@ ripplechat/
 
 ![Channel view](docs/screenshots/channel.png)
 
-**Dark mode** — the same channel with the dark theme:
-
-![Dark mode](docs/screenshots/channel-dark.png)
-
 **Direct message** — a private 1:1 conversation:
 
 ![Direct messages](docs/screenshots/direct-message.png)
-
-**End-to-end encryption** — the 🔒 E2EE badge confirms Signal-protocol encryption is active:
-
-![E2EE](docs/screenshots/e2ee.png)
-
-**Video call** — peer-to-peer WebRTC call with mic, camera, and screen-share controls:
-
-![Call](docs/screenshots/call.png)
-
-**Admin panel** — platform stats, user management, and audit log:
-
-![Admin panel](docs/screenshots/admin.png)
-
-**Mobile** — responsive layout on a phone viewport:
-
-![Mobile](docs/screenshots/mobile.png)
 
 ---
 
@@ -427,7 +412,7 @@ The timer-driven `@Scheduled` tasks are also replica-safe:
 
 - **Single-runner scheduling (ShedLock)** — the disappearing-message expiry sweep and the scheduled-message dispatcher run on a timer. On multiple replicas they would run redundantly (e.g. double-delivering a scheduled message), so each task is wrapped with `@SchedulerLock` and a **ShedLock** distributed lock (backed by Postgres) elects a single runner — exactly one replica executes each tick.
 
-> A heavier alternative to the Redis Pub/Sub bridge would be an **external STOMP relay** (RabbitMQ or Redis via `enableStompBrokerRelay`), which moves broker state out of the JVM entirely. The Pub/Sub bridge is the lighter choice and avoids the extra broker dependency.
+> An **external STOMP relay** is also implemented, as an opt-in alternative to the Redis Pub/Sub bridge: set `WEBSOCKET_BROKER_TYPE=rabbitmq` (plus the `RABBITMQ_*` connection variables — a STOMP-enabled RabbitMQ ships in `docker-compose.yml`) and the in-JVM broker is replaced with `enableStompBrokerRelay`, moving broker state out of the application entirely. The default stays the lighter Redis Pub/Sub bridge, which avoids the extra broker dependency.
 
 Larger features still on the roadmap: **group voice/video calls** via an SFU media server (the current WebRTC calls are peer-to-peer 1:1 — see the grounded architecture plan in [`docs/group-calls-sfu.md`](docs/group-calls-sfu.md)), and a **native mobile wrapper** (Capacitor) around the existing PWA (wiring plan in [`docs/mobile-capacitor.md`](docs/mobile-capacitor.md)).
 
