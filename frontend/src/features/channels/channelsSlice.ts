@@ -173,20 +173,23 @@ const channelsSlice = createSlice({
   },
 })
 
-export const TTL_OPTIONS: { label: string; value: number | null }[] = [
-  { label: 'Kapalı', value: null },
-  { label: '1 saat', value: 3600 },
-  { label: '1 gün', value: 86400 },
-  { label: '1 hafta', value: 604800 },
+// Disappearing-timer choices as i18n key + unit count; render with
+// t(labelKey, { n }) so the label follows the UI language.
+export const TTL_OPTIONS: { labelKey: string; n: number; value: number | null }[] = [
+  { labelKey: 'ttl.off', n: 0, value: null },
+  { labelKey: 'ttl.hours', n: 1, value: 3600 },
+  { labelKey: 'ttl.days', n: 1, value: 86400 },
+  { labelKey: 'ttl.weeks', n: 1, value: 604800 },
 ]
 
-// Human-readable label for a disappearing-timer value in seconds.
-export function ttlLabel(seconds: number | null | undefined): string | null {
+// Human-readable label for a disappearing-timer value in seconds, via the
+// caller's translate function (this module is not a component).
+export function ttlLabel(seconds: number | null | undefined, t: (key: string, vars?: Record<string, string | number>) => string): string | null {
   if (!seconds) return null
-  if (seconds % 604800 === 0) return `${seconds / 604800} hafta`
-  if (seconds % 86400 === 0) return `${seconds / 86400} gün`
-  if (seconds % 3600 === 0) return `${seconds / 3600} saat`
-  return `${seconds} sn`
+  if (seconds % 604800 === 0) return t('ttl.weeks', { n: seconds / 604800 })
+  if (seconds % 86400 === 0) return t('ttl.days', { n: seconds / 86400 })
+  if (seconds % 3600 === 0) return t('ttl.hours', { n: seconds / 3600 })
+  return t('ttl.seconds', { n: seconds })
 }
 
 export const { selectChannel, channelRemoved } = channelsSlice.actions

@@ -7,6 +7,7 @@ import ReactionBar from '../ReactionBar'
 import CommandHints from '../CommandHints'
 import { RichTextEditor } from '../ui/RichTextEditor'
 import { focusRing } from '../ui/focusRing'
+import { useT } from '../../i18n'
 
 const EmojiPicker = lazy(() => import('../EmojiPicker'))
 const GifPicker = lazy(() => import('../GifPicker'))
@@ -60,6 +61,7 @@ export default function MessageComposer({
   onShowScheduled,
   onEmojiReact,
 }: MessageComposerProps) {
+  const { t } = useT()
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
 
@@ -118,10 +120,10 @@ export default function MessageComposer({
         <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-2 border-accent/60 bg-surface-muted px-2 py-1 text-xs">
           <div className="min-w-0">
             <div className="font-medium text-fg-secondary">
-              {(replyingTo.sender.displayName ?? replyingTo.sender.username)} kişisine yanıt
+              {t('composer.replyingTo', { name: replyingTo.sender.displayName ?? replyingTo.sender.username })}
             </div>
             <div className="truncate text-fg-faint">
-              {replyingTo.content || (replyingTo.attachmentUrl ? '📷 Görsel' : '')}
+              {replyingTo.content || (replyingTo.attachmentUrl ? `📷 ${t('msg.imagePlaceholder')}` : '')}
             </div>
           </div>
           <button
@@ -140,12 +142,12 @@ export default function MessageComposer({
           ) : attachment.type === 'audio' ? (
             <span className="flex items-center gap-1 px-1 text-sm text-fg">
               <span>🎤</span>
-              <span>Sesli mesaj</span>
+              <span>{t('composer.voice')}</span>
             </span>
           ) : (
             <span className="flex items-center gap-1 px-1 text-sm text-fg">
               <span>📄</span>
-              <span className="max-w-[10rem] truncate">{attachment.name ?? 'Dosya'}</span>
+              <span className="max-w-[10rem] truncate">{attachment.name ?? t('composer.file')}</span>
             </span>
           )}
           <button
@@ -153,7 +155,7 @@ export default function MessageComposer({
             onClick={onClearAttachment}
             className={`rounded-lg text-xs text-fg-muted transition hover:text-danger ${focusRing}`}
           >
-            ✕ Kaldır
+            ✕ {t('common.remove')}
           </button>
         </div>
       )}
@@ -163,8 +165,8 @@ export default function MessageComposer({
           variant="secondary"
           onClick={onPickFileClick}
           disabled={uploading}
-          aria-label="Dosya ekle"
-          title="Dosya ekle"
+          aria-label={t('composer.attach')}
+          title={t('composer.attach')}
         >
           {uploading ? '…' : '📎'}
         </Button>
@@ -172,8 +174,8 @@ export default function MessageComposer({
           type="button"
           variant="secondary"
           onClick={onShowScheduled}
-          aria-label="Zamanlanmış mesajlar"
-          title="Mesaj zamanla / zamanlanmışlar"
+          aria-label={t('composer.scheduledAria')}
+          title={t('composer.scheduleTooltip')}
         >
           ⏰
         </Button>
@@ -223,8 +225,8 @@ export default function MessageComposer({
           variant={recording ? 'danger' : 'secondary'}
           onClick={recording ? onRecordStop : onRecordStart}
           disabled={uploading && !recording}
-          aria-label={recording ? 'Kaydı durdur' : 'Sesli mesaj kaydet'}
-          title={recording ? 'Kaydı durdur ve gönder' : 'Sesli mesaj'}
+          aria-label={recording ? t('composer.stopRecording') : t('composer.recordVoice')}
+          title={recording ? t('composer.stopRecordingSend') : t('composer.voice')}
         >
           {recording ? '⏹' : '🎤'}
         </Button>
@@ -232,20 +234,20 @@ export default function MessageComposer({
           value={draft}
           onChange={onDraftChange}
           onEnter={onSubmit}
-          placeholder={`#${channel.name} kanalına yaz  ·  /poll, /giphy, /shrug`}
+          placeholder={t('composer.placeholder', { channel: channel.name })}
           className="flex-1 w-full"
           autoFocus
           focusTrigger={focusTrigger}
         />
         <Button type="submit" disabled={uploading}>
-          Gönder
+          {t('composer.send')}
         </Button>
       </form>
       <div className="mt-2 flex items-center justify-between text-xs text-fg-faint">
         <p>
-          Markdown destekli · <span className="text-fg-muted">**kalın**</span>{' '}
-          <span className="text-fg-muted">*italik*</span>{' '}
-          <span className="text-fg-muted">`kod`</span> · ``` ile kod bloğu · Enter gönderir, Shift+Enter yeni satır
+          {t('composer.hintMd')} · <span className="text-fg-muted">**{t('composer.hintBold')}**</span>{' '}
+          <span className="text-fg-muted">*{t('composer.hintItalic')}*</span>{' '}
+          <span className="text-fg-muted">`{t('composer.hintCode')}`</span> · {t('composer.hintBlock')} · {t('composer.hintEnter')}
         </p>
         {draft.length > 3000 && (
           <span className={`font-semibold shrink-0 select-none ${draft.length > 4000 ? 'text-danger animate-pulse' : ''}`}>

@@ -356,7 +356,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     const text = draft.trim()
     if (!text && !attachment) return
     if (text.length > MAX_MESSAGE_LENGTH) {
-      setCmdError(`Mesajınız en fazla ${MAX_MESSAGE_LENGTH} karakter olabilir.`)
+      setCmdError(t('composer.tooLong', { max: MAX_MESSAGE_LENGTH }))
       return
     }
     setCmdError(null)
@@ -364,7 +364,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
     if (!passphrase && !asymmetricKey && text.startsWith('/') && !attachment && !replyingTo) {
       const parsed = parseCommand(text)!
       if (!parsed.command) {
-        setCmdError(`Bilinmeyen komut: /${parsed.name}`)
+        setCmdError(t('panel.unknownCommand', { name: parsed.name }))
         return
       }
       let hadError = false
@@ -375,8 +375,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         createPoll: (question, options) => sendPoll(channel!.id, question, options),
         scheduleMessage: (content, scheduledAt) => {
           scheduleApi(channel!.id, content, scheduledAt.toISOString())
-            .then(() => dispatch(showToast({ message: 'Hatırlatma zamanlandı', variant: 'success' })))
-            .catch(() => dispatch(showToast({ message: 'Zamanlanamadı', variant: 'error' })))
+            .then(() => dispatch(showToast({ message: t('panel.reminderScheduled'), variant: 'success' })))
+            .catch(() => dispatch(showToast({ message: t('panel.reminderFailed'), variant: 'error' })))
         },
         showError: (message) => {
           hadError = true
@@ -450,7 +450,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         attachmentType: isE2EE ? null : attachment?.type ?? null,
         quotedMessageId: replyingTo?.id ?? null,
         quotedSender: replyingTo ? (replyingTo.sender.displayName ?? replyingTo.sender.username) : null,
-        quotedContent: replyingTo ? (replyingTo.content || (replyingTo.attachmentUrl ? '📷 Görsel' : '')) : null,
+        quotedContent: replyingTo ? (replyingTo.content || (replyingTo.attachmentUrl ? `📷 ${t('msg.imagePlaceholder')}` : '')) : null,
         expiresAt: null,
         sending: true,
         parentMessageId: null,
@@ -569,7 +569,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         })
       }
     } catch {
-      setCmdError('Dosya yüklenemedi — görsel ≤5MB, dosya ≤10MB olmalı.')
+      setCmdError(t('panel.uploadFailed'))
     } finally {
       setUploading(false)
     }
@@ -593,7 +593,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   }
 
   const onDelete = (msg: Message) => {
-    if (window.confirm('Bu mesajı silmek istediğine emin misin?')) {
+    if (window.confirm(t('panel.deleteConfirm'))) {
       sendDeleteMessage(channel!.id, msg.id)
     }
   }
@@ -605,7 +605,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       else await client.post(`/api/channels/${selectedId}/messages/${msg.id}/pin`)
       refreshPinned(selectedId)
     } catch {
-      setCmdError('Sabitleme güncellenemedi.')
+      setCmdError(t('panel.pinFailed'))
     }
   }
 
@@ -617,7 +617,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       const { data } = await client.post<{ summary: string }>(`/api/ai/channels/${selectedId}/summary`)
       setSummary(data.summary)
     } catch {
-      setSummary('Özet oluşturulamadı. Lütfen tekrar dene.')
+      setSummary(t('panel.summaryFailed'))
     } finally {
       setSummarizing(false)
     }
@@ -671,15 +671,15 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       <section className="flex flex-1 flex-col">
         <div className="flex items-center border-b px-4 py-3 md:hidden border-border">
           <Button variant="secondary" onClick={onOpenSidebar}>
-            ☰ Kanallar
+            ☰ {t('chat.channels')}
           </Button>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
             💬
           </div>
-          <p className="mt-4 font-medium text-fg">Bir kanal seç veya yeni bir kanal oluştur.</p>
-          <p className="mt-1 text-sm text-fg-muted">Sohbet burada başlayacak.</p>
+          <p className="mt-4 font-medium text-fg">{t('panel.pickChannel')}</p>
+          <p className="mt-1 text-sm text-fg-muted">{t('panel.startsHere')}</p>
         </div>
       </section>
     )
@@ -687,12 +687,12 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
   const typingNames = Object.values(typingUsers)
   let typingText = ''
-  if (typingNames.length === 1) typingText = `${typingNames[0]} yazıyor...`
-  else if (typingNames.length === 2) typingText = `${typingNames[0]} ve ${typingNames[1]} yazıyor...`
-  else if (typingNames.length > 2) typingText = 'Birkaç kişi yazıyor...'
+  if (typingNames.length === 1) typingText = t('panel.typingOne', { name: typingNames[0] })
+  else if (typingNames.length === 2) typingText = t('panel.typingTwo', { a: typingNames[0], b: typingNames[1] })
+  else if (typingNames.length > 2) typingText = t('panel.typingMany')
 
   return (
-    <section id="main-content" aria-label="Sohbet" tabIndex={-1} className="flex flex-1 flex-col outline-none">
+    <section id="main-content" aria-label={t('panel.chatAria')} tabIndex={-1} className="flex flex-1 flex-col outline-none">
       <ChannelHeader
         channel={channel}
         dm={dm}
@@ -719,11 +719,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         onCallStart={() => selectedId && dispatch(setActiveCall({ channelId: selectedId, peerId: dmPartner!.id, isIncoming: false }))}
         onSetCategory={() => {
           if (!selectedId) return
-          const name = window.prompt('Kategori adı (boş = kategorisiz):', currentCategory)
+          const name = window.prompt(t('panel.categoryPrompt'), currentCategory)
           if (name !== null) {
             const trimmed = name.trim()
             if (trimmed.length > 80) {
-              alert('Kategori adı en fazla 80 karakter olabilir.')
+              alert(t('panel.categoryTooLong'))
               return
             }
             dispatch(setCategory({ channelId: selectedId, name: trimmed }))
@@ -735,11 +735,11 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         onPassphraseToggle={() => {
           if (!selectedId) return
           if (passphrase) {
-            if (window.confirm('Şifreli sohbeti kapat? Yeni mesajlar düz metin gönderilir.')) {
+            if (window.confirm(t('panel.e2eeOffConfirm'))) {
               dispatch(setPassphrase({ channelId: selectedId, passphrase: '' }))
             }
           } else {
-            const pass = window.prompt('Bu sohbet için ortak parola (iki taraf da aynısını girmeli, sunucuya gönderilmez):', '')
+            const pass = window.prompt(t('panel.e2eePrompt'), '')
             if (pass) dispatch(setPassphrase({ channelId: selectedId, passphrase: pass }))
           }
         }}
@@ -785,23 +785,23 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-sm font-semibold tracking-tight">📌 Sabitlenenler</span>
+              <span className="text-sm font-semibold tracking-tight">📌 {t('chat.pinnedTitle')}</span>
               <button onClick={() => setShowPinned(false)} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
                 ✕
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
               {pinned.length === 0 && (
-                <p className="px-2 py-4 text-center text-sm text-fg-muted">Sabitlenmiş mesaj yok.</p>
+                <p className="px-2 py-4 text-center text-sm text-fg-muted">{t('panel.noPinned')}</p>
               )}
               {pinned.map((m) => (
                 <div key={m.id} className="flex items-start justify-between gap-2 border-b border-border px-2 py-2 last:border-0">
                   <div className="min-w-0">
                     <div className="text-xs font-medium text-fg-secondary">{m.sender.displayName ?? m.sender.username}</div>
-                    <div className="truncate text-sm text-fg">{m.content || (m.attachmentUrl ? '📷 Görsel' : '')}</div>
+                    <div className="truncate text-sm text-fg">{m.content || (m.attachmentUrl ? `📷 ${t('msg.imagePlaceholder')}` : '')}</div>
                   </div>
                   <button onClick={() => togglePin(m)} className={`shrink-0 text-xs text-fg-muted transition hover:text-danger ${focusRing}`}>
-                    Kaldır
+                    {t('common.remove')}
                   </button>
                 </div>
               ))}
@@ -812,8 +812,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
 
       {forbidden ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <p className="text-fg-muted">Bu kanalın üyesi değilsin.</p>
-          <Button onClick={onJoin}>Kanala katıl</Button>
+          <p className="text-fg-muted">{t('panel.notMember')}</p>
+          <Button onClick={onJoin}>{t('panel.join')}</Button>
         </div>
       ) : (
         <>

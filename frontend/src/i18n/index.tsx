@@ -13,6 +13,11 @@ export function getInitialLang(): Lang {
   return stored === 'en' || stored === 'tr' ? stored : 'tr'
 }
 
+/** BCP 47 locale for date/time formatting in the given UI language. */
+export function dateLocale(lang: Lang): string {
+  return lang === 'tr' ? 'tr-TR' : 'en-US'
+}
+
 type Vars = Record<string, string | number>
 
 interface LanguageContextValue {

@@ -1,5 +1,6 @@
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
+import { useT } from '../i18n'
 import type { Message } from '../api/types'
 
 const actionBtn = `mt-1 rounded-lg text-xs text-fg-muted transition hover:text-fg sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing}`
@@ -27,6 +28,7 @@ export default function MessageActions({
   onTogglePin,
   onToggleBookmark,
 }: Props) {
+  const { t } = useT()
   return (
     <div className="flex items-center gap-2 pl-12">
       {msg.thread.replyCount > 0 && (
@@ -39,27 +41,27 @@ export default function MessageActions({
               <Avatar key={u.id} name={u.displayName ?? u.username} color={u.avatarColor} imageUrl={u.avatarUrl} size="sm" />
             ))}
           </span>
-          💬 {msg.thread.replyCount} yanıt
+          💬 {t('msg.replies', { n: msg.thread.replyCount })}
         </button>
       )}
       {!msg.deleted && (
         <button onClick={onOpenThread} className={actionBtn}>
-          Yanıtla
+          {t('msg.reply')}
         </button>
       )}
       {!msg.deleted && (
         <button onClick={onQuote} className={actionBtn}>
-          Alıntıla
+          {t('msg.quoteAction')}
         </button>
       )}
       {!msg.deleted && (
         <button onClick={onForward} className={actionBtn}>
-          İlet
+          {t('msg.forwardAction')}
         </button>
       )}
       {!msg.deleted && (
         <button onClick={onTogglePin} className={actionBtn}>
-          {msg.pinned ? 'Sabiti kaldır' : 'Sabitle'}
+          {msg.pinned ? t('msg.unpinAction') : t('msg.pinAction')}
         </button>
       )}
       {!msg.deleted && (
@@ -67,7 +69,7 @@ export default function MessageActions({
           onClick={onToggleBookmark}
           className={`mt-1 rounded-lg text-xs transition sr-only group-hover:not-sr-only group-focus-within:not-sr-only ${focusRing} ${bookmarked ? 'text-amber-600 dark:text-amber-500' : 'text-fg-muted hover:text-fg'}`}
         >
-          {bookmarked ? '🔖 Kaydedildi' : 'Kaydet'}
+          {bookmarked ? `🔖 ${t('msg.savedBadge')}` : t('msg.save')}
         </button>
       )}
     </div>

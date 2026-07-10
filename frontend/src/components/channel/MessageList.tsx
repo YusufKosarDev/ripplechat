@@ -7,6 +7,7 @@ import PollCard from '../PollCard'
 import MessageItem from './MessageItem'
 import ReactionOverlay from '../ReactionOverlay'
 import type { FlyingEmoji } from '../ReactionOverlay'
+import { dateLocale, useT } from '../../i18n'
 
 interface MessageListProps {
   messages: Message[]
@@ -54,12 +55,12 @@ function sameDay(a: string, b: string): boolean {
   return startOfDay(new Date(a)) === startOfDay(new Date(b))
 }
 
-function dateLabel(iso: string): string {
+function dateLabel(iso: string, t: (key: string) => string, locale: string): string {
   const today = startOfDay(new Date())
   const that = startOfDay(new Date(iso))
-  if (that === today) return 'Bugün'
-  if (that === today - 86_400_000) return 'Dün'
-  return new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+  if (that === today) return t('date.today')
+  if (that === today - 86_400_000) return t('date.yesterday')
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 export default function MessageList({
@@ -96,6 +97,8 @@ export default function MessageList({
   flying,
   scrollRef,
 }: MessageListProps) {
+  const { t, lang } = useT()
+  const locale = dateLocale(lang)
   const firstItemIndex = Math.max(0, START_INDEX - messages.length)
   const virtuosoRef = useRef<any>(null)
 
@@ -207,7 +210,7 @@ export default function MessageList({
                 onCancelEdit={onCancelEdit}
                 grouped={grouped}
                 showDate={showDate}
-                dateLabelText={showDate ? dateLabel(msg.createdAt) : undefined}
+                dateLabelText={showDate ? dateLabel(msg.createdAt, t, locale) : undefined}
               />
             </div>
           )
