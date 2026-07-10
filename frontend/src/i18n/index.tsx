@@ -10,7 +10,11 @@ const LANG_KEY = 'ripplechat_lang'
 
 export function getInitialLang(): Lang {
   const stored = localStorage.getItem(LANG_KEY)
-  return stored === 'en' || stored === 'tr' ? stored : 'tr'
+  if (stored === 'en' || stored === 'tr') return stored
+  // First visit: follow the browser language; Turkish visitors keep the
+  // original default, everyone else starts in English (the toggle persists
+  // whatever they pick afterwards).
+  return navigator.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en'
 }
 
 /** BCP 47 locale for date/time formatting in the given UI language. */
