@@ -1,0 +1,62 @@
+name: Dependabot auto-merge
+
+# Squash-merges Dependabot's minor/patch PRs once every other check on the PR
+# has finished successfully. Major bumps are left open for manual review.
+#
+# Deliberately self-contained: instead of branch protection + `--auto` (which
+# only waits for *required* checks, and required checks clash with this repo's
+# path-filtered workflows), the job itself polls the PR head's check runs and
+# commit statuses (Vercel reports via the status API) and merges only when
+# everything has passed.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch update metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for all checks, then merge (minor/patch only)
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Give sibling workflows a moment to register their check runs, so
+          # an empty list isn't mistaken for "all done".
+          sleep 90
+          for i in $(seq 1 40); do
+            runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate \
+              --jq '[.check_runs[] | select(.name != "auto-merge")]')
+            pending=$(echo "$runs" | jq '[.[] | select(.status != "completed")] | length')
+            failed=$(echo "$runs" | jq '[.[] | select(.status == "completed"
+              and .conclusion != "success" and .conclusion != "neutral"
+              and .conclusion != "skipped")] | length')
+            # Commit statuses (Vercel). An empty rollup reports "pending"
+            # forever, so treat zero statuses as success.
+            state=$(gh api "repos/$REPO/commits/$SHA/status" \
+              --jq 'if .total_count == 0 then "success" else .state end')
+            if [ "$failed" != "0" ] || [ "$state" = "failure" ] || [ "$state" = "error" ]; then
+              echo "A check failed — leaving the PR for manual review."
+              exit 0
+            fi
+            if [ "$pending" = "0" ] && [ "$state" = "success" ]; then
+              echo "All checks green — merging."
+              gh pr merge --squash --delete-branch "$PR"
+              exit 0
+            fi
+            echo "Waiting: $pending check run(s) pending, status=$state"
+            sleep 45
+          done
+          echo "Timed out waiting for checks — leaving the PR for manual review."
