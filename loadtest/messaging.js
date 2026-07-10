@@ -19,6 +19,8 @@ const VUS = Number(__ENV.VUS || 20)
 const DURATION = __ENV.DURATION || '30s'
 
 const historyLatency = new Trend('history_latency', true)
+const channelsLatency = new Trend('channels_latency', true)
+const searchLatency = new Trend('search_latency', true)
 
 export const options = {
   scenarios: {
@@ -76,6 +78,7 @@ export default function (data) {
   const opts = authHeaders(data.token)
 
   const channels = http.get(`${BASE_URL}/api/channels`, opts)
+  channelsLatency.add(channels.timings.duration)
   check(channels, { 'channels 200': (r) => r.status === 200 })
 
   const history = http.get(`${BASE_URL}/api/channels/${data.channelId}/messages?page=0&size=20`, opts)
@@ -83,6 +86,7 @@ export default function (data) {
   historyLatency.add(history.timings.duration)
 
   const search = http.get(`${BASE_URL}/api/search/messages?q=seed`, opts)
+  searchLatency.add(search.timings.duration)
   check(search, { 'search 200': (r) => r.status === 200 })
 
   sleep(1)

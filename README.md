@@ -136,13 +136,12 @@ Benchmarked locally with **k6** (20 virtual users, 30 s sustained load) against 
 
 | Endpoint | Method | p50 | p95 | Threshold |
 |----------|--------|-----|-----|-----------|
-| `/api/channels` | GET | ~12 ms | ~45 ms | < 800 ms |
-| `/api/channels/{id}/messages?page=0&size=20` | GET | ~18 ms | ~65 ms | < 800 ms |
-| `/api/search/messages?q=…` | GET | ~25 ms | ~90 ms | < 800 ms |
-| WebSocket STOMP connect | — | ~35 ms | ~110 ms | — |
-| **Error rate** | | | | **< 1 %** |
+| `/api/channels` | GET | ~7 ms | ~11 ms | < 800 ms |
+| `/api/channels/{id}/messages?page=0&size=20` | GET | ~12 ms | ~18 ms | < 800 ms |
+| `/api/search/messages?q=…` | GET | ~9 ms | ~14 ms | < 800 ms |
+| **Error rate** | | | | **0 % measured (< 1 % threshold)** |
 
-> Latencies are from a local run (`k6 run loadtest/messaging.js`) with PostgreSQL in Docker and no Elasticsearch. The hosted demo runs on free tiers (Render + Neon); an uptime monitor keeps the backend awake, but on the rare cold start (after a redeploy or missed ping) the JVM takes a few minutes to boot on the free instance. Warmed-up response times are comparable to the local numbers.
+> Latencies are from a local run on Spring Boot 4.1 (`k6 run loadtest/messaging.js`) with PostgreSQL in Docker and no Elasticsearch (search exercises the PostgreSQL full-text fallback). The hosted demo runs on free tiers (Render + Neon); an uptime monitor keeps the backend awake, but on the rare cold start (after a redeploy or missed ping) the JVM takes a few minutes to boot on the free instance. Warmed-up response times are comparable to the local numbers.
 
 To reproduce:
 
