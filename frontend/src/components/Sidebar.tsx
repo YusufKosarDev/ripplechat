@@ -57,7 +57,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     const name = newName.trim()
     if (!name) return
     if (name.length > 80) {
-      alert('Kanal adı en fazla 80 karakter olabilir.')
+      alert(t('sidebar.channelNameTooLong'))
       return
     }
     dispatch(createChannel({ name }))

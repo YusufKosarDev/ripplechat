@@ -1,4 +1,5 @@
 import { focusRing } from './ui/focusRing'
+import { useT } from '../i18n'
 
 /** Shared centered-overlay shell for the small info modals below. */
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -25,8 +26,9 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 
 /** AI channel summary result. */
 export function SummaryModal({ summary, onClose }: { summary: string; onClose: () => void }) {
+  const { t } = useT()
   return (
-    <ModalShell title="✨ Özet" onClose={onClose}>
+    <ModalShell title={`✨ ${t('info.summary')}`} onClose={onClose}>
       <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg-secondary">
         {summary}
       </div>
@@ -49,22 +51,23 @@ export function EditHistoryModal({
   loading: boolean
   onClose: () => void
 }) {
+  const { t } = useT()
   return (
-    <ModalShell title="Düzenleme geçmişi" onClose={onClose}>
+    <ModalShell title={t('info.editHistory')} onClose={onClose}>
       <div className="max-h-[60vh] space-y-2 overflow-y-auto text-sm">
         {loading ? (
-          <p className="text-fg-faint">Yükleniyor…</p>
+          <p className="text-fg-faint">{t('common.loading')}</p>
         ) : entries && entries.length > 0 ? (
           entries.map((h, i) => (
             <div key={i} className="rounded-lg border border-border bg-surface p-2">
               <div className="mb-1 text-xs text-fg-faint">
-                {new Date(h.editedAt).toLocaleString()} tarihinde değiştirildi
+                {t('info.editedAtRow', { when: new Date(h.editedAt).toLocaleString() })}
               </div>
               <div className="whitespace-pre-wrap text-fg-secondary">{h.content}</div>
             </div>
           ))
         ) : (
-          <p className="text-fg-faint">Önceki sürüm yok.</p>
+          <p className="text-fg-faint">{t('info.noPrevious')}</p>
         )}
       </div>
     </ModalShell>

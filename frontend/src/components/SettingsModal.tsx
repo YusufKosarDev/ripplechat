@@ -14,12 +14,15 @@ import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
+import { dateLocale, useT } from '../i18n'
 
 interface SettingsModalProps {
   onClose: () => void
 }
 
 export default function SettingsModal({ onClose }: SettingsModalProps) {
+  const { t, lang } = useT()
+  const locale = dateLocale(lang)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((state) => state.auth.user)
@@ -71,16 +74,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   }
 
   const parseUA = (uaString: string | null): string => {
-    if (!uaString) return 'Bilinmeyen Cihaz'
+    if (!uaString) return t('settings.unknownDevice')
     
-    let os = 'Bilinmeyen İşletim Sistemi'
+    let os = t('settings.unknownOs')
     if (uaString.includes('Windows')) os = 'Windows'
     else if (uaString.includes('Macintosh') || uaString.includes('Mac OS')) os = 'macOS'
     else if (uaString.includes('Linux')) os = 'Linux'
     else if (uaString.includes('Android')) os = 'Android'
     else if (uaString.includes('iPhone') || uaString.includes('iPad')) os = 'iOS'
 
-    let browser = 'Bilinmeyen Tarayıcı'
+    let browser = t('settings.unknownBrowser')
     if (uaString.includes('Firefox')) browser = 'Firefox'
     else if (uaString.includes('Chrome') && !uaString.includes('Edg')) browser = 'Chrome'
     else if (uaString.includes('Edg')) browser = 'Edge'
@@ -98,7 +101,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     const result = await dispatch(
       updateMe({ displayName: displayName.trim() || undefined, avatarColor: color ?? '', avatarUrl: avatarUrl ?? '' }),
     )
-    setProfileMsg(updateMe.fulfilled.match(result) ? 'Profil güncellendi ✓' : 'Güncellenemedi.')
+    setProfileMsg(updateMe.fulfilled.match(result) ? t('settings.profileUpdated') : t('settings.updateFailed'))
   }
 
   const onPickPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -113,7 +116,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       const { data } = await client.post<{ url: string }>('/api/uploads/image', form)
       setAvatarUrl(data.url)
     } catch {
-      setProfileMsg('Fotoğraf yüklenemedi — bir resim mi ve 5 MB altında mı?')
+      setProfileMsg(t('settings.photoUploadFailed'))
     } finally {
       setUploading(false)
     }
@@ -124,17 +127,17 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     setPwError(false)
     if (newPassword.length < 8) {
       setPwError(true)
-      setPwMsg('Yeni şifre en az 8 karakter olmalı.')
+      setPwMsg(t('settings.pwTooShort'))
       return
     }
     const result = await dispatch(changePassword({ currentPassword, newPassword }))
     if (changePassword.fulfilled.match(result)) {
-      setPwMsg('Şifre değiştirildi ✓')
+      setPwMsg(t('settings.pwChanged'))
       setCurrentPassword('')
       setNewPassword('')
     } else {
       setPwError(true)
-      setPwMsg((result.payload as string) ?? 'Şifre değiştirilemedi.')
+      setPwMsg((result.payload as string) ?? t('settings.pwChangeFailed'))
     }
   }
 
@@ -151,7 +154,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     } else {
       const ok = await enablePush()
       setPushOn(ok)
-      if (!ok) setPushMsg('Bildirim açılamadı — izin verilmedi veya sunucuda yapılandırılmamış.')
+      if (!ok) setPushMsg(t('settings.pushEnableFailed'))
     }
   }
 
@@ -159,11 +162,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     try {
       const { data } = await client.post<{ qrCodeUri: string }>('/api/2fa/setup')
       setQrCodeUri(data.qrCodeUri)
-      setTwoFaMsg('Google Authenticator ile QR kodu taratın ve kodu girin.')
+      setTwoFaMsg(t('settings.twoFaScanQr'))
       setTwoFaError(false)
     } catch (e: unknown) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
-      setTwoFaMsg(msg || 'Kurulum başlatılamadı.')
+      setTwoFaMsg(msg || t('settings.twoFaSetupFailed'))
       setTwoFaError(true)
     }
   }
@@ -175,11 +178,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       setQrCodeUri(null)
       setTwoFaCode('')
       setRecoveryCodes(data.recoveryCodes)
-      setTwoFaMsg('2FA başarıyla etkinleştirildi ✓')
+      setTwoFaMsg(t('settings.twoFaEnabled'))
       setTwoFaError(false)
     } catch (e: unknown) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
-      setTwoFaMsg(msg || 'Geçersiz kod.')
+      setTwoFaMsg(msg || t('settings.invalidCode'))
       setTwoFaError(true)
     }
   }
@@ -189,11 +192,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/recovery-codes/regenerate', { code: twoFaCode })
       setTwoFaCode('')
       setRecoveryCodes(data.recoveryCodes)
-      setTwoFaMsg('Yeni kurtarma kodları oluşturuldu. Eskileri artık geçersiz.')
+      setTwoFaMsg(t('settings.recoveryRegenerated'))
       setTwoFaError(false)
     } catch (e: unknown) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
-      setTwoFaMsg(msg || 'Geçersiz kod.')
+      setTwoFaMsg(msg || t('settings.invalidCode'))
       setTwoFaError(true)
     }
   }
@@ -209,7 +212,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       link.click()
       URL.revokeObjectURL(url)
     } catch {
-      setDeleteMsg('Veriler dışa aktarılamadı.')
+      setDeleteMsg(t('settings.exportFailed'))
     }
   }
 
@@ -220,7 +223,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       navigate('/login')
     } catch (e: unknown) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail : undefined
-      setDeleteMsg(msg || 'Hesap silinemedi. Şifreni kontrol et.')
+      setDeleteMsg(msg || t('settings.deleteFailed'))
     }
   }
 
@@ -229,11 +232,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       await client.post('/api/2fa/disable', { code: twoFaCode })
       dispatch(fetchCurrentUser())
       setTwoFaCode('')
-      setTwoFaMsg('2FA devre dışı bırakıldı.')
+      setTwoFaMsg(t('settings.twoFaDisabled'))
       setTwoFaError(false)
     } catch (e: unknown) {
       const msg = (e instanceof Error && 'response' in e) ? (e as { response?: { data?: { message?: string } } }).response?.data?.message : undefined
-      setTwoFaMsg(msg || 'Geçersiz kod.')
+      setTwoFaMsg(msg || t('settings.invalidCode'))
       setTwoFaError(true)
     }
   }
@@ -246,16 +249,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Ayarlar"
+        aria-label={t('sidebar.settings')}
         tabIndex={-1}
         className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface-overlay p-6 shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold tracking-tight">Ayarlar</h3>
+          <h3 className="text-lg font-semibold tracking-tight">{t('sidebar.settings')}</h3>
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t('common.close')}
             className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
           >
             ✕
@@ -276,7 +279,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 disabled={uploading}
                 className={`rounded-lg text-xs text-accent transition hover:text-accent-hover ${focusRing}`}
               >
-                {uploading ? 'Yükleniyor…' : 'Fotoğraf yükle'}
+                {uploading ? t('common.loading') : t('settings.uploadPhoto')}
               </button>
               {avatarUrl && (
                 <button
@@ -284,17 +287,17 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   onClick={() => setAvatarUrl(null)}
                   className={`rounded-lg text-xs text-fg-muted transition hover:text-danger ${focusRing}`}
                 >
-                  Kaldır
+                  {t('common.remove')}
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        <label className="mt-4 mb-1 block text-sm text-fg-muted">Görünen ad</label>
+        <label className="mt-4 mb-1 block text-sm text-fg-muted">{t('settings.displayName')}</label>
         <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
 
-        <label className="mt-3 mb-1 block text-sm text-fg-muted">Avatar rengi</label>
+        <label className="mt-3 mb-1 block text-sm text-fg-muted">{t('settings.avatarColor')}</label>
         <div className="flex flex-wrap gap-2">
           {AVATAR_COLORS.map((key) => (
             <button
@@ -324,11 +327,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         {pushSupported() && (
           <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
             <div className="min-w-0">
-              <div className="text-sm text-fg-secondary">Tarayıcı bildirimleri</div>
+              <div className="text-sm text-fg-secondary">{t('settings.browserNotifs')}</div>
               {pushMsg && <div className="mt-0.5 text-xs text-fg-muted">{pushMsg}</div>}
             </div>
             <Button variant="secondary" size="sm" onClick={togglePush}>
-              {pushOn ? 'Kapat' : 'Aç'}
+              {pushOn ? t('settings.off') : t('settings.on')}
             </Button>
           </div>
         )}
@@ -338,12 +341,12 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         {/* Password */}
         <div className="mt-6 border-t border-border pt-4">
-          <h4 className="mb-2 text-sm font-medium text-fg-secondary">Şifre değiştir</h4>
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('settings.changePw')}</h4>
           <Input
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="Mevcut şifre"
+            placeholder={t('settings.currentPw')}
             autoComplete="current-password"
             className="mb-2"
           />
@@ -351,13 +354,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Yeni şifre (en az 8)"
+            placeholder={t('settings.newPw')}
             autoComplete="new-password"
             className="mb-2"
           />
           <div className="flex items-center gap-3">
             <Button onClick={onChangePassword} variant="secondary">
-              Şifreyi değiştir
+              {t('settings.changePwBtn')}
             </Button>
             {pwMsg && (
               <span className={`text-xs ${pwError ? 'text-danger' : 'text-fg-muted'}`}>{pwMsg}</span>
@@ -367,11 +370,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         {/* 2FA */}
         <div className="mt-6 border-t border-border pt-4">
-          <h4 className="mb-2 text-sm font-medium text-fg-secondary">İki Aşamalı Doğrulama (2FA)</h4>
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('settings.twoFaTitle')}</h4>
           {!user.isTwoFactorEnabled ? (
             <div>
               {!qrCodeUri ? (
-                <Button onClick={onSetup2Fa} variant="secondary">2FA Kurulumunu Başlat</Button>
+                <Button onClick={onSetup2Fa} variant="secondary">{t('settings.twoFaStart')}</Button>
               ) : (
                 <div className="space-y-3">
                   <div className="flex justify-center rounded-xl bg-white p-4">
@@ -380,34 +383,34 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   <Input
                     type="text"
                     inputMode="numeric"
-                    placeholder="6 haneli kodu girin"
+                    placeholder={t('settings.twoFaCodePlaceholder')}
                     value={twoFaCode}
                     onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
                     maxLength={6}
                   />
                   <Button onClick={onEnable2Fa} disabled={twoFaCode.length !== 6}>
-                    Onayla ve Etkinleştir
+                    {t('settings.twoFaConfirm')}
                   </Button>
                 </div>
               )}
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-accent">2FA şu anda aktif.</p>
+              <p className="text-sm text-accent">{t('settings.twoFaActive')}</p>
               <Input
                 type="text"
                 inputMode="numeric"
-                placeholder="İşlem için 6 haneli kod"
+                placeholder={t('settings.twoFaActionCode')}
                 value={twoFaCode}
                 onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
                 maxLength={6}
               />
               <div className="flex gap-2">
                 <Button onClick={onDisable2Fa} variant="danger" disabled={twoFaCode.length !== 6}>
-                  Kapat
+                  {t('settings.off')}
                 </Button>
                 <Button onClick={onRegenerateRecoveryCodes} variant="secondary" disabled={twoFaCode.length !== 6}>
-                  Kurtarma kodlarını yenile
+                  {t('settings.regenRecovery')}
                 </Button>
               </div>
             </div>
@@ -418,8 +421,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           {recoveryCodes && (
             <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
               <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                Bu kurtarma kodlarını güvenli bir yere kaydedin. Her kod yalnızca bir kez kullanılabilir ve
-                kimlik doğrulayıcına erişemediğinde giriş yapmanı sağlar. Bu kodlar bir daha gösterilmeyecek.
+                {t('settings.recoveryInfo')}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm text-fg-secondary">
                 {recoveryCodes.map((c) => (
@@ -431,10 +433,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   variant="secondary"
                   onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))}
                 >
-                  Kodları kopyala
+                  {t('settings.copyCodes')}
                 </Button>
                 <Button variant="secondary" onClick={() => setRecoveryCodes(null)}>
-                  Kapat
+                  {t('settings.off')}
                 </Button>
               </div>
             </div>
@@ -443,7 +445,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         {/* Active Sessions */}
         <div className="mt-6 border-t border-border pt-4">
-          <h4 className="mb-2 text-sm font-medium text-fg-secondary">Aktif Oturumlar</h4>
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('settings.sessionsTitle')}</h4>
           <div className="space-y-3">
             {sessions.map((s) => (
               <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-surface-muted/40 p-3 text-xs">
@@ -451,7 +453,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   <div className="font-semibold text-fg">{parseUA(s.userAgent)}</div>
                   <div className="text-fg-faint mt-0.5">IP: {s.ipAddress || 'Bilinmeyen'}</div>
                   <div className="text-fg-faint">
-                    Son Aktivite: {new Date(s.createdAt).toLocaleString('tr-TR')}
+                    {t('settings.lastActivity', { when: new Date(s.createdAt).toLocaleString(locale) })}
                   </div>
                 </div>
                 <button
@@ -459,24 +461,24 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   onClick={() => onRevokeSession(s.id)}
                   className="shrink-0 text-red-500 hover:text-red-600 font-medium cursor-pointer"
                 >
-                  Sonlandır
+                  {t('settings.endSession')}
                 </button>
               </div>
             ))}
             {sessions.length === 0 && (
-              <div className="text-xs text-fg-faint italic">Aktif oturum bulunamadı.</div>
+              <div className="text-xs text-fg-faint italic">{t('settings.noSessions')}</div>
             )}
           </div>
         </div>
 
         {/* Data & account (GDPR) */}
         <div className="mt-6 border-t border-border pt-4">
-          <h4 className="mb-2 text-sm font-medium text-fg-secondary">Verilerim ve Hesabım</h4>
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('settings.dataTitle')}</h4>
           <Button onClick={onExportData} variant="secondary">
-            Verilerimi indir (JSON)
+            {t('settings.exportBtn')}
           </Button>
           <p className="mt-1 text-xs text-fg-faint">
-            Profilini, kanallarını ve gönderdiğin mesajları bir dosya olarak indir.
+            {t('settings.exportHint')}
           </p>
 
           {!confirmingDelete ? (
@@ -485,17 +487,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               onClick={() => { setConfirmingDelete(true); setDeleteMsg(null) }}
               className="mt-3 text-sm text-red-500 underline hover:text-red-600 cursor-pointer"
             >
-              Hesabımı sil
+              {t('settings.deleteAccount')}
             </button>
           ) : (
             <div className="mt-3 space-y-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
               <p className="text-xs text-danger">
-                Bu işlem geri alınamaz. Kişisel bilgilerin silinir ve hesabın kalıcı olarak kapatılır.
-                Onaylamak için şifreni gir.
+                {t('settings.deleteWarn')}
               </p>
               <Input
                 type="password"
-                placeholder="Şifre"
+                placeholder={t('auth.password')}
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
                 autoComplete="current-password"
@@ -503,13 +504,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               {deleteMsg && <p className="text-xs text-danger">{deleteMsg}</p>}
               <div className="flex gap-2">
                 <Button onClick={onDeleteAccount} variant="danger">
-                  Hesabı kalıcı olarak sil
+                  {t('settings.deleteForever')}
                 </Button>
                 <Button
                   onClick={() => { setConfirmingDelete(false); setDeletePassword(''); setDeleteMsg(null) }}
                   variant="secondary"
                 >
-                  Vazgeç
+                  {t('settings.cancel')}
                 </Button>
               </div>
             </div>
@@ -519,7 +520,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         {/* Logout */}
         <div className="mt-6 border-t border-border pt-4">
           <Button onClick={onLogout} variant="danger">
-            Çıkış yap
+            {t('settings.logout')}
           </Button>
         </div>
       </div>

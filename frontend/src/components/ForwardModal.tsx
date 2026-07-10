@@ -2,6 +2,7 @@ import { useAppSelector } from '../app/hooks'
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
+import { useT } from '../i18n'
 
 interface ForwardModalProps {
   onPick: (channelId: string) => void
@@ -10,6 +11,7 @@ interface ForwardModalProps {
 
 /** Picks a channel or DM to forward a message into. */
 export default function ForwardModal({ onPick, onClose }: ForwardModalProps) {
+  const { t } = useT()
   const channels = useAppSelector((state) => state.channels.items)
   const dms = useAppSelector((state) => state.channels.dms)
   const panelRef = useDialog<HTMLDivElement>(onClose)
@@ -20,13 +22,13 @@ export default function ForwardModal({ onPick, onClose }: ForwardModalProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Şuraya ilet"
+        aria-label={t('forward.title')}
         tabIndex={-1}
         className="flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">Şuraya ilet</span>
+          <span className="text-sm font-semibold tracking-tight">{t('forward.title')}</span>
           <button
             onClick={onClose}
             aria-label="Kapat"

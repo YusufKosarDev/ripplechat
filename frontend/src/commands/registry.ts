@@ -14,6 +14,8 @@ export interface CommandContext {
 export interface Command {
   name: string
   description: string
+  // i18n catalog key; CommandHints renders it with t(). Error messages passed
+  // to showError are catalog keys too (the composer resolves them the same way).
   usage: string
   run: (ctx: CommandContext) => void
 }
@@ -41,11 +43,11 @@ export const commands: Command[] = [
   {
     name: 'poll',
     description: 'Anket oluştur',
-    usage: '/poll "Soru?" "Seçenek 1" "Seçenek 2"',
+    usage: 'cmd.poll.usage',
     run: (ctx) => {
       const parts = quotedArgs(ctx.args)
       if (parts.length < 3) {
-        ctx.showError('Kullanım: /poll "Soru?" "Seçenek 1" "Seçenek 2" ...')
+        ctx.showError('cmd.poll.error')
         return
       }
       const [question, ...options] = parts
@@ -55,7 +57,7 @@ export const commands: Command[] = [
   {
     name: 'giphy',
     description: 'Eğlenceli bir görsel gönder (placeholder)',
-    usage: '/giphy <arama>',
+    usage: 'cmd.giphy.usage',
     run: (ctx) => {
       const query = ctx.args.trim()
       const emoji = GIPHY_PLACEHOLDERS[Math.floor(Math.random() * GIPHY_PLACEHOLDERS.length)]
@@ -65,7 +67,7 @@ export const commands: Command[] = [
   {
     name: 'shrug',
     description: 'Mesaja ¯\\_(ツ)_/¯ ekle',
-    usage: '/shrug [mesaj]',
+    usage: 'cmd.shrug.usage',
     run: (ctx) => {
       const text = ctx.args.trim()
       ctx.sendMessage((text ? `${text} ` : '') + '¯\\_(ツ)_/¯')
@@ -74,11 +76,11 @@ export const commands: Command[] = [
   {
     name: 'remind',
     description: 'Bir hatırlatma zamanla',
-    usage: '/remind <süre> <metin>  (örn. 30m, 1h, 2 saat)',
+    usage: 'cmd.remind.usage',
     run: (ctx) => {
       const parsed = parseReminder(ctx.args)
       if (!parsed) {
-        ctx.showError('Kullanım: /remind <süre> <metin>  (örn. 30m, 1h, 45dk)')
+        ctx.showError('cmd.remind.error')
         return
       }
       ctx.scheduleMessage(`⏰ ${parsed.text}`, parsed.when)

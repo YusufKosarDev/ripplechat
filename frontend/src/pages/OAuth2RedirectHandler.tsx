@@ -4,8 +4,10 @@ import { useAppDispatch } from '../app/hooks'
 import { oauth2LoginSuccess } from '../features/auth/authSlice'
 import { setTokens } from '../api/token'
 import AuthShell from '../components/AuthShell'
+import { useT } from '../i18n'
 
 export default function OAuth2RedirectHandler() {
+  const { t } = useT()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -33,12 +35,12 @@ export default function OAuth2RedirectHandler() {
   }, [searchParams, navigate, dispatch])
 
   return (
-    <AuthShell title="Giriş yapılıyor...">
+    <AuthShell title={t('auth.oauthSigningIn')}>
       <div className="flex justify-center p-8">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
       </div>
       <p className="text-center text-sm text-fg-muted mt-4">
-        Kimlik bilgileriniz doğrulanıyor, lütfen bekleyin...
+        {t('auth.oauthVerifying')}
       </p>
     </AuthShell>
   )

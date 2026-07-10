@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useAppSelector } from '../app/hooks'
 import { client } from '../api/client'
 import { focusRing } from '../components/ui/focusRing'
+import { useT } from '../i18n'
 
 interface Overview {
   totalUsers: number
@@ -40,6 +41,7 @@ interface Page<T> {
 }
 
 export default function AdminPage() {
+  const { t } = useT()
   const navigate = useNavigate()
   const me = useAppSelector((state) => state.auth.user)
   const token = useAppSelector((state) => state.auth.token)
@@ -62,9 +64,9 @@ export default function AdminPage() {
       setAudit(au.data.content)
       setError(null)
     } catch {
-      setError('Yönetici verileri yüklenemedi.')
+      setError(t('admin.loadFailed'))
     }
-  }, [])
+  }, [t])
 
   // Hooks must run unconditionally; the access guard is a render-time redirect below.
   useEffect(() => {
@@ -81,7 +83,7 @@ export default function AdminPage() {
       await client.post(`/api/admin/users/${u.id}/${field}`, { value: !u[field] })
       await load()
     } catch {
-      setError('İşlem başarısız (kendi hesabında bu değişiklik yapılamaz).')
+      setError(t('admin.actionFailed'))
     } finally {
       setBusyId(null)
     }
@@ -92,13 +94,13 @@ export default function AdminPage() {
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">🛡️</span>
-          <h1 className="text-base font-semibold tracking-tight">Yönetici paneli</h1>
+          <h1 className="text-base font-semibold tracking-tight">{t('admin.title')}</h1>
         </div>
         <button
           onClick={() => navigate('/chat')}
           className={`rounded-lg px-3 py-1 text-sm text-fg-secondary transition hover:bg-surface-muted ${focusRing}`}
         >
-          ← Sohbete dön
+          ← {t('admin.backToChat')}
         </button>
       </header>
 
@@ -109,25 +111,25 @@ export default function AdminPage() {
 
         {overview && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Stat label="Kullanıcı" value={overview.totalUsers} />
-            <Stat label="Yönetici" value={overview.admins} />
-            <Stat label="Engelli" value={overview.disabledUsers} />
-            <Stat label="Bot" value={overview.bots} />
-            <Stat label="Kanal" value={overview.totalChannels} />
-            <Stat label="Mesaj" value={overview.totalMessages} />
+            <Stat label={t('admin.statUsers')} value={overview.totalUsers} />
+            <Stat label={t('admin.statAdmins')} value={overview.admins} />
+            <Stat label={t('admin.statDisabled')} value={overview.disabledUsers} />
+            <Stat label={t('admin.statBots')} value={overview.bots} />
+            <Stat label={t('admin.statChannels')} value={overview.totalChannels} />
+            <Stat label={t('admin.statMessages')} value={overview.totalMessages} />
           </div>
         )}
 
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-fg-secondary">Kullanıcılar</h2>
+          <h2 className="mb-2 text-sm font-semibold text-fg-secondary">{t('admin.usersTitle')}</h2>
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-faint">
                 <tr>
-                  <th className="px-3 py-2">Kullanıcı</th>
-                  <th className="px-3 py-2">E-posta</th>
-                  <th className="px-3 py-2">Durum</th>
-                  <th className="px-3 py-2 text-right">İşlem</th>
+                  <th className="px-3 py-2">{t('admin.colUser')}</th>
+                  <th className="px-3 py-2">{t('admin.colEmail')}</th>
+                  <th className="px-3 py-2">{t('admin.colStatus')}</th>
+                  <th className="px-3 py-2 text-right">{t('admin.colAction')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,11 +143,11 @@ export default function AdminPage() {
                     <td className="px-3 py-2 text-fg-secondary">{u.email}</td>
                     <td className="px-3 py-2">
                       {u.deleted ? (
-                        <span className="text-xs text-fg-faint">silinmiş</span>
+                        <span className="text-xs text-fg-faint">{t('admin.deleted')}</span>
                       ) : u.disabled ? (
-                        <span className="text-xs text-danger">engelli</span>
+                        <span className="text-xs text-danger">{t('admin.disabled')}</span>
                       ) : (
-                        <span className="text-xs text-emerald-500">aktif</span>
+                        <span className="text-xs text-emerald-500">{t('admin.active')}</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -155,14 +157,14 @@ export default function AdminPage() {
                           disabled={busyId === u.id || u.deleted}
                           className={`rounded-md border border-border px-2 py-1 text-xs transition hover:bg-surface-muted disabled:opacity-40 ${focusRing}`}
                         >
-                          {u.admin ? 'Yöneticiyi kaldır' : 'Yönetici yap'}
+                          {u.admin ? t('admin.revokeAdmin') : t('admin.makeAdmin')}
                         </button>
                         <button
                           onClick={() => toggle(u, 'disabled')}
                           disabled={busyId === u.id || u.deleted}
                           className={`rounded-md border border-border px-2 py-1 text-xs transition hover:bg-surface-muted disabled:opacity-40 ${focusRing}`}
                         >
-                          {u.disabled ? 'Engeli kaldır' : 'Engelle'}
+                          {u.disabled ? t('chat.unblock') : t('chat.block')}
                         </button>
                       </div>
                     </td>
@@ -174,10 +176,10 @@ export default function AdminPage() {
         </section>
 
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-fg-secondary">Denetim günlüğü</h2>
+          <h2 className="mb-2 text-sm font-semibold text-fg-secondary">{t('admin.auditTitle')}</h2>
           <div className="rounded-xl border border-border">
             {audit.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-fg-faint">Henüz kayıt yok.</p>
+              <p className="px-3 py-3 text-sm text-fg-faint">{t('admin.auditEmpty')}</p>
             ) : (
               <ul className="divide-y divide-border text-sm">
                 {audit.map((a) => (

@@ -21,7 +21,7 @@ function extractError(e: unknown): string {
       return data.message
     }
   }
-  return 'Bir hata oluştu, lütfen tekrar deneyin.'
+  return 'auth.genericError'
 }
 
 interface AuthState {

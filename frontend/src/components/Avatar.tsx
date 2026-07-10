@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useT } from '../i18n'
 // Color keys → Tailwind bg classes (listed so the picker and avatars agree).
 export const AVATAR_COLORS = [
   'rose',
@@ -53,6 +54,7 @@ interface AvatarProps {
 }
 
 export default function Avatar({ name, color, imageUrl, online, size = 'md' }: AvatarProps) {
+  const { t } = useT()
   const dim = size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm'
   const bg = (color && COLOR_CLASS[color]) || COLOR_CLASS[colorKeyFor(name)]
   return (
@@ -68,7 +70,7 @@ export default function Avatar({ name, color, imageUrl, online, size = 'md' }: A
       )}
       {online !== undefined && (
         <span
-          title={online ? 'çevrimiçi' : 'çevrimdışı'}
+          title={online ? t('chat.online') : t('chat.offline')}
           className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${
             online ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'
           }`}

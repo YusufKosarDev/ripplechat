@@ -30,11 +30,11 @@ export default function LoginPage() {
     if (requires2Fa && preAuthToken) {
       if (useRecovery) {
         if (code.trim().length < 6) {
-          setFormError('Lütfen bir kurtarma kodu girin.')
+          setFormError(t('auth.recoveryCodeRequired'))
           return
         }
       } else if (!code || code.length !== 6) {
-        setFormError('Lütfen 6 haneli doğrulama kodunu girin.')
+        setFormError(t('auth.totpCodeRequired'))
         return
       }
       const result = await dispatch(verify2Fa({ preAuthToken, code: code.trim() }))
@@ -130,7 +130,7 @@ export default function LoginPage() {
         )}
 
         {(formError || error) && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-danger">{formError || error}</p>
+          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-danger">{t(formError || error || '')}</p>
         )}
 
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
@@ -150,7 +150,7 @@ export default function LoginPage() {
             }
           }}
         >
-          🚀 Demo Hesap ile Hızlı Giriş
+          🚀 {t('auth.demoQuickLogin')}
         </Button>
         <WakeNotice show={waking} />
       </form>
@@ -158,7 +158,7 @@ export default function LoginPage() {
       {/* OAuth2 Divider & Button */}
       <div className="mt-6 flex items-center justify-between">
         <span className="w-1/5 border-b border-border"></span>
-        <span className="text-xs text-fg-muted uppercase">VEYA</span>
+        <span className="text-xs text-fg-muted uppercase">{t('auth.or')}</span>
         <span className="w-1/5 border-b border-border"></span>
       </div>
       
@@ -177,7 +177,7 @@ export default function LoginPage() {
           <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
           <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
         </svg>
-        Google ile Giriş Yap
+        {t('auth.googleLogin')}
       </Button>
 
       <p className="mt-6 text-center text-sm text-fg-muted">

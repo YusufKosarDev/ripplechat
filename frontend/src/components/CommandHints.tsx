@@ -1,4 +1,5 @@
 import { matchingCommands } from '../commands/registry'
+import { useT } from '../i18n'
 import { focusRing } from './ui/focusRing'
 
 interface CommandHintsProps {
@@ -7,6 +8,7 @@ interface CommandHintsProps {
 }
 
 export default function CommandHints({ prefix, onPick }: CommandHintsProps) {
+  const { t } = useT()
   const matches = matchingCommands(prefix)
   if (matches.length === 0) return null
 
@@ -20,7 +22,7 @@ export default function CommandHints({ prefix, onPick }: CommandHintsProps) {
           className={`flex w-full items-center justify-between gap-4 px-3 py-2 text-left text-sm hover:bg-surface-muted ${focusRing}`}
         >
           <span className="font-medium text-accent">/{c.name}</span>
-          <span className="truncate text-xs text-fg-muted">{c.usage}</span>
+          <span className="truncate text-xs text-fg-muted">{t(c.usage)}</span>
         </button>
       ))}
     </div>

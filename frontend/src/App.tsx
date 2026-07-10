@@ -5,6 +5,7 @@ import { fetchCurrentUser } from './features/auth/authSlice'
 import { applyTheme } from './theme'
 import PrivateRoute from './components/PrivateRoute'
 import ToastViewport from './components/ToastViewport'
+import { useT } from './i18n'
 
 // Route-level code splitting: each page (and the heavy chat bundle it pulls in —
 // STOMP, emoji/GIF pickers, syntax highlighting) loads only when its route is
@@ -59,6 +60,7 @@ export default function App() {
 }
 
 function RouteFallback() {
+  const { t } = useT()
   return (
     <div
       className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"
@@ -67,7 +69,7 @@ function RouteFallback() {
     >
       <span
         className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500 dark:border-slate-700 dark:border-t-indigo-400"
-        aria-label="Yükleniyor"
+        aria-label={t('common.loading')}
       />
     </div>
   )

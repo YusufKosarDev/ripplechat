@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { EMOJI_GROUPS } from '../emoji'
+import { useT } from '../i18n'
 import { focusRing } from './ui/focusRing'
 
 interface EmojiPickerProps {
@@ -8,6 +9,7 @@ interface EmojiPickerProps {
 }
 
 export default function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
+  const { t } = useT()
   const [active, setActive] = useState(0)
 
   return (
@@ -18,7 +20,7 @@ export default function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
             key={group.label}
             type="button"
             onClick={() => setActive(i)}
-            title={group.label}
+            title={t(group.label)}
             className={`rounded px-1.5 py-0.5 text-base transition ${active === i ? 'bg-surface-muted' : ''} ${focusRing}`}
           >
             {group.emojis[0]}

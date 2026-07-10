@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useT } from '../i18n'
 // Async-light build: the highlighter core is small and each language grammar is
 // loaded on demand, instead of the full Prism build bundling every language.
 import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -13,6 +14,7 @@ interface CodeBlockProps {
 }
 
 export default function CodeBlock({ language, value }: CodeBlockProps) {
+  const { t } = useT()
   const theme = useAppSelector((state) => state.ui.theme)
   const [copied, setCopied] = useState(false)
 
@@ -38,7 +40,7 @@ export default function CodeBlock({ language, value }: CodeBlockProps) {
       <div className="flex items-center justify-between bg-surface-muted px-3 py-1 text-xs text-fg-muted">
         <span className="font-mono">{language}</span>
         <button type="button" onClick={copy} className={`rounded-lg transition hover:text-fg ${focusRing}`}>
-          {copied ? 'Kopyalandı ✓' : 'Kopyala'}
+          {copied ? t('common.copied') : t('common.copy')}
         </button>
       </div>
       <SyntaxHighlighter
