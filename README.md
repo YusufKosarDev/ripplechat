@@ -399,6 +399,10 @@ ripplechat/
 
 ![Dark mode](docs/screenshots/channel-dark.png)
 
+**Search** — full-text search across chats with highlighted matches and channel/sender/date filters:
+
+![Search](docs/screenshots/search.png)
+
 **Direct message** — a private 1:1 conversation:
 
 ![Direct messages](docs/screenshots/direct-message.png)
