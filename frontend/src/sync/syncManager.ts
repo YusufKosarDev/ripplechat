@@ -1,5 +1,4 @@
 import { getPendingMessages, removePendingMessage } from '../db'
-import { sendChatMessage } from '../realtime/chatSocket'
 
 let isSyncing = false
 
@@ -9,6 +8,13 @@ export async function syncPendingMessages() {
 
   try {
     const pendingMessages = await getPendingMessages()
+    if (pendingMessages.length === 0) return
+
+    // This module is imported from main.tsx, so a static chatSocket import
+    // would drag STOMP+SockJS into the entry chunk that every landing-page
+    // visitor downloads. Load the realtime layer only when there is actually
+    // something to sync (by then the chat route has cached the chunk anyway).
+    const { sendChatMessage } = await import('../realtime/chatSocket')
     // Sadece henüz STOMP'a gitmemiş, offline'da yazılmış olanları sıralı gönder.
     const sorted = [...pendingMessages].sort((a, b) => a.timestamp - b.timestamp)
 
