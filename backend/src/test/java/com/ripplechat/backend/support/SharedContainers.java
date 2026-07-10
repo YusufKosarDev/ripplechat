@@ -46,5 +46,14 @@ public final class SharedContainers {
         registry.add("spring.data.redis.host", REDIS::getHost);
         registry.add("spring.data.redis.port", REDIS::getFirstMappedPort);
         registry.add("spring.elasticsearch.uris", ELASTICSEARCH::getHttpHostAddress);
+
+        // With one shared database, the background sweeps of every cached
+        // context see every other test's rows: a foreign context's outbox
+        // processor (no MediaStorage mock there) raced the outbox test and
+        // completed its deliberately-failing task. Tests invoke these jobs
+        // directly, so park the timers out of reach.
+        registry.add("ripplechat.outbox.sweep-ms", () -> "3600000");
+        registry.add("ripplechat.disappearing.sweep-ms", () -> "3600000");
+        registry.add("ripplechat.scheduled-messages.sweep-ms", () -> "3600000");
     }
 }
