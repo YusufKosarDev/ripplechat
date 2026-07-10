@@ -1,7 +1,7 @@
 package com.ripplechat.backend.redis;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,7 +42,7 @@ public class RedisBroadcastService {
             
             RedisStompMessage message = new RedisStompMessage(destination, payloadJson);
             redisTemplate.convertAndSend(RedisConfig.STOMP_TOPIC, message);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("Failed to serialize STOMP payload for Redis broadcast. Destination: {}", destination, e);
         }
     }
