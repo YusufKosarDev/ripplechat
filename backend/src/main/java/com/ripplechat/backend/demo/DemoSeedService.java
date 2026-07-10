@@ -34,6 +34,15 @@ public class DemoSeedService {
     public static final String DEMO_USERNAME = "demo";
     private static final String DEMO_PASSWORD = "demo1234";
     private static final String GENERAL_CHANNEL = "genel";
+    private static final List<String> SEED_CHANNELS = List.of(GENERAL_CHANNEL, "yazılım", "tasarım");
+
+    /**
+     * Disappearing-message timer applied to the seed channels. Visitor messages
+     * get an expiry stamped at send time and the existing sweep removes them a
+     * day later; the seed messages predate the timer (expiresAt = null) and are
+     * permanent, so the demo cleans itself without a bulk delete.
+     */
+    private static final int SEED_CHANNEL_TTL_SECONDS = 86_400;
 
     private final UserRepository userRepository;
     private final ChannelRepository channelRepository;
@@ -85,6 +94,58 @@ public class DemoSeedService {
         message(design, elif, "Koyu tema gerçekten şık olmuş ✨ Sağ üstten açık/koyu geçiş yapabilirsiniz.");
         message(design, demo, "Mobilde de düzgün çalışıyor — responsive tasarım hazır.");
         return true;
+    }
+
+    /**
+     * Applies the self-cleaning timer to the seed channels. Idempotent backfill:
+     * also upgrades a live demo workspace that was seeded before the timer existed.
+     */
+    @Transactional
+    public void applySeedChannelTtl() {
+        for (String name : SEED_CHANNELS) {
+            channelRepository
+                    .findFirstByNameAndCreatedBy_UsernameAndDeletedFalse(name, DEMO_USERNAME)
+                    .ifPresent(channel -> {
+                        if (channel.getMessageTtlSeconds() == null) {
+                            channel.setMessageTtlSeconds(SEED_CHANNEL_TTL_SECONDS);
+                            channelRepository.save(channel);
+                        }
+                    });
+        }
+    }
+
+    /**
+     * Nightly reset of everything a visitor can break on the shared demo login.
+     * The demo password is public, so anyone can change the account's password,
+     * enable 2FA (locking every future visitor out), scribble over the profile,
+     * or fill the sidebar with junk channels. This restores the seed identity
+     * and soft-deletes visitor-created channels; visitor <em>messages</em> are
+     * left to the disappearing-message sweep ({@link #applySeedChannelTtl()}).
+     */
+    @Transactional
+    public void resetMutableDemoState() {
+        userRepository.findByUsername(DEMO_USERNAME).ifPresent(demo -> {
+            demo.setPassword(passwordEncoder.encode(DEMO_PASSWORD));
+            demo.setTwoFactorEnabled(false);
+            demo.setTotpSecret(null);
+            demo.setDisplayName("Demo Kullanıcı");
+            demo.setAvatarColor("indigo");
+            demo.setAvatarUrl(null);
+            demo.setStatusEmoji(null);
+            demo.setStatusText(null);
+            demo.setStatusExpiresAt(null);
+            demo.setDndUntil(null);
+            userRepository.save(demo);
+        });
+
+        for (Channel channel : channelRepository.findByCreatedBy_UsernameAndDeletedFalse(DEMO_USERNAME)) {
+            // DMs a visitor opened have a null name; they are junk too.
+            boolean isSeedChannel = channel.getName() != null && SEED_CHANNELS.contains(channel.getName());
+            if (!isSeedChannel) {
+                channel.setDeleted(true);
+                channelRepository.save(channel);
+            }
+        }
     }
 
     /**

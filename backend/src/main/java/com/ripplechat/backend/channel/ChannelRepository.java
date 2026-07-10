@@ -44,6 +44,9 @@ public interface ChannelRepository extends JpaRepository<Channel, UUID> {
     /** Used by the demo seeder to locate a seeded channel (idempotent re-seeding). */
     Optional<Channel> findFirstByNameAndCreatedBy_UsernameAndDeletedFalse(String name, String username);
 
+    /** Used by the nightly demo reset: every live channel created by an account. */
+    List<Channel> findByCreatedBy_UsernameAndDeletedFalse(String username);
+
     /** Finds the direct-message channel for a user pair, if one already exists. */
     Optional<Channel> findByDmKey(String dmKey);
 }
