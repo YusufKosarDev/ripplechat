@@ -1,0 +1,34 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security issue? Please use private vulnerability reporting
+        (Security tab → "Report a vulnerability") instead of a public issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+      placeholder: Steps to reproduce, expected vs. actual behaviour.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Frontend (UI)
+        - Backend (API / realtime)
+        - Live demo deployment
+        - Build / CI
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: Browser + OS, or local setup details if self-hosting.
