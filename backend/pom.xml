@@ -415,12 +415,16 @@
 								<param>com.ripplechat.backend.common.RequestIdFilter</param>
 								<param>com.ripplechat.backend.auth.JwtService</param>
 								<param>com.ripplechat.backend.poll.Poll</param>
+								<param>com.ripplechat.backend.link.LinkPreviewService</param>
+								<param>com.ripplechat.backend.media.UploadService</param>
 							</targetClasses>
 							<targetTests>
 								<param>com.ripplechat.backend.redis.RateLimiterTest</param>
 								<param>com.ripplechat.backend.common.RequestIdFilterTest</param>
 								<param>com.ripplechat.backend.auth.JwtServiceTest</param>
 								<param>com.ripplechat.backend.poll.PollTest</param>
+								<param>com.ripplechat.backend.link.LinkPreviewServiceTest</param>
+								<param>com.ripplechat.backend.media.UploadServiceTest</param>
 							</targetTests>
 							<outputFormats>
 								<param>HTML</param>
