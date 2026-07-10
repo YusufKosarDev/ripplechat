@@ -17,6 +17,9 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
+    // The suite asserts the Turkish source strings; the app now follows the
+    // browser language on first visit, so pin the browser to Turkish.
+    locale: 'tr-TR',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

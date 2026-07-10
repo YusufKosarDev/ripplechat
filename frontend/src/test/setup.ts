@@ -17,5 +17,9 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia
 }
 
+// The unit tests assert the Turkish source strings; jsdom reports en-US, so
+// pin the persisted language to Turkish (mirrors the e2e config's tr-TR).
+localStorage.setItem('ripplechat_lang', 'tr')
+
 // Unmount React trees and reset jsdom between tests.
 afterEach(() => cleanup())
