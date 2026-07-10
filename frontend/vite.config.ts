@@ -41,6 +41,11 @@ export default defineConfig({
   define: {
     global: 'globalThis',
   },
+  build: {
+    // The TipTap/ProseMirror editor is deliberately one big lazy chunk (it
+    // loads after first paint and caches well); don't warn about it.
+    chunkSizeWarningLimit: 600,
+  },
   server: {
     port: 5173,
     // Forward API and WebSocket calls to the backend so the browser stays

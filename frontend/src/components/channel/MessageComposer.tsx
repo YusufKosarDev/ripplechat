@@ -5,12 +5,16 @@ import Button from '../ui/Button'
 import Avatar from '../Avatar'
 import ReactionBar from '../ReactionBar'
 import CommandHints from '../CommandHints'
-import { RichTextEditor } from '../ui/RichTextEditor'
 import { focusRing } from '../ui/focusRing'
 import { useT } from '../../i18n'
 
 const EmojiPicker = lazy(() => import('../EmojiPicker'))
 const GifPicker = lazy(() => import('../GifPicker'))
+// TipTap/ProseMirror is by far the heaviest dependency of the chat route, so
+// the editor loads as its own chunk instead of blocking first paint.
+const RichTextEditor = lazy(() =>
+  import('../ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
+)
 
 interface MessageComposerProps {
   channel: Channel
@@ -231,15 +235,17 @@ export default function MessageComposer({
         >
           {recording ? '⏹' : '🎤'}
         </Button>
-        <RichTextEditor
-          value={draft}
-          onChange={onDraftChange}
-          onEnter={onSubmit}
-          placeholder={t('composer.placeholder', { channel: channel.name })}
-          className="flex-1 w-full"
-          autoFocus
-          focusTrigger={focusTrigger}
-        />
+        <Suspense fallback={<div className="min-h-[44px] w-full flex-1 rounded-xl border border-border bg-surface" aria-hidden />}>
+          <RichTextEditor
+            value={draft}
+            onChange={onDraftChange}
+            onEnter={onSubmit}
+            placeholder={t('composer.placeholder', { channel: channel.name })}
+            className="flex-1 w-full"
+            autoFocus
+            focusTrigger={focusTrigger}
+          />
+        </Suspense>
         <Button type="submit" disabled={uploading}>
           {t('composer.send')}
         </Button>

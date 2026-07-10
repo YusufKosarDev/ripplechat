@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import type { Message, DirectChannel } from '../../api/types'
 import Avatar from '../Avatar'
 import MessageContent from '../MessageContent'
@@ -6,10 +7,15 @@ import MessageAttachment from '../MessageAttachment'
 import MessageReactions from '../MessageReactions'
 import MessageActions from '../MessageActions'
 import Button from '../ui/Button'
-import { RichTextEditor } from '../ui/RichTextEditor'
 import { focusRing } from '../ui/focusRing'
 import { isEncrypted } from '../../crypto/e2ee'
 import { dateLocale, useT } from '../../i18n'
+
+// Loaded on demand: the TipTap editor is only needed when a message enters
+// edit mode (the composer lazy-loads the same chunk).
+const RichTextEditor = lazy(() =>
+  import('../ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
+)
 
 const DECRYPT_FAILED = '__rc_decrypt_failed__'
 
@@ -114,12 +120,14 @@ export default function MessageItem({
     if (editingId === msg.id) {
       return (
         <div className="mt-1">
-          <RichTextEditor
-            value={editDraft}
-            onChange={onEditDraftChange}
-            onEnter={() => onSaveEdit(msg)}
-            autoFocus
-          />
+          <Suspense fallback={<div className="min-h-[44px] rounded-xl border border-border bg-surface" aria-hidden />}>
+            <RichTextEditor
+              value={editDraft}
+              onChange={onEditDraftChange}
+              onEnter={() => onSaveEdit(msg)}
+              autoFocus
+            />
+          </Suspense>
           <div className="mt-1 flex gap-2">
             <Button onClick={() => onSaveEdit(msg)} size="sm">
               {t('msg.save')}
