@@ -51,7 +51,7 @@ class RealtimeMessagingTests {
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
             .withExposedPorts(6379);
 
-    static final ElasticsearchContainer ELASTICSEARCH = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.12.2")
+    static final ElasticsearchContainer ELASTICSEARCH = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:9.4.2")
             .withEnv("discovery.type", "single-node")
             .withEnv("xpack.security.enabled", "false");
 
