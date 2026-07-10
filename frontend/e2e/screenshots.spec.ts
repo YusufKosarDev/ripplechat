@@ -200,6 +200,30 @@ test('call', async ({ page }) => {
   await page.screenshot({ path: '../docs/screenshots/call.png' })
 })
 
+test('search', async ({ page }) => {
+  await stub(page)
+  await page.route('**/api/search/messages**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        results: [
+          { id: 's1', channelId: 'c-genel', channelName: 'genel', sender: kerem, content: 'Gerçek zamanlı çalışıyor — yazınca anında düşüyor ⚡', createdAt: '2026-01-02T12:00:00Z' },
+          { id: 's2', channelId: 'c-genel', channelName: 'genel', sender: elif, content: 'Markdown da var: kalın, italik ve satır içi kod 🙂', createdAt: '2026-01-02T11:40:00Z' },
+          { id: 's3', channelId: 'c-yazilim', channelName: 'yazılım', sender: me, content: 'Arama Elasticsearch üzerinde çalışıyor, PostgreSQL fallback ile', createdAt: '2026-01-02T09:15:00Z' },
+        ],
+        hasMore: false,
+      }),
+    }),
+  )
+  await page.goto('/chat')
+  await page.getByTitle('Mesajlarda ara').click()
+  await page.getByPlaceholder('Mesajlarda ara...').fill('çalışıyor')
+  await expect(page.getByText('Arama Elasticsearch', { exact: false })).toBeVisible()
+  await page.addStyleTag({ content: HIDE_BANNER })
+  await page.screenshot({ path: '../docs/screenshots/search.png' })
+})
+
 test('e2ee', async ({ page }) => {
   await stub(page)
   await page.goto('/chat')

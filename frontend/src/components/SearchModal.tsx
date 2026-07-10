@@ -70,22 +70,19 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
     return params
   }
 
-  // Derived state: clear results when query is empty
-  const trimmedQ = query.trim()
-  if (!trimmedQ && (results.length > 0 || hasMore || loading)) {
-    setResults([])
-    setHasMore(false)
-    setLoading(false)
-  }
-
-  // Set loading during render when query is present
-  if (trimmedQ && !loading) {
-    setLoading(true)
-  }
-
   useEffect(() => {
     const term = query.trim()
-    if (!term) return
+    if (!term) {
+      // Query cleared: drop stale results and stop any pending spinner.
+      setResults([])
+      setHasMore(false)
+      setLoading(false)
+      return
+    }
+    // Setting loading here (not during render) lets it actually settle to
+    // false when the response lands; a render-time setter kept forcing it
+    // back to true, which hid every result behind the spinner forever.
+    setLoading(true)
     const timer = setTimeout(async () => {
       try {
         const { data } = await client.get<SearchPage>('/api/search/messages', { params: buildParams(0) })
