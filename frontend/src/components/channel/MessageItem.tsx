@@ -9,6 +9,7 @@ import Button from '../ui/Button'
 import { RichTextEditor } from '../ui/RichTextEditor'
 import { focusRing } from '../ui/focusRing'
 import { isEncrypted } from '../../crypto/e2ee'
+import { dateLocale, useT } from '../../i18n'
 
 const DECRYPT_FAILED = '__rc_decrypt_failed__'
 
@@ -47,8 +48,8 @@ function extractFirstUrl(text: string): string | null {
   return match ? match[0].replace(/[.,;:!?)\]]+$/, '') : null
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function MessageItem({
@@ -80,6 +81,8 @@ export default function MessageItem({
   showDate,
   dateLabelText,
 }: MessageItemProps) {
+  const { t, lang } = useT()
+  const locale = dateLocale(lang)
   const mine = msg.sender.id === currentUser?.id
   const canDelete = mine || canModerate
   const readByOther =
@@ -106,7 +109,7 @@ export default function MessageItem({
 
   const renderBody = () => {
     if (msg.deleted) {
-      return <p className="text-sm italic text-fg-faint">Bu mesaj silindi</p>
+      return <p className="text-sm italic text-fg-faint">{t('msg.deleted')}</p>
     }
     if (editingId === msg.id) {
       return (
@@ -119,10 +122,10 @@ export default function MessageItem({
           />
           <div className="mt-1 flex gap-2">
             <Button onClick={() => onSaveEdit(msg)} size="sm">
-              Kaydet
+              {t('msg.save')}
             </Button>
             <Button onClick={onCancelEdit} variant="secondary" size="sm">
-              İptal
+              {t('msg.cancel')}
             </Button>
           </div>
         </div>
@@ -131,8 +134,8 @@ export default function MessageItem({
 
     return (
       <div>
-        {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ İletildi</div>}
-        {msg.pinned && <div className="mb-0.5 text-xs text-amber-600 dark:text-amber-500">📌 Sabitlendi</div>}
+        {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ {t('msg.forwarded')}</div>}
+        {msg.pinned && <div className="mb-0.5 text-xs text-amber-600 dark:text-amber-500">📌 {t('msg.pinnedBadge')}</div>}
         {msg.quotedMessageId && (
           <div className="mb-1 rounded-r border-l-2 border-accent/60 bg-surface-muted/60 py-0.5 pl-2 pr-2 text-xs">
             <span className="font-medium text-fg-secondary">{msg.quotedSender}</span>
@@ -143,10 +146,10 @@ export default function MessageItem({
           <span className="inline-flex items-center gap-1 text-sm italic text-fg-faint">
             🔒{' '}
             {!passphrase && !asymmetricKey
-              ? 'Şifreli mesaj — kilidi açmak için parola gir veya anahtar oluştur'
+              ? t('msg.encLocked')
               : decryptFailed
-                ? 'Çözülemedi (şifre çözme hatası)'
-                : 'Çözülüyor…'}
+                ? t('msg.encFailed')
+                : t('msg.encDecrypting')}
           </span>
         ) : (
           parsedContent && <MessageContent content={parsedContent} />
@@ -170,24 +173,24 @@ export default function MessageItem({
             type="button"
             onClick={() => onShowHistory(msg)}
             className={`text-xs text-fg-faint underline decoration-dotted hover:text-fg ${focusRing}`}
-            title="Düzenleme geçmişini gör"
+            title={t('msg.editHistory')}
           >
-            (düzenlendi)
+            {t('msg.edited')}
           </button>
         )}
         {msg.expiresAt && !msg.deleted && (
-          <span className="text-xs text-fg-faint" title={`Kaybolacak: ${new Date(msg.expiresAt).toLocaleString()}`}>
+          <span className="text-xs text-fg-faint" title={t('msg.disappearsAt', { when: new Date(msg.expiresAt).toLocaleString(locale) })}>
             ⏲️
           </span>
         )}
         {msg.sending && (
-          <span className="ml-1.5 align-middle text-xs text-fg-faint animate-pulse" title="Gönderiliyor…">
+          <span className="ml-1.5 align-middle text-xs text-fg-faint animate-pulse" title={t('msg.sending')}>
             ⏳
           </span>
         )}
         {!msg.sending && dm && dm.otherUser && mine && !msg.deleted && (
           <span
-            title={readByOther ? 'Okundu' : 'İletildi'}
+            title={readByOther ? t('msg.read') : t('msg.delivered')}
             className={`ml-1.5 align-middle text-xs ${readByOther ? 'text-accent' : 'text-fg-faint'}`}
           >
             ✓✓
@@ -197,16 +200,16 @@ export default function MessageItem({
           <span className="ml-2 inline-flex gap-2 text-xs text-fg-muted sr-only group-hover:not-sr-only group-focus-within:not-sr-only">
             {mine && (
               <button onClick={() => onStartEdit(msg)} className={`rounded-lg hover:text-fg ${focusRing}`}>
-                Düzenle
+                {t('msg.edit')}
               </button>
             )}
             {canDelete && (
               <button onClick={() => onDelete(msg)} className={`rounded-lg hover:text-danger ${focusRing}`}>
-                Herkesten sil
+                {t('msg.deleteForEveryone')}
               </button>
             )}
             <button onClick={() => onHideForMe(msg)} className={`rounded-lg hover:text-danger ${focusRing}`}>
-              Benden sil
+              {t('msg.deleteForMe')}
             </button>
           </span>
         )}
@@ -243,8 +246,8 @@ export default function MessageItem({
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-medium text-fg">{senderName}</span>
               <span className="text-xs text-fg-faint">
-                {formatTime(msg.createdAt)}
-                {msg.sending && <span className="ml-1 opacity-70" title="Gönderiliyor / Bekliyor">🕒</span>}
+                {formatTime(msg.createdAt, locale)}
+                {msg.sending && <span className="ml-1 opacity-70" title={t('msg.sendingPending')}>🕒</span>}
               </span>
             </div>
             {renderBody()}
