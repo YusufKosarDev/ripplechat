@@ -33,6 +33,7 @@ public class DemoDataInitializer implements CommandLineRunner {
         }
         boolean created = seedService.seedContentIfAbsent();
         seedService.seedDemoPollIfAbsent();
+        seedService.applySeedChannelTtl();
         log.info("Demo seed: {}", created ? "demo workspace created" : "demo user already present — skipped");
     }
 }
