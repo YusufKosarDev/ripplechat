@@ -1,6 +1,6 @@
 package com.ripplechat.backend.push;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ripplechat.backend.channel.Channel;
 import com.ripplechat.backend.channel.ChannelType;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;

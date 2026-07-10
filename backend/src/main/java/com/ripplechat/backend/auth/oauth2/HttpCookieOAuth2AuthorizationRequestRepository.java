@@ -1,7 +1,7 @@
 package com.ripplechat.backend.auth.oauth2;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,7 +9,6 @@ import org.springframework.security.oauth2.client.web.AuthorizationRequestReposi
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Set;
@@ -96,7 +95,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
             OAuth2AuthorizationRequestDto dto = convertToDto(authorizationRequest);
             byte[] jsonBytes = objectMapper.writeValueAsBytes(dto);
             return Base64.getUrlEncoder().withoutPadding().encodeToString(jsonBytes);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("Could not serialize OAuth2AuthorizationRequest", e);
         }
     }
@@ -106,7 +105,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
             byte[] jsonBytes = Base64.getUrlDecoder().decode(cookie.getValue());
             OAuth2AuthorizationRequestDto dto = objectMapper.readValue(jsonBytes, OAuth2AuthorizationRequestDto.class);
             return convertToRequest(dto);
-        } catch (IOException | IllegalArgumentException e) {
+        } catch (JacksonException | IllegalArgumentException e) {
             return null;
         }
     }
