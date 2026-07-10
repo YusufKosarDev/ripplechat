@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ConnectionStatus } from '../../features/connection/connectionSlice'
 import { forceReconnectChat } from '../../realtime/chatSocket'
+import { useT } from '../../i18n'
 import Button from './Button'
 
 interface ConnectionBannerProps {
@@ -8,6 +9,7 @@ interface ConnectionBannerProps {
 }
 
 export default function ConnectionBanner({ status }: ConnectionBannerProps) {
+  const { t } = useT()
   const [reconnecting, setReconnecting] = useState(false)
 
   if (status === 'connected') return null
@@ -39,8 +41,8 @@ export default function ConnectionBanner({ status }: ConnectionBannerProps) {
         </span>
         <span>
           {isConnecting
-            ? 'Bağlantı kuruluyor...'
-            : 'Bağlantı kesildi. Mesaj alıp göndermek için lütfen internetinizi kontrol edin.'}
+            ? t('conn.connecting')
+            : t('conn.lost')}
         </span>
       </div>
 
@@ -52,7 +54,7 @@ export default function ConnectionBanner({ status }: ConnectionBannerProps) {
           className="shrink-0 flex items-center gap-1.5 border border-rose-500/30 bg-surface-overlay hover:bg-surface-muted transition-transform active:scale-95 duration-100 font-semibold"
           disabled={reconnecting}
         >
-          {reconnecting ? 'Bağlanıyor...' : 'Şimdi Bağlan'}
+          {reconnecting ? t('conn.reconnecting') : t('conn.reconnectNow')}
         </Button>
       )}
     </div>

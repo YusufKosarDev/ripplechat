@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Message } from '../api/types'
 import { fromBase64 } from '../crypto/doubleRatchet'
+import { useT } from '../i18n'
 
 /**
  * A message's attachment, rendered by kind: a download card for files, an inline
@@ -10,6 +11,7 @@ import { fromBase64 } from '../crypto/doubleRatchet'
  * client-side on the fly.
  */
 export default function MessageAttachment({ msg }: { msg: Message }) {
+  const { t } = useT()
   const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -86,7 +88,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
     return (
       <div className="mt-1 flex items-center gap-2 text-xs text-fg-faint">
         <div className="h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
-        <span>Güvenli dosya çözülüyor…</span>
+        <span>{t('attach.decrypting')}</span>
       </div>
     )
   }
@@ -94,7 +96,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
   if (isE2EE && error) {
     return (
       <div className="mt-1 text-xs text-danger">
-        ⚠️ Güvenli dosya çözülemedi.
+        ⚠️ {t('attach.decryptFailed')}
       </div>
     )
   }
@@ -126,7 +128,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
     <a href={finalUrl} download={isE2EE ? attachment.name ?? 'gorsel' : undefined} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
       <img
         src={finalUrl}
-        alt="ek görsel"
+        alt={t('attach.imageAlt')}
         loading="lazy"
         className="max-h-80 max-w-sm rounded-lg border border-border"
       />

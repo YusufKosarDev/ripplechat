@@ -3,6 +3,7 @@ import { client } from '../api/client'
 import type { MediaItem } from '../api/types'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
+import { useT } from '../i18n'
 
 interface MediaGalleryModalProps {
   channelId: string
@@ -10,6 +11,7 @@ interface MediaGalleryModalProps {
 }
 
 export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryModalProps) {
+  const { t } = useT()
   const [items, setItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
   const panelRef = useDialog<HTMLDivElement>(onClose)
@@ -52,9 +54,9 @@ export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryMo
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          {loading && <p className="py-6 text-center text-sm text-fg-muted">Yükleniyor...</p>}
+          {loading && <p className="py-6 text-center text-sm text-fg-muted">{t('common.loading')}</p>}
           {!loading && items.length === 0 && (
-            <p className="py-6 text-center text-sm text-fg-muted">Bu sohbette paylaşılmış görsel yok.</p>
+            <p className="py-6 text-center text-sm text-fg-muted">{t('gallery.empty')}</p>
           )}
           {items.length > 0 && (
             <div className="grid grid-cols-3 gap-2">

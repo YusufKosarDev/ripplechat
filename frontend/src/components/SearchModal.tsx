@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { client } from '../api/client'
 import { useAppSelector } from '../app/hooks'
 import type { SearchResult } from '../api/types'
+import { dateLocale, useT } from '../i18n'
 
 const PAGE_SIZE = 20
 
@@ -35,8 +36,8 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   )
 }
 
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+function formatWhen(iso: string, locale: string): string {
+  return new Date(iso).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 interface SearchModalProps {
@@ -45,6 +46,8 @@ interface SearchModalProps {
 }
 
 export default function SearchModal({ onPick, onClose }: SearchModalProps) {
+  const { t, lang } = useT()
+  const locale = dateLocale(lang)
   const channels = useAppSelector((state) => state.channels.items)
   const dms = useAppSelector((state) => state.channels.dms)
 
@@ -117,7 +120,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
 
   const trimmed = query.trim()
   const dmLabel = (d: (typeof dms)[number]) =>
-    d.group ? (d.name ?? 'Grup') : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
+    d.group ? (d.name ?? t('sidebar.group')) : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
@@ -125,7 +128,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Mesajlarda ara"
+        aria-label={t('search.title')}
         tabIndex={-1}
         className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
@@ -136,13 +139,13 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Mesajlarda ara..."
-            aria-label="Mesajlarda ara"
+            placeholder={t('search.placeholder')}
+            aria-label={t('search.title')}
             className={`flex-1 rounded-lg bg-transparent text-sm text-fg placeholder:text-fg-faint ${focusRing}`}
           />
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t('common.close')}
             className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
           >
             ✕
@@ -155,7 +158,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
             onChange={(e) => setChannelId(e.target.value)}
             className={`min-w-0 flex-1 rounded-lg border border-control bg-surface px-2 py-1 text-fg ${focusRing}`}
           >
-            <option value="">Tüm sohbetler</option>
+            <option value="">{t('search.allChats')}</option>
             {channels.map((c) => (
               <option key={c.id} value={c.id}>
                 # {c.name}
@@ -170,28 +173,28 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
           <input
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            placeholder="Gönderen"
+            placeholder={t('search.fromPlaceholder')}
             className={`w-28 rounded-lg border border-control bg-surface px-2 py-1 text-fg placeholder:text-fg-faint ${focusRing}`}
           />
           <input
             type="date"
             value={since}
             onChange={(e) => setSince(e.target.value)}
-            title="Şu tarihten itibaren"
+            title={t('search.sinceTitle')}
             className={`rounded-lg border border-control bg-surface px-2 py-1 text-fg ${focusRing}`}
           />
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">Aranıyor...</p>}
+          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('common.searching')}</p>}
 
           {!loading && trimmed && results.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-fg-muted">"{trimmed}" için sonuç bulunamadı.</p>
+            <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('search.noResults', { q: trimmed })}</p>
           )}
 
           {!loading && !trimmed && (
             <p className="px-4 py-6 text-center text-sm text-fg-faint">
-              Üye olduğun sohbetlerdeki mesajlarda ara. Kanal, gönderen ve tarihe göre süzebilirsin.
+              {t('search.hint')}
             </p>
           )}
 
@@ -207,7 +210,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
                   <div className="flex items-baseline gap-2 text-xs">
                     <span className="font-medium text-fg-secondary">{r.sender.displayName ?? r.sender.username}</span>
                     <span className="text-accent">#{r.channelName}</span>
-                    <span className="text-fg-faint">{formatWhen(r.createdAt)}</span>
+                    <span className="text-fg-faint">{formatWhen(r.createdAt, locale)}</span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-fg-secondary">
                     <Highlighted text={r.content} query={trimmed} />
@@ -222,7 +225,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
               disabled={loadingMore}
               className={`w-full px-4 py-3 text-center text-sm font-medium text-accent transition hover:bg-surface-muted disabled:opacity-60 ${focusRing}`}
             >
-              {loadingMore ? 'Yükleniyor...' : 'Daha fazla yükle'}
+              {loadingMore ? t('common.loading') : t('search.loadMore')}
             </button>
           )}
         </div>

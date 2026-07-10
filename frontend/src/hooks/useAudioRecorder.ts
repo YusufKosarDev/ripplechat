@@ -83,7 +83,7 @@ export function useAudioRecorder({
           })
         } catch (err) {
           console.error(err)
-          onError('Ses yüklenemedi.')
+          onError('rec.uploadFailed')
         } finally {
           setUploading(false)
         }
@@ -94,7 +94,7 @@ export function useAudioRecorder({
       setRecording(true)
     } catch (err) {
       console.error(err)
-      onError('Mikrofona erişilemedi.')
+      onError('rec.micFailed')
     }
   }
 

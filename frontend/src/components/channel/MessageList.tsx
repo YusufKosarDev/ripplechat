@@ -115,7 +115,7 @@ export default function MessageList({
   const ListHeader = () => (
     <div className="pt-4 px-6">
       {channelPaging?.loadingOlder && (
-        <div className="py-2 text-center text-xs text-fg-muted">Daha eski mesajlar yükleniyor…</div>
+        <div className="py-2 text-center text-xs text-fg-muted">{t('list.loadingOlder')}</div>
       )}
       {polls.length > 0 && (
         <div className="mb-4 space-y-3">
@@ -137,8 +137,8 @@ export default function MessageList({
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
             👋
           </div>
-          <p className="mt-4 font-medium text-fg">Burada henüz mesaj yok.</p>
-          <p className="mt-1 text-sm text-fg-muted">İlk mesajı sen gönder.</p>
+          <p className="mt-4 font-medium text-fg">{t('list.empty')}</p>
+          <p className="mt-1 text-sm text-fg-muted">{t('list.sendFirst')}</p>
         </div>
       )}
     </div>

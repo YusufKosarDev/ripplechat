@@ -4,6 +4,7 @@ import { selectChannel } from '../features/channels/channelsSlice'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
 import { buildQuickItems, filterQuickItems } from './quickSwitcherItems'
+import { useT } from '../i18n'
 
 interface QuickSwitcherProps {
   onClose: () => void
@@ -14,6 +15,7 @@ interface QuickSwitcherProps {
  * arrow keys to move, Enter to jump, Esc to close.
  */
 export default function QuickSwitcher({ onClose }: QuickSwitcherProps) {
+  const { t } = useT()
   const dispatch = useAppDispatch()
   const channels = useAppSelector((state) => state.channels.items)
   const dms = useAppSelector((state) => state.channels.dms)
@@ -58,7 +60,7 @@ export default function QuickSwitcher({ onClose }: QuickSwitcherProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Hızlı geçiş"
+        aria-label={t('qs.aria')}
         tabIndex={-1}
         className="flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
@@ -73,8 +75,8 @@ export default function QuickSwitcher({ onClose }: QuickSwitcherProps) {
               setActive(0) // reset the cursor to the top of the new result set
             }}
             onKeyDown={onKeyDown}
-            placeholder="Kanal veya kişiye atla…"
-            aria-label="Kanal veya kişiye atla"
+            placeholder={t('qs.placeholder')}
+            aria-label={t('qs.placeholder')}
             className={`flex-1 rounded-lg bg-transparent text-sm text-fg placeholder:text-fg-faint ${focusRing}`}
           />
           <kbd className="rounded border border-border px-1.5 py-0.5 text-xs text-fg-faint">Esc</kbd>
@@ -82,7 +84,7 @@ export default function QuickSwitcher({ onClose }: QuickSwitcherProps) {
 
         <div ref={listRef} className="flex-1 overflow-y-auto py-1">
           {items.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-fg-muted">Eşleşme yok</p>
+            <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('qs.noMatch')}</p>
           ) : (
             items.map((item, i) => (
               <button

@@ -115,7 +115,8 @@ export default function MessageComposer({
         <ReactionBar onReact={onEmojiReact} />
         <span className="min-w-0 flex-1 truncate text-right text-xs text-fg-muted">{typingText}</span>
       </div>
-      {cmdError && <p className="mb-2 text-xs text-danger">{cmdError}</p>}
+      {/* cmdError may be an i18n key (slash-command errors); t() passes plain strings through. */}
+      {cmdError && <p className="mb-2 text-xs text-danger">{t(cmdError)}</p>}
       {replyingTo && (
         <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-2 border-accent/60 bg-surface-muted px-2 py-1 text-xs">
           <div className="min-w-0">

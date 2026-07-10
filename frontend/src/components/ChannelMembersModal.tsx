@@ -8,15 +8,17 @@ import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
+import { useT } from '../i18n'
 
 function RoleBadge({ role }: { role: MembershipRole }) {
+  const { t } = useT()
   if (role === 'OWNER') {
     return <span className="rounded-lg bg-amber-500/20 px-2 py-0.5 text-2xs font-medium text-warning">OWNER</span>
   }
   if (role === 'MODERATOR') {
     return <span className="rounded-lg bg-indigo-500/20 px-2 py-0.5 text-2xs font-medium text-accent">MOD</span>
   }
-  return <span className="rounded-lg bg-surface-muted px-2 py-0.5 text-2xs text-fg-muted">üye</span>
+  return <span className="rounded-lg bg-surface-muted px-2 py-0.5 text-2xs text-fg-muted">{t('members.member')}</span>
 }
 
 interface ChannelMembersModalProps {
@@ -34,6 +36,7 @@ export default function ChannelMembersModal({
   currentUserId,
   onClose,
 }: ChannelMembersModalProps) {
+  const { t } = useT()
   const dispatch = useAppDispatch()
   const channel = useAppSelector((state) => state.channels.items.find((c) => c.id === channelId))
   const blockedIds = useAppSelector((state) => state.blocks.ids)
@@ -47,21 +50,21 @@ export default function ChannelMembersModal({
     const trimmedName = name.trim()
     const trimmedDesc = description.trim()
     if (!trimmedName) {
-      alert('Kanal adı gereklidir.')
+      alert(t('members.nameRequired'))
       return
     }
     if (trimmedName.length > 80) {
-      alert('Kanal adı en fazla 80 karakter olabilir.')
+      alert(t('sidebar.channelNameTooLong'))
       return
     }
     if (trimmedDesc.length > 500) {
-      alert('Kanal açıklaması en fazla 500 karakter olabilir.')
+      alert(t('members.descTooLong'))
       return
     }
     dispatch(updateChannel({ channelId, name: trimmedName, description: trimmedDesc || undefined }))
   }
   const onDeleteChannel = () => {
-    if (window.confirm('Bu kanalı silmek istediğine emin misin? Geri alınamaz.')) {
+    if (window.confirm(t('members.deleteConfirm'))) {
       dispatch(deleteChannel(channelId))
       onClose()
     }
@@ -73,16 +76,16 @@ export default function ChannelMembersModal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Üyeler"
+        aria-label={t('members.title')}
         tabIndex={-1}
         className="w-full max-w-md rounded-2xl border border-border bg-surface-overlay p-6 shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold tracking-tight">Üyeler</h3>
+          <h3 className="text-lg font-semibold tracking-tight">{t('members.title')}</h3>
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t('common.close')}
             className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
           >
             ✕
@@ -111,21 +114,21 @@ export default function ChannelMembersModal({
                             onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MODERATOR' }))}
                             className={`rounded-lg text-accent transition hover:text-accent-hover ${focusRing}`}
                           >
-                            Mod yap
+                            {t('members.makeMod')}
                           </button>
                         ) : (
                           <button
                             onClick={() => dispatch(setMemberRole({ channelId, userId: m.user.id, role: 'MEMBER' }))}
                             className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
                           >
-                            Mod al
+                            {t('members.removeMod')}
                           </button>
                         )}
                         <button
                           onClick={() => dispatch(kickMember({ channelId, userId: m.user.id }))}
                           className={`rounded-lg text-danger transition hover:text-danger-hover ${focusRing}`}
                         >
-                          Çıkar
+                          {t('members.kick')}
                         </button>
                       </>
                     )}
@@ -134,14 +137,14 @@ export default function ChannelMembersModal({
                         onClick={() => dispatch(unblockUser(m.user.id))}
                         className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
                       >
-                        Engeli kaldır
+                        {t('chat.unblock')}
                       </button>
                     ) : (
                       <button
                         onClick={() => dispatch(blockUser(m.user.id))}
                         className={`rounded-lg text-danger transition hover:text-danger-hover ${focusRing}`}
                       >
-                        Engelle
+                        {t('chat.block')}
                       </button>
                     )}
                   </span>
@@ -153,25 +156,25 @@ export default function ChannelMembersModal({
 
         {isOwner && (
           <div className="mt-6 border-t border-border pt-4">
-            <h4 className="mb-2 text-sm font-medium text-fg-secondary">Kanal ayarları</h4>
+            <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('members.channelSettings')}</h4>
             <Input
               value={name}
               maxLength={80}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Kanal adı"
+              placeholder={t('members.namePlaceholder')}
               className="mb-2"
             />
             <Input
               value={description}
               maxLength={500}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Açıklama"
+              placeholder={t('members.descPlaceholder')}
               className="mb-3"
             />
             <div className="flex justify-between">
-              <Button onClick={onSaveChannel}>Kaydet</Button>
+              <Button onClick={onSaveChannel}>{t('msg.save')}</Button>
               <Button onClick={onDeleteChannel} variant="danger">
-                Kanalı sil
+                {t('members.deleteChannel')}
               </Button>
             </div>
           </div>

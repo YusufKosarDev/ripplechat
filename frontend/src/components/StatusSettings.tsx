@@ -4,22 +4,25 @@ import { setDnd, setStatus } from '../features/auth/authSlice'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import { dateLocale, useT } from '../i18n'
 
 const STATUS_DURATIONS: { label: string; minutes: number | null }[] = [
-  { label: 'Süresiz', minutes: null },
-  { label: '30 dk', minutes: 30 },
-  { label: '1 saat', minutes: 60 },
-  { label: '4 saat', minutes: 240 },
+  { label: 'dur.unlimited', minutes: null },
+  { label: 'dur.30m', minutes: 30 },
+  { label: 'dur.1h', minutes: 60 },
+  { label: 'dur.4h', minutes: 240 },
 ]
 
 const DND_DURATIONS: { label: string; minutes: number }[] = [
-  { label: '30 dk', minutes: 30 },
-  { label: '1 saat', minutes: 60 },
-  { label: '8 saat', minutes: 480 },
+  { label: 'dur.30m', minutes: 30 },
+  { label: 'dur.1h', minutes: 60 },
+  { label: 'dur.8h', minutes: 480 },
 ]
 
 /** Custom status (emoji + text, optional expiry) and Do-Not-Disturb controls. */
 export default function StatusSettings() {
+  const { t, lang } = useT()
+  const locale = dateLocale(lang)
   const dispatch = useAppDispatch()
   const user = useAppSelector((s) => s.auth.user)
 
@@ -33,30 +36,30 @@ export default function StatusSettings() {
 
   const saveStatus = async () => {
     const r = await dispatch(setStatus({ emoji: emoji.trim(), text: text.trim(), expiresInMinutes: minutes }))
-    setMsg(setStatus.fulfilled.match(r) ? 'Durum güncellendi ✓' : 'Durum güncellenemedi.')
+    setMsg(setStatus.fulfilled.match(r) ? t('status.updated') : t('status.updateFailed'))
   }
   const clearStatus = async () => {
     setEmoji('')
     setText('')
     const r = await dispatch(setStatus({ emoji: '', text: '', expiresInMinutes: null }))
-    setMsg(setStatus.fulfilled.match(r) ? 'Durum temizlendi ✓' : 'Durum temizlenemedi.')
+    setMsg(setStatus.fulfilled.match(r) ? t('status.cleared') : t('status.clearFailed'))
   }
   const changeDnd = async (m: number) => {
     const r = await dispatch(setDnd({ minutes: m }))
-    setMsg(setDnd.fulfilled.match(r) ? (m > 0 ? 'Rahatsız etmeyin açıldı ✓' : 'Rahatsız etmeyin kapatıldı ✓') : 'İşlem başarısız.')
+    setMsg(setDnd.fulfilled.match(r) ? (m > 0 ? t('status.dndOn') : t('status.dndOff')) : t('status.actionFailed'))
   }
 
   return (
     <>
       <div className="mt-6 border-t border-border pt-4">
-        <h4 className="mb-2 text-sm font-medium text-fg-secondary">Durum</h4>
+        <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('status.title')}</h4>
         <div className="flex gap-2">
           <div className="w-14 shrink-0">
             <Input
               value={emoji}
               onChange={(e) => setEmoji(e.target.value)}
               placeholder="🌴"
-              aria-label="Durum emojisi"
+              aria-label={t('status.emojiAria')}
               maxLength={8}
               className="text-center"
             />
@@ -65,8 +68,8 @@ export default function StatusSettings() {
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Ne yapıyorsun?"
-              aria-label="Durum metni"
+              placeholder={t('status.placeholder')}
+              aria-label={t('status.textAria')}
               maxLength={100}
             />
           </div>
@@ -75,40 +78,40 @@ export default function StatusSettings() {
           <select
             value={minutes ?? ''}
             onChange={(e) => setMinutes(e.target.value === '' ? null : Number(e.target.value))}
-            aria-label="Durum süresi"
+            aria-label={t('status.durationAria')}
             className={`rounded-lg border border-control bg-surface px-2 py-1 text-sm text-fg ${focusRing}`}
           >
             {STATUS_DURATIONS.map((d) => (
-              <option key={d.label} value={d.minutes ?? ''}>
-                {d.label}
+              <option key={t(d.label)} value={d.minutes ?? ''}>
+                {t(d.label)}
               </option>
             ))}
           </select>
           <Button size="sm" onClick={saveStatus}>
-            Kaydet
+            {t('msg.save')}
           </Button>
           <Button size="sm" variant="secondary" onClick={clearStatus}>
-            Temizle
+            {t('status.clear')}
           </Button>
         </div>
       </div>
 
       <div className="mt-6 border-t border-border pt-4">
-        <h4 className="mb-2 text-sm font-medium text-fg-secondary">Rahatsız etmeyin</h4>
+        <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('status.dndTitle')}</h4>
         <p className="mb-2 text-xs text-fg-muted">
           {dndActive
-            ? `Açık — ${new Date(user!.dndUntil!).toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit' })}'e kadar bildirim yok.`
-            : 'Bir süreliğine bildirimleri sustur.'}
+            ? t('status.dndOnUntil', { time: new Date(user!.dndUntil!).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })
+            : t('status.dndHint')}
         </p>
         <div className="flex flex-wrap gap-2">
           {DND_DURATIONS.map((d) => (
             <Button key={d.minutes} size="sm" variant="secondary" onClick={() => changeDnd(d.minutes)}>
-              {d.label}
+              {t(d.label)}
             </Button>
           ))}
           {dndActive && (
             <Button size="sm" variant="danger" onClick={() => changeDnd(0)}>
-              Kapat
+              {t('status.dndTurnOff')}
             </Button>
           )}
         </div>

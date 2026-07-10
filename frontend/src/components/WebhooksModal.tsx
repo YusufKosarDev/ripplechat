@@ -5,6 +5,7 @@ import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
+import { useT } from '../i18n'
 
 interface WebhooksModalProps {
   channelId: string
@@ -19,6 +20,7 @@ function absoluteUrl(relative: string | null): string {
 }
 
 export default function WebhooksModal({ channelId, onClose }: WebhooksModalProps) {
+  const { t } = useT()
   const panelRef = useDialog<HTMLDivElement>(onClose)
   const [items, setItems] = useState<Webhook[]>([])
   const [name, setName] = useState('')
@@ -61,44 +63,44 @@ export default function WebhooksModal({ channelId, onClose }: WebhooksModalProps
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Webhook'lar"
+        aria-label={t('wh.title')}
         tabIndex={-1}
         className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">🔗 Incoming webhook'lar</span>
-          <button onClick={onClose} aria-label="Kapat" className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <span className="text-sm font-semibold tracking-tight">🔗 {t('chat.webhooks')}</span>
+          <button onClick={onClose} aria-label={t('common.close')} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>
 
         <div className="border-b border-border p-4">
           <p className="mb-2 text-xs text-fg-muted">
-            Dış sistemler bu URL'e <code className="rounded bg-surface-muted px-1">{`{"text":"..."}`}</code> POST ederse kanala mesaj düşer.
+            {t('wh.explainPre')} <code className="rounded bg-surface-muted px-1">{`{"text":"..."}`}</code> {t('wh.explainPost')}
           </p>
           <div className="flex gap-2">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Webhook adı (örn. CI Bot)"
-              aria-label="Webhook adı"
+              placeholder={t('wh.namePlaceholder')}
+              aria-label={t('wh.nameAria')}
               maxLength={80}
             />
             <Button size="sm" onClick={onCreate} disabled={busy || !name.trim()}>
-              Oluştur
+              {t('wh.create')}
             </Button>
           </div>
 
           {createdUrl && (
             <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2">
               <p className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-                URL yalnızca şimdi gösterilir — kopyala:
+                {t('wh.urlOnce')}
               </p>
               <div className="flex items-center gap-2">
                 <code className="min-w-0 flex-1 truncate rounded bg-surface px-2 py-1 text-xs text-fg">{createdUrl}</code>
                 <Button size="sm" variant="secondary" onClick={onCopy}>
-                  {copied ? 'Kopyalandı ✓' : 'Kopyala'}
+                  {copied ? t('common.copied') : t('common.copy')}
                 </Button>
               </div>
             </div>
@@ -107,7 +109,7 @@ export default function WebhooksModal({ channelId, onClose }: WebhooksModalProps
 
         <div className="flex-1 overflow-y-auto">
           {items.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-fg-muted">Bu kanalda webhook yok.</p>
+            <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('wh.empty')}</p>
           ) : (
             items.map((w) => (
               <div key={w.id} className="flex items-center gap-3 border-b border-border px-4 py-3">

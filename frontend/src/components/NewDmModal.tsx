@@ -6,6 +6,7 @@ import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
+import { useT } from '../i18n'
 
 interface NewDmModalProps {
   // One user → a 1:1 DM; two or more → a group (with optional name).
@@ -14,6 +15,7 @@ interface NewDmModalProps {
 }
 
 export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
+  const { t } = useT()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<UserSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -59,10 +61,10 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
 
   const label =
     selected.length === 0
-      ? 'Kişi seç'
+      ? t('dm.pick')
       : isGroup
-        ? `Grup oluştur (${selected.length})`
-        : `${selected[0].displayName ?? selected[0].username} ile başlat`
+        ? t('dm.createGroup', { n: selected.length })
+        : t('dm.startWith', { name: selected[0].displayName ?? selected[0].username })
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
@@ -70,16 +72,16 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Yeni mesaj"
+        aria-label={t('dm.title')}
         tabIndex={-1}
         className="flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">Yeni mesaj</span>
+          <span className="text-sm font-semibold tracking-tight">{t('dm.title')}</span>
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t('common.close')}
             className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
           >
             ✕
@@ -105,19 +107,19 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Kullanıcı ara..."
+            placeholder={t('dm.searchPlaceholder')}
             className={`w-full rounded-lg bg-transparent text-sm text-fg placeholder:text-fg-faint ${focusRing}`}
           />
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">Aranıyor...</p>}
+          {loading && <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('common.searching')}</p>}
           {!loading && trimmed.length >= 2 && results.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-fg-muted">"{trimmed}" için kullanıcı bulunamadı.</p>
+            <p className="px-4 py-6 text-center text-sm text-fg-muted">{t('dm.noUser', { q: trimmed })}</p>
           )}
           {!loading && trimmed.length < 2 && (
             <p className="px-4 py-6 text-center text-sm text-fg-faint">
-              Bir kişi seç (DM) ya da birden çok kişi seç (grup).
+              {t('dm.hint')}
             </p>
           )}
           {!loading &&
@@ -146,7 +148,7 @@ export default function NewDmModal({ onStart, onClose }: NewDmModalProps) {
               inputSize="sm"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Grup adı (opsiyonel)"
+              placeholder={t('dm.groupNamePlaceholder')}
             />
           )}
           <Button

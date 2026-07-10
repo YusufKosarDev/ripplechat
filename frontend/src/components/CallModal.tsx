@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { clearCall } from '../features/call/callSlice'
 import { useWebRTC } from '../hooks/useWebRTC'
 import Button from './ui/Button'
+import { useT } from '../i18n'
 
 interface CallModalProps {
   channelId: string
@@ -11,6 +12,7 @@ interface CallModalProps {
 }
 
 export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
+  const { t } = useT()
   const dispatch = useAppDispatch()
   const { incomingCall, activeCall } = useAppSelector((state) => state.call)
   
@@ -77,11 +79,11 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
         <div className="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl text-fg">
           <h2 className="text-xl font-bold mb-2">Gelen Arama</h2>
           <p className="text-fg-secondary">
-            Kullanıcı {incomingCall.senderId} sizi arıyor...
+            {t('call.incoming', { id: incomingCall.senderId })}
           </p>
           <div className="mt-6 flex justify-end gap-3">
-            <Button variant="secondary" onClick={handleReject}>Reddet</Button>
-            <Button onClick={handleAccept}>Cevapla</Button>
+            <Button variant="secondary" onClick={handleReject}>{t('call.reject')}</Button>
+            <Button onClick={handleAccept}>{t('call.answer')}</Button>
           </div>
         </div>
       </div>
@@ -103,7 +105,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
             />
             {!remoteStream && (
               <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                Bağlanıyor...
+                {t('call.connecting')}
               </div>
             )}
             
@@ -124,7 +126,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
               variant={isMicMuted ? "danger" : "secondary"} 
               onClick={toggleMic}
               className="h-12 w-12 rounded-full p-0"
-              title={isMicMuted ? "Mikrofonu Aç" : "Mikrofonu Kapat"}
+              title={isMicMuted ? t('call.micOn') : t('call.micOff')}
             >
               🎤
             </Button>
@@ -132,7 +134,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
               variant={isVideoMuted ? "danger" : "secondary"}
               onClick={toggleVideo}
               className="h-12 w-12 rounded-full p-0"
-              title={isVideoMuted ? "Kamerayı Aç" : "Kamerayı Kapat"}
+              title={isVideoMuted ? t('call.camOn') : t('call.camOff')}
             >
               📷
             </Button>
@@ -140,7 +142,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
               variant={isScreenSharing ? "primary" : "secondary"}
               onClick={toggleScreenShare}
               className="h-12 w-12 rounded-full p-0"
-              title={isScreenSharing ? "Paylaşımı Durdur" : "Ekranı Paylaş"}
+              title={isScreenSharing ? t('call.shareStop') : t('call.shareStart')}
             >
               🖥️
             </Button>
@@ -149,7 +151,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
               onClick={handleEndCall}
               className="rounded-full px-8"
             >
-              Aramayı Sonlandır
+              {t('call.end')}
             </Button>
           </div>
         </div>

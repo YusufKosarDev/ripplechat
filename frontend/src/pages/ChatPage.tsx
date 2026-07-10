@@ -19,6 +19,7 @@ import { client } from '../api/client'
 import { replenishPreKeys } from '../crypto/e2ee'
 import { syncPendingMessages } from '../sync/syncManager'
 import ConnectionBanner from '../components/ui/ConnectionBanner'
+import { useT } from '../i18n'
 
 
 // Loaded on demand the first time the quick switcher (Ctrl/Cmd+K) is opened.
@@ -31,6 +32,7 @@ function mentionsUser(content: string, username: string): boolean {
 }
 
 export default function ChatPage() {
+  const { t } = useT()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((state) => state.auth.user)
@@ -199,7 +201,7 @@ export default function ChatPage() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-surface-overlay focus:px-3 focus:py-2 focus:text-sm focus:shadow-elevated"
       >
-        İçeriğe geç
+        {t('chat.skipToContent')}
       </a>
       <ConnectionBanner status={connectionStatus} />
       <div className="relative flex flex-1 overflow-hidden">

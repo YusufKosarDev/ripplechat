@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
 import { useEffect } from 'react'
+import { useT } from '../../i18n'
 
 interface RichTextEditorProps {
   value: string
@@ -15,13 +16,14 @@ interface RichTextEditorProps {
 }
 
 export function RichTextEditor({ value, onChange, onEnter, placeholder, className = '', autoFocus = false, focusTrigger = 0 }: RichTextEditorProps) {
+  const { t } = useT()
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: false,
       }),
       Placeholder.configure({
-        placeholder: placeholder || 'Mesaj yazın...',
+        placeholder: placeholder || t('editor.placeholder'),
         emptyEditorClass: 'is-editor-empty',
       }),
       Markdown,
@@ -83,7 +85,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('bold') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="Kalın"
+          title={t('editor.bold')}
         >
           <span className="font-bold px-1">B</span>
         </button>
@@ -91,7 +93,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('italic') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="İtalik"
+          title={t('editor.italic')}
         >
           <span className="italic px-1">I</span>
         </button>
@@ -99,7 +101,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleStrike().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('strike') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="Üstü Çizili"
+          title={t('editor.strike')}
         >
           <span className="line-through px-1">S</span>
         </button>
@@ -108,7 +110,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleCode().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('code') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="Kod"
+          title={t('editor.code')}
         >
           <span className="font-mono text-sm px-1">{'<>'}</span>
         </button>
@@ -116,7 +118,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('codeBlock') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="Kod Bloğu"
+          title={t('editor.codeBlock')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
         </button>
@@ -125,7 +127,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('blockquote') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="Alıntı"
+          title={t('editor.quote')}
         >
           <span className="font-serif font-bold px-1">"</span>
         </button>
@@ -133,7 +135,7 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
           type="button"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={`p-1.5 rounded hover:bg-surface-hover transition-colors ${editor.isActive('bulletList') ? 'text-accent bg-accent/10' : 'text-fg-muted'}`}
-          title="Madde İşaretli Liste"
+          title={t('editor.bulletList')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>

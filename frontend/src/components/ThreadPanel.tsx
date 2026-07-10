@@ -8,24 +8,27 @@ import Avatar from './Avatar'
 import MessageContent from './MessageContent'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import { dateLocale, useT } from '../i18n'
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
-function body(m: Message) {
+function body(m: Message, t: (key: string, vars?: Record<string, string | number>) => string) {
   if (m.deleted) {
-    return <p className="text-sm italic text-fg-faint">Bu mesaj silindi</p>
+    return <p className="text-sm italic text-fg-faint">{t('msg.deleted')}</p>
   }
   return (
     <>
       <MessageContent content={m.content} />
-      {m.editedAt && <span className="text-xs text-fg-faint">(düzenlendi)</span>}
+      {m.editedAt && <span className="text-xs text-fg-faint">{t('msg.edited')}</span>}
     </>
   )
 }
 
 export default function ThreadPanel() {
+  const { t, lang } = useT()
+  const locale = dateLocale(lang)
   const dispatch = useAppDispatch()
   const channelId = useAppSelector((state) => state.channels.selectedId)
   const openParentId = useAppSelector((state) => state.threads.openParentId)
@@ -92,14 +95,14 @@ export default function ThreadPanel() {
                 <span className="text-sm font-medium text-fg">
                   {parent.sender.displayName ?? parent.sender.username}
                 </span>
-                <span className="text-xs text-fg-faint">{formatTime(parent.createdAt)}</span>
+                <span className="text-xs text-fg-faint">{formatTime(parent.createdAt, locale)}</span>
               </div>
-              {body(parent)}
+              {body(parent, t)}
             </div>
           </div>
         )}
 
-        <div className="mt-3 text-xs text-fg-muted">{replies.length} yanıt</div>
+        <div className="mt-3 text-xs text-fg-muted">{t('msg.replies', { n: replies.length })}</div>
         <div className="mt-2 space-y-3">
           {replies.map((r) => (
             <div key={r.id} className="flex gap-3">
@@ -115,9 +118,9 @@ export default function ThreadPanel() {
                   <span className="text-sm font-medium text-fg">
                     {r.sender.displayName ?? r.sender.username}
                   </span>
-                  <span className="text-xs text-fg-faint">{formatTime(r.createdAt)}</span>
+                  <span className="text-xs text-fg-faint">{formatTime(r.createdAt, locale)}</span>
                 </div>
-                {body(r)}
+                {body(r, t)}
               </div>
             </div>
           ))}
@@ -126,7 +129,7 @@ export default function ThreadPanel() {
       </div>
 
       <form onSubmit={onSend} className="border-t border-border p-4">
-        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Yanıt yaz..." />
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('thread.replyPlaceholder')} />
       </form>
     </aside>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { client } from '../api/client'
 import { focusRing } from './ui/focusRing'
+import { useT } from '../i18n'
 
 interface Gif {
   url: string
@@ -13,6 +14,7 @@ interface GifPickerProps {
 }
 
 export default function GifPicker({ onPick, onClose }: GifPickerProps) {
+  const { t } = useT()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Gif[]>([])
   const [enabled, setEnabled] = useState(true)
@@ -55,15 +57,15 @@ export default function GifPicker({ onPick, onClose }: GifPickerProps) {
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="GIF ara..."
+          placeholder={t('gif.search')}
           className={`flex-1 rounded-lg bg-transparent text-sm text-fg placeholder:text-fg-faint ${focusRing}`}
         />
         <button type="button" onClick={onClose} className={`rounded text-fg-faint hover:text-fg ${focusRing}`}>
           ✕
         </button>
       </div>
-      {!enabled && <p className="mt-2 text-center text-xs text-fg-muted">GIF arama sunucuda yapılandırılmamış.</p>}
-      {loading && <p className="mt-2 text-center text-xs text-fg-muted">Aranıyor...</p>}
+      {!enabled && <p className="mt-2 text-center text-xs text-fg-muted">{t('gif.notConfigured')}</p>}
+      {loading && <p className="mt-2 text-center text-xs text-fg-muted">{t('common.searching')}</p>}
       {enabled && !loading && (
         <div className="mt-2 grid max-h-56 grid-cols-2 gap-1 overflow-y-auto">
           {results.map((gif) => (

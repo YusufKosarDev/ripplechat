@@ -49,7 +49,9 @@ function ToastItem({ toast }: { toast: Toast }) {
       role={toast.variant === 'error' ? 'alert' : 'status'}
       className={`pointer-events-auto flex items-center gap-3 rounded-lg px-4 py-2 text-sm shadow-elevated ${VARIANT_STYLES[toast.variant]}`}
     >
-      <span>{toast.message}</span>
+      {/* Messages may arrive as i18n keys (from non-component code like the
+          sync manager); t() falls back to the raw string for plain messages. */}
+      <span>{t(toast.message)}</span>
       <button
         type="button"
         onClick={() => dispatch(dismissToast(toast.id))}
