@@ -160,45 +160,6 @@ test('admin', async ({ page }) => {
   await page.screenshot({ path: '../docs/screenshots/admin.png' })
 })
 
-test('call', async ({ page }) => {
-  await stub(page)
-  await page.goto('/chat')
-  await page.getByRole('button', { name: /Elif/ }).first().click()
-  await expect(page.getByText('tasarım dosyasına', { exact: false })).toBeVisible()
-  await page.addStyleTag({ content: HIDE_BANNER })
-  // Inject a representative call overlay via HTML since we can't establish a
-  // real WebRTC connection in screenshot mode.
-  await page.evaluate(() => {
-    const overlay = document.createElement('div')
-    overlay.innerHTML = `
-      <div style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:black;padding:16px">
-        <div style="display:flex;height:80vh;width:100%;max-width:56rem;flex-direction:column;border-radius:16px;background:#111827;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,.5)">
-          <div style="position:relative;flex:1;background:black;display:flex;align-items:center;justify-content:center">
-            <div style="text-center">
-              <div style="width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#ec4899);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:40px">E</div>
-              <div style="color:#d1d5db;font-size:18px;font-weight:600">Elif</div>
-              <div style="color:#9ca3af;font-size:14px;margin-top:4px">Bağlandı — 02:14</div>
-            </div>
-            <div style="position:absolute;bottom:16px;right:16px;height:144px;width:192px;border-radius:8px;border:2px solid #374151;background:#1f2937;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 15px -3px rgba(0,0,0,.5)">
-              <div style="text-center">
-                <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:20px;color:white">D</div>
-                <div style="color:#9ca3af;font-size:11px">Sen</div>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:center;gap:16px;padding:16px">
-            <button style="height:48px;width:48px;border-radius:50%;background:#374151;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">🎤</button>
-            <button style="height:48px;width:48px;border-radius:50%;background:#374151;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">📷</button>
-            <button style="height:48px;width:48px;border-radius:50%;background:#374151;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">🖥️</button>
-            <button style="height:48px;border-radius:24px;background:#ef4444;color:white;border:none;font-size:14px;cursor:pointer;padding:0 32px;font-weight:600">Aramayı Sonlandır</button>
-          </div>
-        </div>
-      </div>
-    `
-    document.body.appendChild(overlay)
-  })
-  await page.screenshot({ path: '../docs/screenshots/call.png' })
-})
 
 test('search', async ({ page }) => {
   await stub(page)
