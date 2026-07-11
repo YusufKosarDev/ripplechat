@@ -8,7 +8,7 @@ type Size = 'sm' | 'md'
 // click too. `inputSize` avoids clashing with the native HTML `size` attribute.
 // forwardRef so callers can focus()/measure the element (e.g. the composer).
 const fieldBase =
-  'w-full rounded-lg border border-control bg-surface text-sm text-fg transition placeholder:text-fg-faint outline-none focus:border-accent focus:ring-2 focus:ring-accent/30'
+  'w-full rounded-xl border border-control bg-surface text-sm text-fg transition placeholder:text-fg-faint outline-none focus:border-accent focus:ring-2 focus:ring-accent/30'
 
 const fieldSize: Record<Size, string> = {
   sm: 'px-2.5 py-1',

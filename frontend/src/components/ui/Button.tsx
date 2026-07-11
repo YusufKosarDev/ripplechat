@@ -4,10 +4,12 @@ import { focusRing } from './focusRing'
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
-// Variants map onto the Tur 2 design tokens (brand / surface / control / danger).
+// Variants map onto the design tokens; primary carries the brand gradient.
 const variantClass: Record<Variant, string> = {
-  primary: 'bg-brand text-white shadow-sm hover:bg-brand-hover hover:shadow',
-  secondary: 'border border-control text-fg-muted hover:border-control-hover hover:text-fg',
+  primary:
+    'bg-gradient-to-b from-brand-hover to-brand text-white shadow-sm hover:shadow-glow hover:brightness-110',
+  secondary:
+    'border border-control bg-surface-overlay/50 text-fg-muted hover:border-control-hover hover:bg-surface-muted/60 hover:text-fg',
   ghost: 'text-fg-muted hover:bg-surface-muted hover:text-fg',
   danger: 'border border-red-500/50 text-danger hover:bg-red-500/10',
 }
@@ -34,7 +36,7 @@ export default function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition active:translate-y-px disabled:pointer-events-none disabled:opacity-60 ${focusRing} ${variantClass[variant]} ${sizeClass[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition duration-150 active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 ${focusRing} ${variantClass[variant]} ${sizeClass[size]} ${className}`}
       {...props}
     />
   )

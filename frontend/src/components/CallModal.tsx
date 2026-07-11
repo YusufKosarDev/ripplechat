@@ -75,7 +75,7 @@ export function CallModal({ channelId, peerId, isIncoming }: CallModalProps) {
   // Render incoming call ring
   if (isIncoming && incomingCall) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div className="w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl text-fg">
           <h2 className="text-xl font-bold mb-2">Gelen Arama</h2>
           <p className="text-fg-secondary">

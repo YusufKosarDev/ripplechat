@@ -56,7 +56,7 @@ export default function QuickSwitcher({ onClose }: QuickSwitcherProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"

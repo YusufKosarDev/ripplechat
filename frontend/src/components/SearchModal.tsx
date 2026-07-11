@@ -3,6 +3,7 @@ import { client } from '../api/client'
 import { useAppSelector } from '../app/hooks'
 import type { SearchResult } from '../api/types'
 import { dateLocale, useT } from '../i18n'
+import { Search } from 'lucide-react'
 
 const PAGE_SIZE = 20
 
@@ -120,7 +121,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
     d.group ? (d.name ?? t('sidebar.group')) : (d.otherUser?.displayName ?? d.otherUser?.username ?? 'DM')
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
@@ -131,7 +132,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-fg-faint" aria-hidden="true">🔍</span>
+          <span className="text-fg-faint" aria-hidden="true"><Search className="h-4 w-4" /></span>
           <input
             autoFocus
             value={query}
