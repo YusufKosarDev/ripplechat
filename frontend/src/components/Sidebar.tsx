@@ -129,7 +129,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={onClose} />}
+      {open && <div className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm md:hidden" onClick={onClose} />}
       <aside
         className={`fixed inset-y-0 left-0 z-30 flex w-64 shrink-0 transform flex-col border-r border-border bg-surface-raised transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'

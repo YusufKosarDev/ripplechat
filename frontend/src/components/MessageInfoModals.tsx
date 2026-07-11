@@ -5,7 +5,7 @@ import { useT } from '../i18n'
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-4 pt-16"
+      className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16"
       onClick={onClose}
     >
       <div
