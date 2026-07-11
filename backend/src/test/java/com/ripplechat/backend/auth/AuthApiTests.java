@@ -24,6 +24,15 @@ class AuthApiTests extends AbstractIntegrationTest {
     MockMvc mvc;
 
     @Test
+    void providersReportsGoogleWhenAClientIdIsConfigured() throws Exception {
+        // The test profile configures a real-looking client id; production
+        // with the placeholder returns false, hiding the button.
+        mvc.perform(get("/api/auth/providers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.google").value(true));
+    }
+
+    @Test
     void registerReturns201WithToken() throws Exception {
         mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON)
                         .content("{\"username\":\"web1\",\"email\":\"web1@test.io\",\"password\":\"password123\"}"))

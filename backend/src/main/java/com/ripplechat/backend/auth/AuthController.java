@@ -36,6 +36,21 @@ public class AuthController {
     private final AuthService authService;
     private final AccountService accountService;
 
+    @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.google.client-id:placeholder}")
+    private String googleClientId;
+
+    /**
+     * Which social sign-in providers are actually usable. Google ships with a
+     * placeholder client-id so the registration always exists; the frontend
+     * uses this flag to hide the button when clicking it could only fail —
+     * the same graceful-enable contract as {@code /api/push/key}.
+     */
+    @GetMapping("/providers")
+    public java.util.Map<String, Boolean> providers() {
+        boolean googleConfigured = !googleClientId.isBlank() && !"placeholder".equals(googleClientId);
+        return java.util.Map.of("google", googleConfigured);
+    }
+
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {

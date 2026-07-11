@@ -128,6 +128,7 @@ export async function mockApi(page: Page, opts: { loginStatus?: number } = {}) {
       return json(200, { accessToken: 'access-1', refreshToken: 'refresh-1', tokenType: 'Bearer', user: USER, requires2Fa: false, preAuthToken: null })
     }
     if (pathname.endsWith('/api/users/me')) return json(200, USER)
+    if (pathname.endsWith('/api/auth/providers')) return json(200, { google: false })
     if (pathname.endsWith('/api/channels') && method === 'GET') return json(200, [CHANNEL])
     if (pathname.includes('/members')) return json(200, [{ user: OWNER, role: 'OWNER', joinedAt: CHANNEL.createdAt }])
     if (pathname.includes('/messages')) return json(200, EMPTY_PAGE)

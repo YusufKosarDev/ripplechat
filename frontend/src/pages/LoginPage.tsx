@@ -9,6 +9,8 @@ import Button from '../components/ui/Button'
 import { Input } from '../components/ui/Field'
 import WakeNotice from '../components/ui/WakeNotice'
 import { useWakeNotice } from '../hooks/useWakeNotice'
+import { useAuthProviders } from '../hooks/useAuthProviders'
+import { config } from '../config'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
@@ -16,6 +18,7 @@ export default function LoginPage() {
   const { t } = useT()
   const { status, error } = useAppSelector((state) => state.auth)
   const waking = useWakeNotice(status === 'loading')
+  const providers = useAuthProviders()
 
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
@@ -155,7 +158,8 @@ export default function LoginPage() {
         <WakeNotice show={waking} />
       </form>
 
-      {/* OAuth2 Divider & Button */}
+      {/* OAuth2 divider + button — rendered only when the backend has real credentials */}
+      {providers.google && (<>
       <div className="mt-6 flex items-center justify-between">
         <span className="w-1/5 border-b border-border"></span>
         <span className="text-xs text-fg-muted uppercase">{t('auth.or')}</span>
@@ -168,7 +172,7 @@ export default function LoginPage() {
         className="w-full mt-4 flex items-center justify-center gap-2"
         onClick={() => {
           // Backend OAuth2 authorization endpoint'ine yönlendiriyoruz
-          window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(window.location.origin + '/oauth2/redirect')}`
+          window.location.href = `${config.apiUrl}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(window.location.origin + '/oauth2/redirect')}`
         }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
@@ -179,6 +183,7 @@ export default function LoginPage() {
         </svg>
         {t('auth.googleLogin')}
       </Button>
+      </>)}
 
       <p className="mt-6 text-center text-sm text-fg-muted">
         {t('auth.login.noAccount')}{' '}
