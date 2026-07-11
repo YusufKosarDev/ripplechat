@@ -32,15 +32,42 @@ class UploadServiceTest {
         }
     });
 
+    private static byte[] pngBytes() {
+        return new byte[] {(byte) 0x89, 'P', 'N', 'G', 13, 10, 26, 10, 0, 0, 0, 13};
+    }
+
     @Test
     void uploadsAValidImage() {
-        var file = new MockMultipartFile("file", "x.png", "image/png", new byte[] {1, 2, 3});
+        var file = new MockMultipartFile("file", "x.png", "image/png", pngBytes());
         assertThat(service.uploadImage(file)).startsWith("https://res.cloudinary.com/");
     }
 
     @Test
+    void acceptsJpegAndWebpSignatures() {
+        var jpeg = new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe0, 0, 0, 0, 0, 0, 0, 0, 0};
+        var webp = new byte[] {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
+        assertThat(service.uploadImage(new MockMultipartFile("file", "a.jpg", "image/jpeg", jpeg))).isNotBlank();
+        assertThat(service.uploadImage(new MockMultipartFile("file", "a.webp", "image/webp", webp))).isNotBlank();
+    }
+
+    @Test
+    void rejectsCorruptBytesLabelledAsAnImageWith400NotACloudinary500() {
+        var file = new MockMultipartFile("file", "x.png", "image/png", new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+        assertThatThrownBy(() -> service.uploadImage(file))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("not a valid image");
+    }
+
+    @Test
+    void svgIsExemptFromTheRasterSignatureCheck() {
+        var svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes();
+        var file = new MockMultipartFile("file", "a.svg", "image/svg+xml", svg);
+        assertThat(service.uploadImage(file)).isNotBlank();
+    }
+
+    @Test
     void rejectsNonImageContentType() {
-        var file = new MockMultipartFile("file", "doc.pdf", "application/pdf", new byte[] {1, 2, 3});
+        var file = new MockMultipartFile("file", "doc.pdf", "application/pdf", pngBytes());
         assertThatThrownBy(() -> service.uploadImage(file)).isInstanceOf(BadRequestException.class);
     }
 
