@@ -88,10 +88,8 @@ export default function ChannelHeader({
   const [showTtl, setShowTtl] = useState(false)
   const { t, lang } = useT()
   const locale = dateLocale(lang)
-  const borderC = 'border-border'
-
   return (
-    <header className={`flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 ${borderC}`}>
+    <header className="flex items-center justify-between gap-3 border-b border-border bg-surface-raised/60 px-4 py-3 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <Button variant="secondary" size="sm" onClick={onOpenSidebar} className="shrink-0 md:hidden" title={t('chat.channels')}>
           <Menu className="h-4 w-4" aria-hidden />
