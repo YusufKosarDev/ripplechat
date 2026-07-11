@@ -100,7 +100,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           }}
           className={`${focusRing} flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
             selectedId === channel.id
-              ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
+              ? 'relative bg-accent/12 font-medium text-accent before:absolute before:inset-y-1 before:-left-2 before:w-0.5 before:rounded-full before:bg-accent'
               : unread > 0
                 ? 'font-semibold text-fg hover:bg-surface-muted'
                 : 'text-fg-secondary hover:bg-surface-muted'
@@ -138,7 +138,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <div className="border-b border-border px-4 py-4">
           <div className="flex items-center justify-between">
             <span className="text-lg font-semibold tracking-tight text-fg">
-              Ripple<span className="text-indigo-500 dark:text-indigo-400">Chat</span>
+              Ripple<span className="bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent">Chat</span>
             </span>
             <div className="flex items-center gap-1">
               <NotificationBell />
@@ -269,7 +269,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     }}
                     className={`${focusRing} flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
                       selectedId === d.id
-                        ? 'bg-indigo-500/15 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200'
+                        ? 'relative bg-accent/12 font-medium text-accent before:absolute before:inset-y-1 before:-left-2 before:w-0.5 before:rounded-full before:bg-accent'
                         : unread > 0
                           ? 'font-semibold text-fg hover:bg-surface-muted'
                           : 'text-fg-secondary hover:bg-surface-muted'

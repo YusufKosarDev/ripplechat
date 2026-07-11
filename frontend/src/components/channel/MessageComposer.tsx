@@ -95,10 +95,9 @@ export default function MessageComposer({
     onSubmit()
   }
 
-  const borderC = 'border-border'
-
   return (
-    <div className={`border-t px-6 pb-4 pt-3 ${borderC}`}>
+    // Floating glass bar: the composer reads as its own layer above the feed.
+    <div className="glass mx-3 mb-3 rounded-2xl px-5 pb-4 pt-3 shadow-card">
       {showHints && <CommandHints prefix={draft.slice(1)} onPick={onPickCommand} />}
       {mentionQuery !== null && mentionCandidates.length > 0 && (
         <div className="mb-2 overflow-hidden rounded-lg border border-border bg-surface-overlay shadow-card">
