@@ -9,47 +9,55 @@
    @theme inline (below) exposes them as Tailwind utilities — bg-surface,
    text-fg, border-control, text-accent, etc. Comments note the old shade. */
 :root {
-  /* Surfaces */
-  --surface: #ffffff;          /* app background            (was white) */
-  --surface-raised: #f8fafc;   /* sidebar, panels, cards    (was slate-50) */
-  --surface-overlay: #ffffff;  /* modals, popovers          (was white) */
-  --surface-muted: #e2e8f0;    /* chips, code, hover fills  (was slate-100/200) */
+  /* Surfaces — clean neutral with a whisper of violet undertone */
+  --surface: #fdfdfd;          /* app background */
+  --surface-raised: #f6f6f8;   /* sidebar, panels, cards */
+  --surface-overlay: #ffffff;  /* modals, popovers */
+  --surface-muted: #ebebf0;    /* chips, code, hover fills */
   /* Lines */
-  --border: #e2e8f0;           /* subtle dividers           (was slate-200) */
-  --control: #cbd5e1;          /* input / button borders    (was slate-300) */
-  --control-hover: #94a3b8;    /* control border on hover   (was slate-400) */
+  --border: #e6e6ec;           /* subtle dividers */
+  --control: #d4d4dd;          /* input / button borders */
+  --control-hover: #9d9dab;    /* control border on hover */
   /* Text */
-  --fg: #0f172a;               /* headings, emphasis, names (was slate-800/900) */
-  --fg-secondary: #334155;     /* body copy                 (was slate-700) */
-  --fg-muted: #475569;         /* labels, secondary info    (was slate-500/600) */
-  --fg-faint: #94a3b8;         /* timestamps, hints         (was slate-400) */
-  /* Accent + semantic */
-  --accent: #4f46e5;           /* links / accent text       (indigo-600) */
-  --accent-hover: #6366f1;     /* link hover                (indigo-500) */
-  --brand: #4f46e5;            /* solid fills: buttons, badges (fixed both themes) */
-  --brand-hover: #6366f1;
-  --danger: #dc2626;           /* destructive text          (red-600) */
-  --danger-hover: #b91c1c;     /* destructive hover         (red-700) */
-  --warning: #d97706;          /* warning text              (amber-600) */
+  --fg: #17171c;               /* headings, emphasis, names */
+  --fg-secondary: #3d3d46;     /* body copy */
+  --fg-muted: #55555f;         /* labels, secondary info */
+  --fg-faint: #8f8f9b;         /* timestamps, hints */
+  /* Accent + semantic — electric indigo→violet family */
+  --accent: #6d28d9;           /* links / accent text (violet-700) */
+  --accent-hover: #7c3aed;     /* link hover (violet-600) */
+  --brand: #6d28d9;            /* solid fills: buttons, badges */
+  --brand-hover: #7c3aed;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --warning: #b45309;
+  /* Glass + glow (used by the `glass` utility and shadow tokens below) */
+  --glass-bg: rgb(255 255 255 / 0.72);
+  --glass-border: rgb(23 23 28 / 0.08);
+  --glow: rgb(124 58 237 / 0.18);
 }
 
 .dark {
-  --surface: #020617;          /* slate-950 */
-  --surface-raised: #0f172a;   /* slate-900 */
-  --surface-overlay: #0f172a;  /* slate-900 */
-  --surface-muted: #1e293b;    /* slate-800 */
-  --border: #1e293b;           /* slate-800 */
-  --control: #334155;          /* slate-700 */
-  --control-hover: #64748b;    /* slate-500 */
-  --fg: #f1f5f9;               /* slate-100 */
-  --fg-secondary: #cbd5e1;     /* slate-300 */
-  --fg-muted: #94a3b8;         /* slate-400 */
-  --fg-faint: #64748b;         /* slate-500 */
-  --accent: #818cf8;           /* indigo-400 */
-  --accent-hover: #a5b4fc;     /* indigo-300 */
-  --danger: #f87171;           /* red-400 */
-  --danger-hover: #fca5a5;     /* red-300 */
-  --warning: #fcd34d;          /* amber-300 */
+  /* Deep graphite with a violet undertone — the hero theme */
+  --surface: #0b0b10;
+  --surface-raised: #111118;
+  --surface-overlay: #16161f;
+  --surface-muted: #1e1e29;
+  --border: #232330;
+  --control: #32323f;
+  --control-hover: #55556a;
+  --fg: #f2f2f6;
+  --fg-secondary: #cfcfda;
+  --fg-muted: #9d9dae;
+  --fg-faint: #6e6e80;
+  --accent: #a78bfa;           /* violet-400 — bright on dark */
+  --accent-hover: #c4b5fd;
+  --danger: #f87171;
+  --danger-hover: #fca5a5;
+  --warning: #fbbf24;
+  --glass-bg: rgb(22 22 31 / 0.66);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --glow: rgb(167 139 250 / 0.22);
 }
 
 @theme inline {
@@ -79,11 +87,24 @@
   --text-2xs: 0.625rem;          /* 10px */
   --text-2xs--line-height: 1rem; /* 16px */
 
-  /* Soft, layered shadows (slate-tinted) for real depth in light mode —
-     shadow-card for resting cards, shadow-elevated for modals/popovers.
-     (In dark mode these read faint; borders carry the separation there.) */
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 6px 18px -6px rgb(15 23 42 / 0.10);
-  --shadow-elevated: 0 8px 28px -6px rgb(15 23 42 / 0.18), 0 16px 48px -12px rgb(15 23 42 / 0.22);
+  /* Layered depth: card for resting surfaces, elevated for modals/popovers
+     (now with a faint brand glow), glow for hero/CTA emphasis. */
+  --shadow-card: 0 1px 2px rgb(10 10 16 / 0.05), 0 6px 18px -6px rgb(10 10 16 / 0.10);
+  --shadow-elevated:
+    0 0 0 1px var(--glass-border),
+    0 8px 28px -6px rgb(10 10 16 / 0.22),
+    0 16px 56px -12px rgb(10 10 16 / 0.28);
+  --shadow-glow: 0 0 24px var(--glow), 0 8px 28px -8px rgb(10 10 16 / 0.25);
+}
+
+/* Glass layer: translucent, blurred, light-edged. Text-bearing content on
+   glass must still meet AA — use it for chrome (composer bar, popovers,
+   overlays), never as the only thing behind long-form copy. */
+@utility glass {
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--glass-border);
 }
 
 html,
@@ -102,18 +123,32 @@ html.dark {
 
 body {
   margin: 0;
-  background-color: #ffffff;
-  color: #0f172a;
+  background-color: var(--surface);
+  color: var(--fg);
   font-family: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-html.dark body {
-  background-color: #020617;
-  color: #e2e8f0;
+/* Headings carry the tight, confident tracking of the new identity. */
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}
+
+/* Timestamps, counters and stats line up. */
+time, [data-tabular] {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Flying emoji reactions: float up, sway side to side, grow and fade out. */

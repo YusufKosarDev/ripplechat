@@ -87,7 +87,8 @@ test.describe('UI flows', () => {
     await page.getByRole('button', { name: 'Sabitle' }).click()
 
     // The header now shows the pinned counter; opening it lists the message.
-    const pinnedButton = page.getByRole('button', { name: '📌 1' })
+    // The pin icon is aria-hidden now; the button's stable hook is its i18n title.
+    const pinnedButton = page.getByTitle('Sabitlenenler')
     await expect(pinnedButton).toBeVisible()
     await pinnedButton.click()
     await expect(page.getByText('Sabitlenenler')).toBeVisible()

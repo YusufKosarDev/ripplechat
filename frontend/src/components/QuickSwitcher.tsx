@@ -5,6 +5,7 @@ import { focusRing } from './ui/focusRing'
 import { useDialog } from './ui/useDialog'
 import { buildQuickItems, filterQuickItems } from './quickSwitcherItems'
 import { useT } from '../i18n'
+import { Zap } from 'lucide-react'
 
 interface QuickSwitcherProps {
   onClose: () => void
@@ -66,7 +67,7 @@ export default function QuickSwitcher({ onClose }: QuickSwitcherProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <span className="text-fg-faint" aria-hidden="true">⚡</span>
+          <span className="text-fg-faint" aria-hidden="true"><Zap className="h-4 w-4" /></span>
           <input
             autoFocus
             value={query}

@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { toggleTheme } from '../features/ui/uiSlice'
 import { focusRing } from './ui/focusRing'
 import { useT } from '../i18n'
+import { Moon, Sun } from 'lucide-react'
 
 export default function ThemeToggle() {
   const { t } = useT()
@@ -14,7 +15,7 @@ export default function ThemeToggle() {
       aria-label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')}
       className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
     >
-      <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
+      {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
     </button>
   )
 }

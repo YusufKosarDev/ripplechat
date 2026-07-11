@@ -6,6 +6,7 @@ import { showToast } from '../features/toast/toastSlice'
 import { useT } from '../i18n'
 import { client } from '../api/client'
 import { joinChannel } from '../features/channels/channelsSlice'
+import { Menu, Pin } from 'lucide-react'
 import {
   fetchMessages,
   loadOfflineMessages,
@@ -671,7 +672,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
       <section className="flex flex-1 flex-col">
         <div className="flex items-center border-b px-4 py-3 md:hidden border-border">
           <Button variant="secondary" onClick={onOpenSidebar}>
-            ☰ {t('chat.channels')}
+            <Menu className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden /> {t('chat.channels')}
           </Button>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
@@ -785,7 +786,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-sm font-semibold tracking-tight">📌 {t('chat.pinnedTitle')}</span>
+              <span className="text-sm font-semibold tracking-tight"><Pin className="mr-1 inline h-4 w-4 align-text-bottom" aria-hidden /> {t('chat.pinnedTitle')}</span>
               <button onClick={() => setShowPinned(false)} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
                 ✕
               </button>

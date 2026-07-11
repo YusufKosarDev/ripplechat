@@ -143,9 +143,9 @@ test('mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await stub(page)
   await page.goto('/chat')
-  // The sidebar is off-canvas on mobile — open it with the "☰ Kanallar"
+  // The sidebar is off-canvas on mobile — open it with the "Kanallar"
   // button first; picking a channel closes it again.
-  await page.getByRole('button', { name: '☰ Kanallar' }).click()
+  await page.getByRole('button', { name: 'Kanallar', exact: true }).click()
   await page.getByRole('button', { name: /genel/i }).first().click()
   await expect(page.getByText('hoş geldiniz', { exact: false })).toBeVisible()
   await page.addStyleTag({ content: HIDE_BANNER })

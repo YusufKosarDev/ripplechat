@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAppDispatch } from '../app/hooks'
 import { showToast } from '../features/toast/toastSlice'
 import { dateLocale, useT } from '../i18n'
+import { CalendarClock } from 'lucide-react'
 import {
   cancelScheduledMessage,
   listScheduledMessages,
@@ -87,7 +88,7 @@ export default function ScheduledMessagesModal({ channelId, initialDraft, onClos
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-sm font-semibold tracking-tight">⏰ {t('composer.scheduledAria')}</span>
+          <span className="text-sm font-semibold tracking-tight"><CalendarClock className="mr-1 inline h-4 w-4 align-text-bottom" aria-hidden /> {t('composer.scheduledAria')}</span>
           <button onClick={onClose} aria-label={t('common.close')} className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
