@@ -16,6 +16,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.register': 'Kayıt Ol',
     'landing.demoError': 'Demo girişi şu an yapılamadı, lütfen tekrar dene.',
     'landing.demoHint': 'Demo’yu Dene: hazır bir hesapla tek tıkla, kayıt gerekmez.',
+    'landing.productAlt': 'RippleChat kanal görünümü — koyu tema',
 
     'wake.starting': 'Sunucu uyanıyor…',
     'wake.slow': 'Ücretsiz sunucu uykudan kalkıyor — ilk ziyaret birkaç dakika sürebilir.',
@@ -485,6 +486,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.register': 'Sign up',
     'landing.demoError': 'Demo sign-in is unavailable right now, please try again.',
     'landing.demoHint': 'Try the demo: one click with a ready account, no sign-up needed.',
+    'landing.productAlt': 'RippleChat channel view — dark theme',
 
     'wake.starting': 'Server is waking up…',
     'wake.slow': 'The free-tier server is waking from sleep — the first visit can take a few minutes.',
