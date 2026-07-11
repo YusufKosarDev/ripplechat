@@ -10,6 +10,7 @@ import Button from '../ui/Button'
 import { focusRing } from '../ui/focusRing'
 import { isEncrypted } from '../../crypto/e2ee'
 import { dateLocale, useT } from '../../i18n'
+import { CornerUpRight, Hourglass, Lock, Pin, Timer } from 'lucide-react'
 
 // Loaded on demand: the TipTap editor is only needed when a message enters
 // edit mode (the composer lazy-loads the same chunk).
@@ -142,8 +143,8 @@ export default function MessageItem({
 
     return (
       <div>
-        {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint">↪ {t('msg.forwarded')}</div>}
-        {msg.pinned && <div className="mb-0.5 text-xs text-amber-600 dark:text-amber-500">📌 {t('msg.pinnedBadge')}</div>}
+        {msg.forwarded && <div className="mb-0.5 text-xs italic text-fg-faint"><CornerUpRight className="mr-0.5 inline h-3 w-3 align-text-bottom" aria-hidden /> {t('msg.forwarded')}</div>}
+        {msg.pinned && <div className="mb-0.5 text-xs text-amber-600 dark:text-amber-500"><Pin className="mr-0.5 inline h-3 w-3 align-text-bottom" aria-hidden /> {t('msg.pinnedBadge')}</div>}
         {msg.quotedMessageId && (
           <div className="mb-1 rounded-r border-l-2 border-accent/60 bg-surface-muted/60 py-0.5 pl-2 pr-2 text-xs">
             <span className="font-medium text-fg-secondary">{msg.quotedSender}</span>
@@ -152,7 +153,7 @@ export default function MessageItem({
         )}
         {encryptedMsg && shownContent === null ? (
           <span className="inline-flex items-center gap-1 text-sm italic text-fg-faint">
-            🔒{' '}
+            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />{' '}
             {!passphrase && !asymmetricKey
               ? t('msg.encLocked')
               : decryptFailed
@@ -188,12 +189,12 @@ export default function MessageItem({
         )}
         {msg.expiresAt && !msg.deleted && (
           <span className="text-xs text-fg-faint" title={t('msg.disappearsAt', { when: new Date(msg.expiresAt).toLocaleString(locale) })}>
-            ⏲️
+            <Timer className="inline h-3 w-3" aria-hidden />
           </span>
         )}
         {msg.sending && (
           <span className="ml-1.5 align-middle text-xs text-fg-faint animate-pulse" title={t('msg.sending')}>
-            ⏳
+            <Hourglass className="inline h-3 w-3" aria-hidden />
           </span>
         )}
         {!msg.sending && dm && dm.otherUser && mine && !msg.deleted && (

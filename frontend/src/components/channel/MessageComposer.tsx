@@ -7,6 +7,7 @@ import ReactionBar from '../ReactionBar'
 import CommandHints from '../CommandHints'
 import { focusRing } from '../ui/focusRing'
 import { useT } from '../../i18n'
+import { Clock, Mic, Paperclip, Smile, Square } from 'lucide-react'
 
 const EmojiPicker = lazy(() => import('../EmojiPicker'))
 const GifPicker = lazy(() => import('../GifPicker'))
@@ -173,7 +174,7 @@ export default function MessageComposer({
           aria-label={t('composer.attach')}
           title={t('composer.attach')}
         >
-          {uploading ? '…' : '📎'}
+          {uploading ? '…' : <Paperclip className="h-4 w-4" aria-hidden />}
         </Button>
         <Button
           type="button"
@@ -182,7 +183,7 @@ export default function MessageComposer({
           aria-label={t('composer.scheduledAria')}
           title={t('composer.scheduleTooltip')}
         >
-          ⏰
+          <Clock className="h-4 w-4" aria-hidden />
         </Button>
         <div className="relative">
           <Button
@@ -194,7 +195,7 @@ export default function MessageComposer({
             }}
             title="Emoji"
           >
-            😀
+            <Smile className="h-4 w-4" aria-hidden />
           </Button>
           {showEmoji && (
             <Suspense fallback={null}>
@@ -233,7 +234,7 @@ export default function MessageComposer({
           aria-label={recording ? t('composer.stopRecording') : t('composer.recordVoice')}
           title={recording ? t('composer.stopRecordingSend') : t('composer.voice')}
         >
-          {recording ? '⏹' : '🎤'}
+          {recording ? <Square className="h-4 w-4 fill-current" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
         </Button>
         <Suspense fallback={<div className="min-h-[44px] w-full flex-1 rounded-xl border border-border bg-surface" aria-hidden />}>
           <RichTextEditor

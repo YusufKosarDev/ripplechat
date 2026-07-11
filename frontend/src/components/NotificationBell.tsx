@@ -6,6 +6,7 @@ import { useT } from '../i18n'
 import type { NotificationItem } from '../api/types'
 import Avatar from './Avatar'
 import { focusRing } from './ui/focusRing'
+import { Bell } from 'lucide-react'
 
 function label(n: NotificationItem, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const who = n.actor.displayName ?? n.actor.username
@@ -48,7 +49,7 @@ export default function NotificationBell() {
         aria-label={unreadCount > 0 ? t('notifications.unreadAria', { count: unreadCount }) : t('notifications.title')}
         className={`relative rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
       >
-        🔔
+        <Bell className="h-4 w-4" aria-hidden />
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-semibold text-white">
             {unreadCount > 99 ? '99+' : unreadCount}

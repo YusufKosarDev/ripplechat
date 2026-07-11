@@ -12,6 +12,8 @@ import ThemeToggle from './ThemeToggle'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
 import { focusRing } from './ui/focusRing'
+import { BellOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { Bookmark, Compass, Search, ShieldCheck } from 'lucide-react'
 
 // Mounted only on user action, so their code is split into on-demand chunks
 // instead of riding along in the main chat bundle.
@@ -108,7 +110,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <span className="text-fg-faint">#</span> {channel.name}
           </span>
           <span className="flex shrink-0 items-center gap-1">
-            {muted[channel.id] && <span className="text-fg-faint" title={t('sidebar.muted')}>🔕</span>}
+            {muted[channel.id] && <span className="text-fg-faint" title={t('sidebar.muted')}><BellOff className="h-3.5 w-3.5" aria-hidden /></span>}
             {mentions[channel.id] && selectedId !== channel.id && (
               <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title={t('sidebar.mentioned')}>
                 @
@@ -145,14 +147,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 title={t('sidebar.search')}
                 className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
               >
-                🔍
+                <Search className="h-4 w-4" aria-hidden />
               </button>
               <button
                 onClick={() => setShowSaved(true)}
                 title={t('sidebar.saved')}
                 className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
               >
-                🔖
+                <Bookmark className="h-4 w-4" aria-hidden />
               </button>
               {user?.admin && (
                 <button
@@ -160,7 +162,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   title={t('sidebar.admin')}
                   className={`rounded-lg p-1 text-base leading-none text-fg-muted transition hover:text-fg ${focusRing}`}
                 >
-                  🛡️
+                  <ShieldCheck className="h-4 w-4" aria-hidden />
                 </button>
               )}
               <ThemeToggle />
@@ -208,7 +210,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                       onClick={() => toggleCat(cat)}
                       className={`flex w-full items-center gap-1 px-2 text-2xs font-semibold uppercase tracking-wider text-fg-faint transition hover:text-fg-muted ${focusRing}`}
                     >
-                      <span className="w-2">{collapsed ? '▸' : '▾'}</span> {cat}
+                      <span className="w-3">{collapsed ? <ChevronRight className="h-3 w-3" aria-hidden /> : <ChevronDown className="h-3 w-3" aria-hidden />}</span> {cat}
                     </button>
                     {!collapsed && (
                       <ul className="mt-1 space-y-0.5">
@@ -225,7 +227,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                     onClick={() => setShowArchived((s) => !s)}
                     className={`flex w-full items-center gap-1 px-2 text-2xs font-semibold uppercase tracking-wider text-fg-faint transition hover:text-fg-muted ${focusRing}`}
                   >
-                    <span className="w-2">{showArchived ? '▾' : '▸'}</span> {t('sidebar.archived')} ({archivedItems.length})
+                    <span className="w-3">{showArchived ? <ChevronDown className="h-3 w-3" aria-hidden /> : <ChevronRight className="h-3 w-3" aria-hidden />}</span> {t('sidebar.archived')} ({archivedItems.length})
                   </button>
                   {showArchived && <ul className="mt-1 space-y-0.5 opacity-70">{archivedItems.map(channelRow)}</ul>}
                 </div>
@@ -284,7 +286,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                       <span className="truncate">{name}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1">
-                      {muted[d.id] && <span className="text-fg-faint" title={t('sidebar.muted')}>🔕</span>}
+                      {muted[d.id] && <span className="text-fg-faint" title={t('sidebar.muted')}><BellOff className="h-3.5 w-3.5" aria-hidden /></span>}
                       {mentions[d.id] && selectedId !== d.id && (
                         <span className="rounded-full bg-accent px-1.5 py-0.5 text-2xs font-bold text-white" title={t('sidebar.mentioned')}>
                           @
@@ -339,7 +341,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             className="w-full"
             onClick={() => setShowDiscover(true)}
           >
-            🧭 {t('sidebar.discover')}
+            <Compass className="mr-1 inline h-4 w-4 align-text-bottom" aria-hidden /> {t('sidebar.discover')}
           </Button>
         </div>
       </aside>

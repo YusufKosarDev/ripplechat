@@ -5,6 +5,10 @@ import Button from '../ui/Button'
 import { focusRing } from '../ui/focusRing'
 import { ttlLabel, TTL_OPTIONS } from '../../features/channels/channelsSlice'
 import { dateLocale, useT } from '../../i18n'
+import {
+  Archive, ArchiveRestore, Bell, BellOff, FolderOpen, Image, Link2, Lock,
+  LockOpen, Menu, Phone, Pin, ShieldCheck, Sparkles, Timer, Users,
+} from 'lucide-react'
 
 interface ChannelHeaderProps {
   channel: Channel
@@ -90,12 +94,12 @@ export default function ChannelHeader({
     <header className={`flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 ${borderC}`}>
       <div className="flex min-w-0 items-center gap-3">
         <Button variant="secondary" size="sm" onClick={onOpenSidebar} className="shrink-0 md:hidden" title={t('chat.channels')}>
-          ☰
+          <Menu className="h-4 w-4" aria-hidden />
         </Button>
         {dm && dm.group ? (
           <>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-lg">
-              👥
+              <Users className="h-4 w-4" aria-hidden />
             </span>
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold tracking-tight">{channel.name}</h2>
@@ -147,15 +151,15 @@ export default function ChannelHeader({
           onClick={onMuteToggle}
           title={isMuted ? t('chat.unmute') : t('chat.mute')}
         >
-          {isMuted ? '🔕' : '🔔'}
+          {isMuted ? <BellOff className="h-4 w-4" aria-hidden /> : <Bell className="h-4 w-4" aria-hidden />}
         </Button>
         <Button variant="secondary" size="sm" title={t('chat.media')} onClick={onShowGallery}>
-          🖼️
+          <Image className="h-4 w-4" aria-hidden />
         </Button>
         {dm && (
           dmPartner?.publicKey ? (
             <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-500 bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 rounded" title={t('chat.e2eeAutoTooltip')}>
-              🔒 {t('chat.e2eeActive')}
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> {t('chat.e2eeActive')}
             </div>
           ) : (
             <Button
@@ -165,7 +169,7 @@ export default function ChannelHeader({
               title={passphrase ? t('chat.e2eeOn') : t('chat.e2ee')}
               onClick={onPassphraseToggle}
             >
-              {passphrase ? '🔒' : '🔓'}
+              {passphrase ? <Lock className="h-4 w-4" aria-hidden /> : <LockOpen className="h-4 w-4" aria-hidden />}
             </Button>
           )
         )}
@@ -177,7 +181,7 @@ export default function ChannelHeader({
               title={t('chat.category')}
               onClick={onSetCategory}
             >
-              📁
+              <FolderOpen className="h-4 w-4" aria-hidden />
             </Button>
             <Button
               variant="secondary"
@@ -185,7 +189,7 @@ export default function ChannelHeader({
               title={isArchived ? t('chat.unarchive') : t('chat.archive')}
               onClick={onToggleArchive}
             >
-              {isArchived ? '📂' : '🗄️'}
+              {isArchived ? <ArchiveRestore className="h-4 w-4" aria-hidden /> : <Archive className="h-4 w-4" aria-hidden />}
             </Button>
             <div className="relative">
               <Button
@@ -194,7 +198,7 @@ export default function ChannelHeader({
                 title={t('chat.disappearing')}
                 onClick={() => setShowTtl((s) => !s)}
               >
-                {channel.messageTtlSeconds ? `⏲️ ${ttlLabel(channel.messageTtlSeconds, t)}` : '⏲️'}
+                <Timer className="h-4 w-4" aria-hidden />{channel.messageTtlSeconds ? <span className="ml-1">{ttlLabel(channel.messageTtlSeconds, t)}</span> : null}
               </Button>
               {showTtl && (
                 <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface-overlay py-1 shadow-elevated">
@@ -234,17 +238,17 @@ export default function ChannelHeader({
             onClick={onCallStart}
             title={t('chat.call')}
           >
-            📞
+            <Phone className="h-4 w-4" aria-hidden />
           </Button>
         )}
         {aiEnabled && (
           <Button variant="secondary" size="sm" onClick={onSummarize} disabled={summarizing || isE2EE} title={isE2EE ? t('chat.summarizeE2ee') : t('chat.summarizeTooltip')}>
-            {summarizing ? '✨ ...' : `✨ ${t('chat.summarize')}`}
+            <Sparkles className="h-4 w-4" aria-hidden />{summarizing ? '…' : t('chat.summarize')}
           </Button>
         )}
         {pinnedLength > 0 && (
           <Button variant="secondary" size="sm" onClick={onShowPinned} title={t('chat.pinnedTitle')}>
-            📌 {pinnedLength}
+            <Pin className="h-4 w-4" aria-hidden /> {pinnedLength}
           </Button>
         )}
         {(!dm || dm.group) && (
@@ -254,7 +258,7 @@ export default function ChannelHeader({
         )}
         {!dm && canModerate && (
           <Button variant="secondary" size="sm" onClick={onShowWebhooks} title={t('chat.webhooks')}>
-            🔗
+            <Link2 className="h-4 w-4" aria-hidden />
           </Button>
         )}
       </div>
