@@ -68,6 +68,12 @@ function getKey(channelId: string, passphrase: string): Promise<CryptoKey> {
 const PREFIX_GROUP = 'enc:group:'
 const groupKeysCache = new Map<string, Map<string, CryptoKey>>()
 
+/**
+ * Sentinel stored in place of a plaintext when decryption fails, so the UI can
+ * tell "not decrypted yet" (undefined) apart from "cannot be decrypted".
+ */
+export const DECRYPT_FAILED = '__rc_decrypt_failed__'
+
 export function isEncrypted(content: string | null | undefined): boolean {
   return typeof content === 'string' && (content.startsWith(PREFIX) || content.startsWith(PREFIX_V2) || content.startsWith(PREFIX_GROUP))
 }
