@@ -8,7 +8,7 @@ import MessageReactions from '../MessageReactions'
 import MessageActions from '../MessageActions'
 import Button from '../ui/Button'
 import { focusRing } from '../ui/focusRing'
-import { isEncrypted } from '../../crypto/e2ee'
+import { DECRYPT_FAILED, isEncrypted } from '../../crypto/e2ee'
 import { dateLocale, useT } from '../../i18n'
 import { CornerUpRight, Hourglass, Lock, Pin, Timer } from 'lucide-react'
 
@@ -17,8 +17,6 @@ import { CornerUpRight, Hourglass, Lock, Pin, Timer } from 'lucide-react'
 const RichTextEditor = lazy(() =>
   import('../ui/RichTextEditor').then((m) => ({ default: m.RichTextEditor })),
 )
-
-const DECRYPT_FAILED = '__rc_decrypt_failed__'
 
 interface MessageItemProps {
   msg: Message
