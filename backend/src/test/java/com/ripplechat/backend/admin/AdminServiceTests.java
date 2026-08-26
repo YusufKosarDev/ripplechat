@@ -38,12 +38,19 @@ class AdminServiceTests extends AbstractIntegrationTest {
     @Test
     void adminSeesOverviewAndUsers() {
         makeAdmin("root");
+        // The overview counts every row in the database, and the integration
+        // tests share one PostgreSQL container: any class that commits a user
+        // outside its rollback shifts the absolute totals, and class execution
+        // order is not fixed. Assert on the delta this test causes instead.
+        var before = adminService.overview("root");
+
         createUser("bob");
+        var after = adminService.overview("root");
 
-        var overview = adminService.overview("root");
-        assertThat(overview.totalUsers()).isEqualTo(2);
-        assertThat(overview.admins()).isEqualTo(1);
+        assertThat(after.totalUsers()).isEqualTo(before.totalUsers() + 1);
+        assertThat(after.admins()).isEqualTo(before.admins());
 
+        // Ordered newest-first, so the two users just created are on page 0.
         assertThat(adminService.listUsers("root", PageRequest.of(0, 10)).content())
                 .extracting(AdminUserView::username)
                 .contains("root", "bob");
