@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { Channel, Message } from '../../api/types'
+import type { Channel, MemberResponse, Message } from '../../api/types'
 import Button from '../ui/Button'
 import Avatar from '../Avatar'
 import ReactionBar from '../ReactionBar'
@@ -34,7 +34,7 @@ interface MessageComposerProps {
   onPickGif: (url: string) => void
   cmdError: string | null
   typingText: string
-  members: any[]
+  members: MemberResponse[]
   currentUser: { id: string; username: string; displayName?: string | null; avatarColor?: string | null; avatarUrl?: string | null } | null
   focusTrigger: number
   onPickCommand: (name: string) => void

@@ -1,5 +1,5 @@
-/* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect, react-hooks/purity */
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { showToast } from '../features/toast/toastSlice'
@@ -161,7 +161,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const jumpTargetId = useAppSelector((state) => state.ui.jumpTargetId)
   const isArchived = useAppSelector((state) => (selectedId ? !!state.channelOrg.archived[selectedId] : false))
   const currentCategory = useAppSelector((state) => (selectedId ? (state.channelOrg.category[selectedId] ?? '') : ''))
-  const messages = selectedId ? (byChannel[selectedId] ?? []) : []
+  const messages = useMemo(() => selectedId ? (byChannel[selectedId] ?? []) : [], [selectedId, byChannel])
   const channelPaging = selectedId ? paging[selectedId] : undefined
   const polls = selectedId ? (pollsByChannel[selectedId] ?? []) : []
   const forbidden = loadError?.channelId === selectedId && loadError.forbidden

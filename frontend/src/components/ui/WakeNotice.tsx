@@ -15,6 +15,7 @@ export default function WakeNotice({ show }: { show: boolean }) {
 
   useEffect(() => {
     if (!show) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset when the notice hides
       setElapsed(0)
       return
     }

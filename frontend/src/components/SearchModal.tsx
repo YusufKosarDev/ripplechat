@@ -75,6 +75,7 @@ export default function SearchModal({ onPick, onClose }: SearchModalProps) {
     const term = query.trim()
     if (!term) {
       // Query cleared: drop stale results and stop any pending spinner.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional guard reset
       setResults([])
       setHasMore(false)
       setLoading(false)

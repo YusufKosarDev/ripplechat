@@ -83,7 +83,7 @@ async function getOrGenerateLocalSenderKey(channelId: string): Promise<string> {
   const db = await getDB()
   if (db) {
     const raw = await db.get('crypto_keys', cacheKey)
-    if (raw) return raw as any
+    if (raw) return raw as string
   }
   const randomBytes = crypto.getRandomValues(new Uint8Array(32))
   const keyB64 = toBase64(randomBytes)
@@ -136,7 +136,7 @@ export async function encryptText(
   }
 
   const keyBytes = fromBase64(senderKeyB64)
-  const aesKey = await crypto.subtle.importKey('raw', keyBytes as any, 'AES-GCM', false, ['encrypt'])
+  const aesKey = await crypto.subtle.importKey('raw', keyBytes as BufferSource, 'AES-GCM', false, ['encrypt'])
   const msgIv = crypto.getRandomValues(new Uint8Array(12))
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: msgIv },
@@ -184,7 +184,7 @@ export async function decryptText(
   if (senderId === currentUserId) {
     const senderKeyB64 = await getOrGenerateLocalSenderKey(channelId)
     const keyBytes = fromBase64(senderKeyB64)
-    senderKey = await crypto.subtle.importKey('raw', keyBytes as any, 'AES-GCM', false, ['decrypt'])
+    senderKey = await crypto.subtle.importKey('raw', keyBytes as BufferSource, 'AES-GCM', false, ['decrypt'])
   } else {
     if (!groupKeysCache.has(channelId)) {
       groupKeysCache.set(channelId, new Map())
@@ -210,9 +210,9 @@ export async function decryptText(
           try {
             const [kIvPart, kCtPart] = entry.encryptedKey.slice('enc:groupkey:'.length).split('.')
             const decryptedKeyBytes = await crypto.subtle.decrypt(
-              { name: 'AES-GCM', iv: fromBase64(kIvPart) as any },
+              { name: 'AES-GCM', iv: fromBase64(kIvPart) as BufferSource },
               stretchedKey,
-              fromBase64(kCtPart) as any
+              fromBase64(kCtPart) as BufferSource
             )
             const decKeyB64 = new TextDecoder().decode(decryptedKeyBytes)
 
@@ -221,7 +221,7 @@ export async function decryptText(
             }
 
             const kBytes = fromBase64(decKeyB64)
-            const cryptoKey = await crypto.subtle.importKey('raw', kBytes as any, 'AES-GCM', false, ['decrypt'])
+            const cryptoKey = await crypto.subtle.importKey('raw', kBytes as BufferSource, 'AES-GCM', false, ['decrypt'])
             channelKeys.set(entry.senderId, cryptoKey)
 
             if (entry.senderId === senderId) {
@@ -233,7 +233,7 @@ export async function decryptText(
         }
       } else {
         const kBytes = fromBase64(senderKeyB64)
-        const cryptoKey = await crypto.subtle.importKey('raw', kBytes as any, 'AES-GCM', false, ['decrypt'])
+        const cryptoKey = await crypto.subtle.importKey('raw', kBytes as BufferSource, 'AES-GCM', false, ['decrypt'])
         channelKeys.set(senderId, cryptoKey)
         senderKey = cryptoKey
       }
@@ -245,9 +245,9 @@ export async function decryptText(
   }
 
   const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: fromBase64(ivPart) as any },
+    { name: 'AES-GCM', iv: fromBase64(ivPart) as BufferSource },
     senderKey,
-    fromBase64(ctPart) as any
+    fromBase64(ctPart) as BufferSource
   )
 
   return new TextDecoder().decode(plaintext)

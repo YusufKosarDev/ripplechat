@@ -14,22 +14,22 @@ import { client } from '../api/client'
 const CHANNEL = '11111111-1111-1111-1111-111111111111'
 
 // Mocking IndexedDB local database for the test
-let activeDb = new Map<string, any>()
+let activeDb = new Map<string, unknown>()
 
 vi.mock('../db', () => ({
   getDB: async () => ({
     get: async (store: string, key: string) => activeDb.get(`${store}:${key}`) || null,
-    put: async (store: string, val: any, key: string) => { activeDb.set(`${store}:${key}`, val) },
+    put: async (store: string, val: unknown, key: string) => { activeDb.set(`${store}:${key}`, val) },
     delete: async (store: string, key: string) => { activeDb.delete(`${store}:${key}`) },
   }),
   getAsymmetricKeyPair: async () => activeDb.get('asymmetric_keypair') || null,
-  saveAsymmetricKeyPair: async (pair: any) => { activeDb.set('asymmetric_keypair', pair) },
-  saveSignedPreKeyPair: async (id: number, pair: any) => { activeDb.set('current_spk', { ...pair, keyId: id }) },
+  saveAsymmetricKeyPair: async (pair: unknown) => { activeDb.set('asymmetric_keypair', pair) },
+  saveSignedPreKeyPair: async (id: number, pair: CryptoKeyPair) => { activeDb.set('current_spk', { ...pair, keyId: id }) },
   getSignedPreKeyPair: async () => activeDb.get('current_spk') || null,
-  saveOneTimePreKeyPair: async (id: number, pair: any) => { activeDb.set(`otpk:${id}`, pair) },
+  saveOneTimePreKeyPair: async (id: number, pair: unknown) => { activeDb.set(`otpk:${id}`, pair) },
   getOneTimePreKeyPair: async (id: number) => activeDb.get(`otpk:${id}`) || null,
   deleteOneTimePreKeyPair: async (id: number) => { activeDb.delete(`otpk:${id}`) },
-  saveRatchetSession: async (peerId: string, session: any) => { activeDb.set(`session:${peerId}`, session) },
+  saveRatchetSession: async (peerId: string, session: unknown) => { activeDb.set(`session:${peerId}`, session) },
   getRatchetSession: async (peerId: string) => activeDb.get(`session:${peerId}`) || null,
   saveDecryptedCache: async (ciphertext: string, plaintext: string) => { activeDb.set(`cache:${ciphertext}`, plaintext) },
   getDecryptedCache: async (ciphertext: string) => activeDb.get(`cache:${ciphertext}`) || null,
@@ -49,12 +49,12 @@ describe('e2ee', () => {
   })
   it('round-trips a message with the right passphrase', async () => {
     const members = [{ user: { id: 'u-bob' } }]
-    let uploadedKeys: any[] = []
+    let uploadedKeys: { recipientId: string; encryptedKey: string }[] = []
 
     const mockPost = vi.mocked(client.post)
     mockPost.mockImplementation(async (url, payload) => {
       if (url.includes('/api/e2ee/group-keys/')) {
-        uploadedKeys = payload as any[]
+        uploadedKeys = payload as { recipientId: string; encryptedKey: string }[]
       }
       return { status: 200, data: {} }
     })
@@ -82,12 +82,12 @@ describe('e2ee', () => {
 
   it('fails to decrypt with the wrong passphrase', async () => {
     const members = [{ user: { id: 'u-bob' } }]
-    let uploadedKeys: any[] = []
+    let uploadedKeys: { recipientId: string; encryptedKey: string }[] = []
 
     const mockPost = vi.mocked(client.post)
     mockPost.mockImplementation(async (url, payload) => {
       if (url.includes('/api/e2ee/group-keys/')) {
-        uploadedKeys = payload as any[]
+        uploadedKeys = payload as { recipientId: string; encryptedKey: string }[]
       }
       return { status: 200, data: {} }
     })
@@ -153,8 +153,8 @@ describe('e2ee', () => {
   })
 
   it('round-trips E2EE v2 with Double Ratchet and X3DH', async () => {
-    const aliceDb = new Map<string, any>()
-    const bobDb = new Map<string, any>()
+    const aliceDb = new Map<string, unknown>()
+    const bobDb = new Map<string, unknown>()
 
     // 1. Generate identity keys for Alice and Bob
     const aliceIdentity = await window.crypto.subtle.generateKey(

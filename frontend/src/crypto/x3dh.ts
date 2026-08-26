@@ -93,7 +93,7 @@ export async function x3dhSender(
   const isValid = await crypto.subtle.verify(
     { name: 'ECDSA', hash: { name: 'SHA-256' } },
     bobSigningPublicKey,
-    signatureBytes as any,
+    signatureBytes as BufferSource,
     rawSignedPreKeyPublic
   )
 

@@ -25,6 +25,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
 
   useEffect(() => {
     if (!msg.e2eeAttachment) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset when attachment changes
       setDecryptedUrl(null)
       setError(false)
       return
@@ -42,7 +43,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
         // Import the AES-GCM decryption key
         const key = await crypto.subtle.importKey(
           'raw',
-          fromBase64(msg.e2eeAttachment!.key) as any,
+          fromBase64(msg.e2eeAttachment!.key) as BufferSource,
           'AES-GCM',
           false,
           ['decrypt']
@@ -50,7 +51,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
 
         // Decrypt the attachment payload
         const decryptedBytes = await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: fromBase64(msg.e2eeAttachment!.iv) as any },
+          { name: 'AES-GCM', iv: fromBase64(msg.e2eeAttachment!.iv) as BufferSource },
           key,
           encryptedBytes
         )
