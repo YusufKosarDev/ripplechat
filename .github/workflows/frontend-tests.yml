@@ -26,6 +26,13 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      # Warnings are failures here: the only thing lint currently reports are
+      # eslint-disable directives that have stopped suppressing anything, and
+      # those are exactly what silently accumulates when nothing gates them.
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint -- --max-warnings 0
+
       - name: Run tests with coverage
         working-directory: frontend
         run: npm run test:coverage

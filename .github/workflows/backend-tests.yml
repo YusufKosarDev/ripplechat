@@ -8,6 +8,13 @@ on:
   pull_request:
     paths:
       - 'backend/**'
+  # The path filters mean a run-of-the-mill frontend week leaves the README's
+  # backend badge showing a result from weeks ago. A weekly run keeps it honest
+  # and catches breakage from the environment (base images, Testcontainers)
+  # rather than from a commit.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 jobs:
   test:
