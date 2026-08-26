@@ -99,6 +99,7 @@ export function useChannelSocket({
 
   useEffect(() => {
     if (!channelId) return
+    const currentReactionTimers = reactionTimers.current
 
     watchChannel(channelId, {
       onMessage: (msg: Message) => {
@@ -150,9 +151,10 @@ export function useChannelSocket({
     onRefreshPinned(channelId)
 
     return () => {
-      // Clear timers on cleanup
+      // Clear timers on cleanup — capture ref values from the effect body so
+      // the cleanup references the snapshot, not the potentially-stale ref.
       const typing = typingTimers.current
-      const reactions = reactionTimers.current
+      const reactions = currentReactionTimers
       Object.values(typing).forEach(clearTimeout)
       typingTimers.current = {}
       reactions.forEach(clearTimeout)

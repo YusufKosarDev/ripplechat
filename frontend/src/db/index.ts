@@ -25,7 +25,7 @@ interface RippleChatDB extends DBSchema {
   }
   crypto_keys: {
     key: string
-    value: any
+    value: string | CryptoKeyPair
   }
   ratchet_sessions: {
     key: string // channelId or recipientUserId
@@ -81,11 +81,21 @@ export function getDB() {
   return dbPromise
 }
 
+// The crypto_keys store is shared: identity/pre-key pairs live next to the
+// base64 sender keys and upload flags that e2ee.ts writes. Narrow on read so a
+// key written under the wrong shape surfaces as "absent" rather than as a
+// CryptoKeyPair the Web Crypto calls would choke on.
+function asKeyPair(
+  value: string | CryptoKeyPair | undefined,
+): { publicKey: CryptoKey; privateKey: CryptoKey } | null {
+  return value && typeof value !== 'string' ? value : null
+}
+
 export async function getAsymmetricKeyPair(): Promise<{ publicKey: CryptoKey; privateKey: CryptoKey } | null> {
   if (typeof indexedDB === 'undefined') return null
   const db = await getDB()
   if (!db) return null
-  return (await db.get('crypto_keys', 'asymmetric_keypair')) || null
+  return asKeyPair(await db.get('crypto_keys', 'asymmetric_keypair'))
 }
 
 export async function saveAsymmetricKeyPair(keyPair: { publicKey: CryptoKey; privateKey: CryptoKey }) {
@@ -190,7 +200,7 @@ export async function getOneTimePreKeyPair(keyId: number): Promise<{ publicKey: 
   if (typeof indexedDB === 'undefined') return null
   const db = await getDB()
   if (!db) return null
-  return (await db.get('crypto_keys', `otpk:${keyId}`)) || null
+  return asKeyPair(await db.get('crypto_keys', `otpk:${keyId}`))
 }
 
 export async function deleteOneTimePreKeyPair(keyId: number) {
@@ -263,7 +273,7 @@ export async function getDecryptedCache(ciphertext: string): Promise<string | nu
       ct
     )
     return new TextDecoder().decode(decrypted)
-  } catch (err) {
+  } catch {
     // If decryption fails (e.g. tab reloaded/key reset), return null gracefully
     // so the client falls back to standard key exchange / ratchet decryption.
     return null

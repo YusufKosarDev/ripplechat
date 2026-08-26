@@ -172,7 +172,7 @@ export default function MessageItem({
                   attachmentName: e2eeAttachment.name,
                   attachmentType: e2eeAttachment.type,
                   e2eeAttachment,
-                } as any)
+                } as Message)
               : msg
           }
         />

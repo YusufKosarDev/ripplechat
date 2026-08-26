@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react'
 import type { RefObject } from 'react'
-import { Virtuoso } from 'react-virtuoso'
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import type { Message, Poll, DirectChannel } from '../../api/types'
 import SkeletonLoader from '../ui/SkeletonLoader'
 import PollCard from '../PollCard'
@@ -100,7 +100,7 @@ export default function MessageList({
   const { t, lang } = useT()
   const locale = dateLocale(lang)
   const firstItemIndex = Math.max(0, START_INDEX - messages.length)
-  const virtuosoRef = useRef<any>(null)
+  const virtuosoRef = useRef<VirtuosoHandle>(null)
 
   // Scroll to bottom when a new message is added
   useEffect(() => {

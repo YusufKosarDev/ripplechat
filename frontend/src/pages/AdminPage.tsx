@@ -69,7 +69,10 @@ export default function AdminPage() {
   }, [t])
 
   // Hooks must run unconditionally; the access guard is a render-time redirect below.
+  // load() is async — its setState calls execute after awaited promises, not
+  // synchronously inside the effect body, so this is a false positive.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() is async; setState runs after await
     if (me?.admin) load()
   }, [me?.admin, load])
 
