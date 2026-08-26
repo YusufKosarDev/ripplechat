@@ -269,6 +269,12 @@ export function setPresenceHandler(handler: PresenceHandler) {
 
 /** Subscribes to the current user's personal activity-notification topic. */
 export function setNotificationHandler(username: string, handler: (n: NotificationItem) => void) {
+  // Switching users has to drop the old topic first; resolveNotifications()
+  // no-ops while a subscription is still live.
+  if (notificationSub && desiredNotifications?.username !== username) {
+    notificationSub.unsubscribe()
+    notificationSub = null
+  }
   desiredNotifications = { username, handler }
   resolveNotifications()
 }
@@ -401,6 +407,8 @@ export function disconnectChat() {
   readSub?.unsubscribe()
   presenceSub?.unsubscribe()
   threadSub?.unsubscribe()
+  callSignalSub?.unsubscribe()
+  notificationSub?.unsubscribe()
   allChannelSubs.forEach((s) => s.unsubscribe())
   messageSub = null
   typingSub = null
@@ -413,10 +421,17 @@ export function disconnectChat() {
   readSub = null
   presenceSub = null
   threadSub = null
+  callSignalSub = null
+  notificationSub = null
   allChannelSubs = new Map()
   desired = null
   desiredThread = null
   desiredAll = null
+  // Must be cleared too: it is keyed by username, so leaving it behind made the
+  // next sign-in resubscribe to the previous user's notification topic — and
+  // the `notificationSub` guard then blocked the new user's own subscription,
+  // leaving their activity centre silent until a full reload.
+  desiredNotifications = null
   presenceHandler = null
   handlers = {}
   hasConnectedBefore = false
