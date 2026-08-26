@@ -7,7 +7,7 @@
 **Real-time, community-driven messaging platform** — a Slack/Discord-style workspace where channels, threads, reactions, and presence all update live over WebSockets. Built with a Spring Boot backend and a React + TypeScript frontend.
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
@@ -156,7 +156,7 @@ k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messa
 
 **Backend**
 - Java 21
-- Spring Boot 3.5
+- Spring Boot 4.1 (Framework 7, Jackson 3)
 - Spring Security (JWT access + rotating refresh tokens, HS384)
 - Spring Data JPA · Spring Data Redis · Spring Data Elasticsearch
 - Spring WebSocket (STOMP messaging)
@@ -205,7 +205,7 @@ flowchart TB
         SEC["Web Crypto E2EE ·<br/>Service Worker · IndexedDB"]
     end
 
-    subgraph Backend["☕ Spring Boot 3.5 — modular monolith · multiple replicas"]
+    subgraph Backend["☕ Spring Boot 4.1 — modular monolith · multiple replicas"]
         direction TB
         JWT["JWT auth filter +<br/>per-request rate limit"]
         REST["REST controllers<br/>/api/**"]
@@ -279,7 +279,7 @@ cp .env.example .env
 
 Edit `.env` and set real values — most importantly a strong `JWT_SECRET` (≥ 32 bytes; generate one with `openssl rand -hex 48`) and your PostgreSQL credentials.
 
-> The Vite dev server proxies API and WebSocket traffic to the backend on **port 8081**, so set `SERVER_PORT=8081` in your `.env` for local development.
+> The Vite dev server proxies API and WebSocket traffic to the backend on **port 8081**, which is what `SERVER_PORT` already defaults to in `.env.example` — change it only if you also change the proxy in `frontend/vite.config.ts`.
 
 ### 2. Start PostgreSQL
 
