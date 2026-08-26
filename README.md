@@ -20,6 +20,26 @@
 [![Frontend tests](https://github.com/YusufKosarDev/ripplechat/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/YusufKosarDev/ripplechat/actions/workflows/frontend-tests.yml)
 [![E2E tests](https://github.com/YusufKosarDev/ripplechat/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/YusufKosarDev/ripplechat/actions/workflows/e2e-tests.yml)
 
+**[Live demo](https://ripplechat-app.vercel.app)** · **[API docs](https://ripplechat-backend.onrender.com/swagger-ui.html)** · demo account `demo` / `demo1234`
+
+### In one minute
+
+A full chat product rather than a chat demo: channels, DMs and group DMs, threads, reactions,
+polls, presence and typing indicators all travel over one authenticated STOMP connection, and the
+backend is built to run as **more than one replica** — which is where most of the interesting work is.
+
+Five things worth a look if you are skimming:
+
+| | |
+|---|---|
+| **Signal protocol, from scratch** | Double Ratchet + X3DH over the Web Crypto API for 1:1 DMs — forward secrecy and break-in recovery, with prekeys published to the server and plaintexts cached only in the browser ([`crypto/`](frontend/src/crypto)) |
+| **Horizontally scalable WebSockets** | a Redis Pub/Sub bridge fans a message published on one replica out to subscribers connected to any other; rate limits are an atomic Redis token bucket rather than per-instance counters |
+| **Correct under concurrency** | `@Scheduled` sweeps are wrapped in ShedLock so exactly one replica runs each tick, and media cleanup goes through a transactional outbox instead of a best-effort delete |
+| **A JVM that starts fast** | the image unpacks the fat jar, does a CDS training run and maps the class archive back in at boot — about 35% off startup, which matters on a free-tier host |
+| **Tested where it counts** | 175 backend integration tests against real PostgreSQL and Redis (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 20 Playwright end-to-end scenarios |
+
+Built solo over ~5 weeks, 280+ commits.
+
 ---
 
 ## 🔗 Live Demo
@@ -27,7 +47,9 @@
 - **App:** <https://ripplechat-app.vercel.app>
 - **API docs (Swagger UI):** <https://ripplechat-backend.onrender.com/swagger-ui.html>
 
-> Hosted on free tiers. The backend (Render) is kept awake by an external uptime monitor, and the frontend additionally pings it on page load, so the demo is usually ready immediately. Rarely — right after a redeploy or a missed monitor ping — the first request can still hit a cold start of a few minutes; the UI shows a "waking up" notice while it boots. On the landing page, click **“Demo’yu Dene”** for a one-click guided account — no signup needed.
+> Hosted on free tiers. The backend (Render) is kept awake by an external uptime monitor, and the frontend additionally pings it on page load, so the demo is usually ready immediately. Rarely — right after a redeploy or a missed monitor ping — the first request can still hit a cold start of a few minutes; the UI shows a "waking up" notice while it boots. On the landing page, click **“Try the demo”** for a one-click guided account — no signup needed.
+>
+> The UI follows your browser language (English or Turkish) and there is a toggle in the top-right corner.
 
 **Demo account** (or log in manually):
 
@@ -43,7 +65,11 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ## ✨ Features
 
-### ⚡ Real-time & Communication
+Every third-party service below is optional — the app boots and degrades gracefully without it.
+
+<details>
+<summary><b>⚡ Real-time & Communication</b></summary>
+
 - **Live messaging** over WebSocket / STOMP — messages fan out instantly to every subscriber of a channel
 - **Distributed Pub/Sub (Redis)** — horizontally scalable WebSockets; messages published on any node are reliably broadcasted to users connected to other nodes via Redis Pub/Sub
 - **Voice & Video Calls (WebRTC)** — peer-to-peer secure WebRTC calls with **screen sharing** (swapped in via `replaceTrack`, no renegotiation), local/remote stream rendering, mute/video toggles, and signaling via STOMP
@@ -52,37 +78,57 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Typing indicators** — know when someone in the channel is composing a message
 - **Automatic reconnection** — the client recovers transparently from dropped connections, with a visible connection banner
 
-### 💬 Messaging
+</details>
+
+<details>
+<summary><b>💬 Messaging</b></summary>
+
 - **Channels** with membership management, plus a **discover view** to browse and join the public channels you're not in yet (instead of only joining by id)
 - **Direct messages** — private 1:1 conversations, plus **group DMs** (multi-party), reusing the same real-time pipeline
 - **Threads** — keep focused reply chains off the main timeline
-- **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view). Edited messages carry a **"(düzenlendi)"** badge that opens the full **edit history** — every superseded version is snapshotted and timestamped
+- **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view). Edited messages carry an **"(edited)"** badge that opens the full **edit history** — every superseded version is snapshotted and timestamped
 - **Quote-reply** to a specific message, **forward** messages to other chats, and **pin** important messages
 - **Saved messages** — bookmark any message and revisit them in a dedicated saved-items list (per-user, jump straight back to the message)
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
-- **AI channel summarization (Claude)** — a "✨ Özetle" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-3-5-sonnet-20241022` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
+- **AI channel summarization (Claude)** — a "✨ Summarize" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-3-5-sonnet-20241022` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
 - **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying. **Gracefully degrades** to PostgreSQL full-text when Elasticsearch is unavailable, so the app still boots and search keeps working
 - **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
 
-### 🎉 Interaction
+</details>
+
+<details>
+<summary><b>🎉 Interaction</b></summary>
+
 - **Persistent emoji reactions** on any message, plus a **full emoji picker**
 - **Live flying emoji** — reactions burst across the screen in real time
 - **GIFs** — search and send GIFs from a picker (Giphy)
 - **Polls** — create and vote on polls right inside a channel (`/poll`)
 - **Slash commands** — an extensible command system (`/poll`, `/giphy`, `/shrug`, `/remind`)
 
-### 📎 Media & attachments
+</details>
+
+<details>
+<summary><b>📎 Media & attachments</b></summary>
+
 - **Image, file, and voice-message attachments** (recorded in-browser), stored on Cloudinary
 - **Automatic Storage Cleanup** — media files hosted on Cloudinary are reliably and automatically purged when the owning message is deleted
 - **Per-channel media gallery** of shared images
 - **Link previews** — URLs unfurl into title/description/image cards (server-side, SSRF-guarded)
 
-### 🔌 Integrations
+</details>
+
+<details>
+<summary><b>🔌 Integrations</b></summary>
+
 - **Incoming webhooks** — a channel moderator mints a token'd URL; external systems (CI, monitoring, …) POST `{"text":"..."}` and it lands in the channel as a dedicated **bot** identity. Only the token's **SHA-256 hash** is stored (the URL is shown once), the ingest endpoint is **rate-limited**, and bot accounts are hidden from people-search
 
-### 🔔 Presence & notifications
+</details>
+
+<details>
+<summary><b>🔔 Presence & notifications</b></summary>
+
 - **Presence** and **last-seen** timestamps · **typing indicators**
 - **Custom status** — an emoji + short text (with optional auto-expiry) shown next to your name and in DM headers
 - **Do Not Disturb** — pause web-push notifications for a chosen window (30 min / 1 h / 8 h)
@@ -91,7 +137,11 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Web push notifications** (VAPID) for messages while you're away — suppressed while you're in Do Not Disturb
 - **Mute** channels and DMs · **unread badges** with a live count in the browser tab title
 
-### 🔐 Security & privacy
+</details>
+
+<details>
+<summary><b>🔐 Security & privacy</b></summary>
+
 - **Two-Factor Authentication (2FA)** — TOTP-based multi-factor authentication via Google Authenticator/Authy using a secure Pre-Auth JWT handshake, with **single-use recovery codes** (shown once at enrollment, hash-only storage) that stand in for the authenticator at login and can be regenerated
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
 - **Password reset & email verification** — token'd, single-use, expiring links delivered by email (only the SHA-256 hash is stored). The forgot-password endpoint is rate-limited and never reveals whether an address is registered; a reset ends every existing session. Email gracefully degrades to logging the link when no SMTP server is configured, so the flows work in development
@@ -109,7 +159,11 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Security audit log** — authentication events (login success/failure/throttle, registration, refresh, logout) on a dedicated logger, correlated by request id
 - **Admin panel** — global platform administrators (bootstrapped from `ADMIN_USERNAMES` — re-applied on every boot, so those users are effectively permanent admins — with further grants self-managed in-app) get a dedicated panel: headline stats (users, admins, channels, messages), a user table to **grant/revoke admin** and **disable/ban** accounts (a disabled user can't sign in; admins can't lock themselves out), and a **persisted audit trail** of every admin action. Access is gated server-side on the user's admin flag
 
-### 🎨 Experience & platform
+</details>
+
+<details>
+<summary><b>🎨 Experience & platform</b></summary>
+
 - **Quick switcher** — `Ctrl`/`Cmd`+`K` opens a Slack-style palette to jump between channels and DMs with full keyboard navigation
 - **Light / dark theme** toggle and a **responsive** layout that adapts to mobile
 - **Offline-First PWA** — progressive web app with a service worker (`vite-plugin-pwa`) that caches UI assets and uses **IndexedDB** (`idb`) to store messages locally. Users can read history and send "pending" messages while offline, which automatically sync to the backend when the network recovers.
@@ -119,9 +173,13 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **Fast first load** — route-level code splitting and on-demand chunks (pickers, syntax highlighter), plus gzip-compressed API responses
 - **Disappearing messages** — an optional per-channel timer auto-deletes messages after it elapses
 - **Channel organization** — categories and archiving · **profile & settings** (display name, avatar image/color, password)
-- **Tested** — backend integration tests on real PostgreSQL (Testcontainers) incl. a STOMP realtime test, frontend unit tests (Vitest), end-to-end + accessibility tests (Playwright), architecture tests (ArchUnit) and mutation testing (PITest) — all wired into CI
+- **Tested** — see [Testing](#-testing) for what is covered where; everything below runs in CI
 
-### 📊 Observability & operations
+</details>
+
+<details>
+<summary><b>📊 Observability & operations</b></summary>
+
 - **RFC 7807 problem responses** — every error (validation, auth 401/403, framework) returns a consistent `application/problem+json` body
 - **Prometheus metrics** at `/actuator/prometheus` and **build info** (version, build time) at `/actuator/info`
 - **Request correlation** — each request gets an `X-Request-Id` that is echoed back and stamped on every log line for that request
@@ -129,6 +187,8 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 - **OpenAPI / Swagger UI** (`/swagger-ui.html`, with a Bearer "Authorize") · **health endpoint** (`/actuator/health`)
 
 ---
+
+</details>
 
 ## ⚡ Performance
 
@@ -176,13 +236,7 @@ k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messa
 - Web Crypto (E2EE) · Service Worker (PWA + push) · IndexedDB (Offline sync via idb)
 - TypeScript strict mode · error boundary + in-house toast layer · route-level code splitting
 
-**Testing**
-- JUnit 5 + Testcontainers (real PostgreSQL) — backend integration tests · **JaCoCo** code coverage (`mvn verify` → `target/site/jacoco/`)
-- Vitest + React Testing Library — frontend unit tests · **v8 coverage** (`npm run test:coverage` → `coverage/`)
-- Playwright — end-to-end tests
-- ArchUnit — architecture/boundary tests · PITest — mutation testing (`mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage`)
-- axe (`@axe-core/playwright`) — automated accessibility checks
-- k6 — load test for the read-heavy API path (`k6 run loadtest/messaging.js` against a local instance)
+**Testing** — JUnit 5 · Testcontainers · JaCoCo · ArchUnit · PITest · Vitest · React Testing Library · Playwright · axe · k6. See [Testing](#-testing).
 
 **DevOps**
 - Docker Compose (PostgreSQL + optional STOMP-enabled RabbitMQ)
@@ -335,6 +389,9 @@ Several features are **optional and gracefully disabled when their credentials a
 
 ## 📁 Project Structure
 
+<details>
+<summary>The full tree, package by package</summary>
+
 ```
 ripplechat/
 ├── backend/                     # Spring Boot application
@@ -386,6 +443,8 @@ ripplechat/
 └── .env.example                 # Environment template
 ```
 
+</details>
+
 ---
 
 ## 📸 Screenshots
@@ -417,6 +476,34 @@ ripplechat/
 **Mobile** — responsive layout on a phone viewport:
 
 ![Mobile](docs/screenshots/mobile.png)
+
+---
+
+## 🧪 Testing
+
+Coverage is deliberately uneven: the backend owns every authorisation and
+persistence decision, so that is where the integration tests are. The frontend is
+covered where the logic is genuinely hard — crypto, the realtime layer, reducers —
+and by end-to-end scenarios everywhere else.
+
+| Suite | What it covers | Size |
+|---|---|---|
+| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, channel authorisation, messaging, search, webhooks, admin, the outbox, and a live STOMP round-trip | **175 tests · 68% line coverage** (JaCoCo) |
+| **Architecture** (ArchUnit) | naming, one-directional layer dependencies, an independent `common` package, constructor injection | enforced on every build |
+| **Mutation** (PITest) | the security-critical classes: rate limiter, JWT service, SSRF guard, upload validation | `mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage` |
+| **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips, the STOMP client, the channel hook, the send path, reducers, slash commands | **190 tests · 33% line coverage** (v8) |
+| **End-to-end** (Playwright) | the real production build against a stubbed backend: landing, login, 2FA, chat, search, scheduled messages, blocking, pinning, theme and language toggles | **20 scenarios** (+8 screenshot generators) |
+| **Accessibility** (axe) | landing, login and register pages, failing on critical/serious violations | part of the e2e run |
+| **Load** (k6) | the read-heavy API path — see [Performance](#-performance) | `k6 run loadtest/messaging.js` |
+
+```bash
+cd backend  && ./mvnw verify          # tests + JaCoCo → target/site/jacoco/
+cd frontend && npm run test:coverage  # unit tests + v8 → coverage/
+cd frontend && npm run test:e2e       # Playwright (builds and previews first)
+```
+
+Backend, frontend and e2e each run as their own GitHub Actions workflow, alongside
+CodeQL for both languages and an `npm audit` gate on shipped dependencies.
 
 ---
 
