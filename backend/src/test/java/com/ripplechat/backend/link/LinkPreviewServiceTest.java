@@ -1,6 +1,9 @@
 package com.ripplechat.backend.link;
 
+import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;
+
+import java.net.URI;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -79,13 +82,13 @@ class LinkPreviewServiceTest {
             // check at all proves the port check let it through. An unsupported
             // port short-circuits before DNS.
             assertThat(service.preview(url)).as(url).isNull();
-            assertThat(service.isAllowed(java.net.URI.create(url))).as(url).isFalse();
+            assertThat(service.isAllowed(URI.create(url))).as(url).isFalse();
         }
         // A public address on a standard port passes every check up to DNS.
-        assertThat(service.isAllowed(java.net.URI.create("https://example.com:443/"))).isTrue();
-        assertThat(service.isAllowed(java.net.URI.create("http://example.com/"))).isTrue();
+        assertThat(service.isAllowed(URI.create("https://example.com:443/"))).isTrue();
+        assertThat(service.isAllowed(URI.create("http://example.com/"))).isTrue();
         // The same host on a non-standard port must not.
-        assertThat(service.isAllowed(java.net.URI.create("https://example.com:8443/"))).isFalse();
+        assertThat(service.isAllowed(URI.create("https://example.com:8443/"))).isFalse();
     }
 
     // ─── Parsing ───────────────────────────────────────────────────────
@@ -135,25 +138,25 @@ class LinkPreviewServiceTest {
     /** One assertion per branch of absImage — including the twitter:image fallback. */
     @Test
     void prefersOgImageThenFallsBackToTwitterImage() {
-        assertThat(service.absImage(org.jsoup.Jsoup.parse(
+        assertThat(service.absImage(Jsoup.parse(
                 "<meta property=\"og:image\" content=\"/a.png\"><meta name=\"twitter:image\" content=\"/b.png\">", BASE)))
                 .isEqualTo("https://example.com/a.png");
 
-        assertThat(service.absImage(org.jsoup.Jsoup.parse(
+        assertThat(service.absImage(Jsoup.parse(
                 "<meta name=\"twitter:image\" content=\"/b.png\">", BASE)))
                 .as("twitter:image is the documented fallback")
                 .isEqualTo("https://example.com/b.png");
 
-        assertThat(service.absImage(org.jsoup.Jsoup.parse("<html></html>", BASE))).isNull();
+        assertThat(service.absImage(Jsoup.parse("<html></html>", BASE))).isNull();
 
         // absUrl resolves an empty content against the base, so without an
         // explicit guard this returned the article's own URL as its image.
-        assertThat(service.absImage(org.jsoup.Jsoup.parse(
+        assertThat(service.absImage(Jsoup.parse(
                 "<meta property=\"og:image\" content=\"\">", BASE)))
                 .as("a present but empty content attribute is not an image")
                 .isNull();
 
-        assertThat(service.absImage(org.jsoup.Jsoup.parse(
+        assertThat(service.absImage(Jsoup.parse(
                 "<meta property=\"og:image\" content=\"\"><meta name=\"twitter:image\" content=\"/b.png\">", BASE)))
                 .as("an empty og:image still falls through to twitter:image")
                 .isEqualTo("https://example.com/b.png");
@@ -162,13 +165,13 @@ class LinkPreviewServiceTest {
     /** metaContent reads property= first, then name= — an easy pair to transpose. */
     @Test
     void metaContentReadsBothPropertyAndNameAttributes() {
-        assertThat(service.metaContent(org.jsoup.Jsoup.parse(
+        assertThat(service.metaContent(Jsoup.parse(
                 "<meta property=\"og:title\" content=\"from property\">", BASE), "og:title"))
                 .isEqualTo("from property");
-        assertThat(service.metaContent(org.jsoup.Jsoup.parse(
+        assertThat(service.metaContent(Jsoup.parse(
                 "<meta name=\"og:title\" content=\"from name\">", BASE), "og:title"))
                 .isEqualTo("from name");
-        assertThat(service.metaContent(org.jsoup.Jsoup.parse("<html></html>", BASE), "og:title")).isNull();
+        assertThat(service.metaContent(Jsoup.parse("<html></html>", BASE), "og:title")).isNull();
     }
 
     @Test

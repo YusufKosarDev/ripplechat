@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Method;
 
@@ -23,9 +22,12 @@ class OAuth2RedirectGuardTest {
 
     @BeforeEach
     void setUp() {
-        handler = new OAuth2AuthenticationSuccessHandler(null, null, null);
-        ReflectionTestUtils.setField(handler, "redirectUri", "https://ripplechat-app.vercel.app/oauth2/redirect");
-        ReflectionTestUtils.setField(handler, "allowedOrigins", "https://chat.example.com,http://localhost:5173");
+        // Constructor injection, so the config goes in directly rather than
+        // being poked into private fields after the fact.
+        handler = new OAuth2AuthenticationSuccessHandler(
+                null, null, null,
+                "https://ripplechat-app.vercel.app/oauth2/redirect",
+                "https://chat.example.com,http://localhost:5173");
     }
 
     private boolean authorized(String uri) {

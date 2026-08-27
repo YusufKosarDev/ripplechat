@@ -14,8 +14,12 @@ import java.io.IOException;
 @Component
 public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
-    @Value("${APP_OAUTH2_LOGIN_URI:http://localhost:5173/login}")
-    private String loginUri;
+    private final String loginUri;
+
+    public OAuth2AuthenticationFailureHandler(
+            @Value("${APP_OAUTH2_LOGIN_URI:http://localhost:5173/login}") String loginUri) {
+        this.loginUri = loginUri;
+    }
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {

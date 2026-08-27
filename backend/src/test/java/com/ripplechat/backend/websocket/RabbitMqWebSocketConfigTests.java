@@ -1,5 +1,6 @@
 package com.ripplechat.backend.websocket;
 
+import com.ripplechat.backend.support.SharedContainers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +23,7 @@ class RabbitMqWebSocketConfigTests {
 
     @DynamicPropertySource
     static void containerProperties(DynamicPropertyRegistry registry) {
-        com.ripplechat.backend.support.SharedContainers.apply(registry);
+        SharedContainers.apply(registry);
     }
 
     @Value("${app.websocket.broker.type}")

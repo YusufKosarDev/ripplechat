@@ -18,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.Security;
 import java.time.Duration;
 
 /**
@@ -34,9 +35,9 @@ public class LinkPreviewService {
         // Enforce a positive DNS cache TTL (e.g., 30 seconds) to prevent DNS rebinding attacks.
         // If it is disabled (0), we force it to 30s so the checked IP is cached and reused for the request.
         try {
-            String ttl = java.security.Security.getProperty("networkaddress.cache.ttl");
+            String ttl = Security.getProperty("networkaddress.cache.ttl");
             if (ttl == null || "0".equals(ttl)) {
-                java.security.Security.setProperty("networkaddress.cache.ttl", "30");
+                Security.setProperty("networkaddress.cache.ttl", "30");
             }
         } catch (Exception ignored) {}
     }

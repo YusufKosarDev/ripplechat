@@ -8,7 +8,6 @@ import com.ripplechat.backend.user.UserRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -22,18 +21,27 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
-@RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
 
-    @Value("${APP_OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/redirect}")
-    private String redirectUri;
+    private final String redirectUri;
+    private final String allowedOrigins;
 
-    @Value("${app.allowed-origins:}")
-    private String allowedOrigins;
+    public OAuth2AuthenticationSuccessHandler(
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService,
+            UserRepository userRepository,
+            @Value("${APP_OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/redirect}") String redirectUri,
+            @Value("${app.allowed-origins:}") String allowedOrigins) {
+        this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
+        this.userRepository = userRepository;
+        this.redirectUri = redirectUri;
+        this.allowedOrigins = allowedOrigins;
+    }
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {

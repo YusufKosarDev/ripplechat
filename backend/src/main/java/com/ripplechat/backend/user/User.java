@@ -1,7 +1,10 @@
 package com.ripplechat.backend.user;
 
+import com.ripplechat.backend.common.EncryptionConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -61,7 +64,7 @@ public class User {
     @Column
     private String password;
 
-    @Enumerated(jakarta.persistence.EnumType.STRING)
+    @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false)
     private AuthProvider authProvider = AuthProvider.LOCAL;
 
@@ -69,7 +72,7 @@ public class User {
     private String providerId;
 
     @Column(name = "totp_secret")
-    @jakarta.persistence.Convert(converter = com.ripplechat.backend.common.EncryptionConverter.class)
+    @Convert(converter = EncryptionConverter.class)
     private String totpSecret;
 
     @Column(name = "is_two_factor_enabled", nullable = false)

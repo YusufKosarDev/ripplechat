@@ -6,6 +6,7 @@ import com.ripplechat.backend.channel.dto.ChannelResponse;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
 import com.ripplechat.backend.message.MessageService;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
+import com.ripplechat.backend.support.SharedContainers;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.socket.WebSocketHttpHeaders;
@@ -42,7 +44,7 @@ class RealtimeMessagingTests {
 
     @DynamicPropertySource
     static void containerProperties(DynamicPropertyRegistry registry) {
-        com.ripplechat.backend.support.SharedContainers.apply(registry);
+        SharedContainers.apply(registry);
     }
 
     @LocalServerPort
@@ -50,7 +52,7 @@ class RealtimeMessagingTests {
     @Autowired
     UserRepository userRepository;
     @Autowired
-    org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    PasswordEncoder passwordEncoder;
     @Autowired
     JwtService jwtService;
     @Autowired
