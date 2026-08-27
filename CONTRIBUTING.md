@@ -6,7 +6,7 @@ Thank you for your interest in contributing to RippleChat! This guide will help 
 
 - **Java 21** (Temurin recommended)
 - **Node.js 22+** with npm
-- **Docker** (for PostgreSQL via Docker Compose, and for Testcontainers in tests)
+- **Docker** (for PostgreSQL and Redis via Docker Compose, and for Testcontainers in tests)
 - **Maven** (or use the bundled `mvnw` wrapper)
 
 ## Getting Started
@@ -17,9 +17,10 @@ Thank you for your interest in contributing to RippleChat! This guide will help 
    ```bash
    cp .env.example .env
    # Edit .env — set a strong JWT_SECRET and your PostgreSQL credentials.
+   # The Redis defaults work as-is.
    ```
 
-3. **Start the database:**
+3. **Start PostgreSQL and Redis:**
    ```bash
    docker compose up -d
    ```
@@ -107,7 +108,7 @@ cd backend
 ./mvnw -B verify              # Integration tests + JaCoCo coverage
 ```
 
-- Tests use **Testcontainers** — a real PostgreSQL container spins up automatically (Docker must be running).
+- Tests use **Testcontainers** — real PostgreSQL, Redis and Elasticsearch containers spin up automatically and are shared across every integration context (Docker must be running).
 - Coverage report: `target/site/jacoco/index.html`
 
 ### Frontend
@@ -139,7 +140,7 @@ ArchUnit tests in `ArchitectureTests.java` enforce the modular-monolith conventi
 
 ```bash
 cd backend
-mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage
+./mvnw -Ppitest test org.pitest:pitest-maven:mutationCoverage
 # Report: target/pit-reports/index.html
 ```
 
@@ -158,7 +159,7 @@ mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage
 
 **Do not open a public issue for security vulnerabilities.**
 
-Instead, please email the maintainer directly or use GitHub's private vulnerability reporting feature. Include:
+Instead, please use [GitHub's private vulnerability reporting](../../security/advisories/new) (the "Report a vulnerability" button on the Security tab). See [SECURITY.md](SECURITY.md) for what is in and out of scope. Include:
 
 - A description of the vulnerability
 - Steps to reproduce
