@@ -8,30 +8,32 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // injectManifest, not the default generateSW: in generateSW the plugin
+    // emits its own worker and manifest *over* the hand-written ones in
+    // public/, which silently dropped every push handler from the shipped
+    // sw.js and replaced the manifest with one pointing at icons that did not
+    // exist. src/sw.ts is now the real worker and gets the precache manifest
+    // injected into self.__WB_MANIFEST.
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      manifest: {
-        name: 'RippleChat',
-        short_name: 'RippleChat',
-        description: 'Gerçek zamanlı sohbet platformu',
-        theme_color: '#4f46e5',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
+      // public/manifest.webmanifest is the single source of truth; without
+      // this the plugin would generate a competing one again.
+      manifest: false,
+      // main.tsx already registers /sw.js on window load. Letting the plugin
+      // inject registerSW.js too would register the same scope twice.
+      injectRegister: false,
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Precaching every emitted chunk meant ~200 Prism grammars (2.7 MB) were
+        // downloaded up front, which is exactly what CodeBlock's PrismAsyncLight
+        // import is designed to avoid. They stay lazily fetched, and the worker's
+        // runtime stale-while-revalidate cache keeps the ones actually used.
+        // og-image.png is 408 KB and only ever read by link-preview scrapers.
+        globIgnores: ['assets/prism/**', 'og-image.png'],
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      }
     })
   ],
   // SockJS (sockjs-client) references Node's `global`, which doesn't exist in
@@ -45,6 +47,17 @@ export default defineConfig({
     // The TipTap/ProseMirror editor is deliberately one big lazy chunk (it
     // loads after first paint and caches well); don't warn about it.
     chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // Route the syntax-highlighter grammars into assets/prism/ so the
+        // service worker can exclude them from the precache by path. Matching
+        // them by name otherwise means listing ~200 languages by hand.
+        chunkFileNames(chunk) {
+          const isGrammar = chunk.moduleIds.some((id) => id.includes('refractor'))
+          return isGrammar ? 'assets/prism/[name]-[hash].js' : 'assets/[name]-[hash].js'
+        },
+      },
+    },
   },
   server: {
     port: 5173,

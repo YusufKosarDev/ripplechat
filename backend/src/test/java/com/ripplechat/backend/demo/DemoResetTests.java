@@ -34,7 +34,7 @@ class DemoResetTests extends AbstractIntegrationTest {
     @Test
     void seedChannelsGetTheSelfCleaningTimer() {
         Channel general = channelRepository
-                .findFirstByNameAndCreatedBy_UsernameAndDeletedFalse("genel", DemoSeedService.DEMO_USERNAME)
+                .findFirstByNameAndCreatedBy_UsernameAndDeletedFalse("general", DemoSeedService.DEMO_USERNAME)
                 .orElseThrow();
         assertThat(general.getMessageTtlSeconds()).isEqualTo(86_400);
     }
@@ -60,7 +60,7 @@ class DemoResetTests extends AbstractIntegrationTest {
                 .isTrue();
         assertThat(reset.isTwoFactorEnabled()).isFalse();
         assertThat(reset.getTotpSecret()).isNull();
-        assertThat(reset.getDisplayName()).isEqualTo("Demo Kullanıcı");
+        assertThat(reset.getDisplayName()).isEqualTo("Demo User");
         assertThat(reset.getAvatarColor()).isEqualTo("indigo");
         assertThat(reset.getStatusEmoji()).isNull();
         assertThat(reset.getStatusText()).isNull();
@@ -78,10 +78,36 @@ class DemoResetTests extends AbstractIntegrationTest {
         seedService.resetMutableDemoState();
 
         assertThat(channelRepository.findById(junk.getId()).orElseThrow().isDeleted()).isTrue();
-        for (String name : new String[] {"genel", "yazılım", "tasarım"}) {
+        for (String name : new String[] {"general", "engineering", "design"}) {
             assertThat(channelRepository
                     .findFirstByNameAndCreatedBy_UsernameAndDeletedFalse(name, DemoSeedService.DEMO_USERNAME))
                     .as("seed channel %s survives the reset", name)
+                    .isPresent();
+        }
+    }
+
+    /**
+     * The workspace was seeded in Turkish before V38__demo_workspace_english.sql
+     * renamed it. On a database where that migration has not run, the reset must
+     * still recognise the old names — otherwise the nightly sweep would treat the
+     * entire demo workspace as visitor junk and soft-delete it.
+     */
+    @Test
+    void resetKeepsChannelsStillCarryingTheirPreTranslationNames() {
+        User demo = userRepository.findByUsername(DemoSeedService.DEMO_USERNAME).orElseThrow();
+        for (String legacyName : new String[] {"genel", "yazılım", "tasarım"}) {
+            Channel legacy = new Channel();
+            legacy.setName(legacyName);
+            legacy.setCreatedBy(demo);
+            channelRepository.save(legacy);
+        }
+
+        seedService.resetMutableDemoState();
+
+        for (String legacyName : new String[] {"genel", "yazılım", "tasarım"}) {
+            assertThat(channelRepository
+                    .findFirstByNameAndCreatedBy_UsernameAndDeletedFalse(legacyName, DemoSeedService.DEMO_USERNAME))
+                    .as("pre-translation seed channel %s is not mistaken for junk", legacyName)
                     .isPresent();
         }
     }

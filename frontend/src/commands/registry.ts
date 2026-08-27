@@ -13,7 +13,6 @@ export interface CommandContext {
 
 export interface Command {
   name: string
-  description: string
   // i18n catalog key; CommandHints renders it with t(). Error messages passed
   // to showError are catalog keys too (the composer resolves them the same way).
   usage: string
@@ -28,13 +27,21 @@ function quotedArgs(input: string): string[] {
   return matches ? matches.map((s) => s.slice(1, -1)) : []
 }
 
+// Duration units, Turkish and English, singular and plural. The plurals matter:
+// without them "2 hours standup" failed to match the unit, fell through to the
+// default of minutes, and scheduled the reminder 2 minutes out with "hours"
+// left in the reminder text -- silently wrong rather than rejected.
+const HOUR_UNITS = /^(saat|sa|hours?|hrs?|h|s)$/i
+const REMINDER_PATTERN =
+  /^(\d+)\s*(dakika|dakikas?|dak|dk|min(?:ute)?s?|m|saat|sa|hours?|hrs?|h|s)?\s+(.+)$/i
+
 /** Parses a `/remind` argument: a leading duration, then the reminder text. */
 function parseReminder(input: string): { when: Date; text: string } | null {
-  const m = input.trim().match(/^(\d+)\s*(dakika|dak|dk|min|m|saat|sa|hour|h|s)?\s+(.+)$/i)
+  const m = input.trim().match(REMINDER_PATTERN)
   if (!m) return null
   const n = parseInt(m[1], 10)
   const unit = (m[2] ?? 'm').toLowerCase()
-  const minutes = /^(saat|sa|hour|h|s)$/.test(unit) ? n * 60 : n
+  const minutes = HOUR_UNITS.test(unit) ? n * 60 : n
   if (minutes <= 0) return null
   return { when: new Date(Date.now() + minutes * 60_000), text: m[3].trim() }
 }
@@ -42,7 +49,6 @@ function parseReminder(input: string): { when: Date; text: string } | null {
 export const commands: Command[] = [
   {
     name: 'poll',
-    description: 'Anket oluştur',
     usage: 'cmd.poll.usage',
     run: (ctx) => {
       const parts = quotedArgs(ctx.args)
@@ -56,17 +62,15 @@ export const commands: Command[] = [
   },
   {
     name: 'giphy',
-    description: 'Eğlenceli bir görsel gönder (placeholder)',
     usage: 'cmd.giphy.usage',
     run: (ctx) => {
       const query = ctx.args.trim()
       const emoji = GIPHY_PLACEHOLDERS[Math.floor(Math.random() * GIPHY_PLACEHOLDERS.length)]
-      ctx.sendMessage(`${emoji} [gif: ${query || 'rastgele'}] ${emoji}`)
+      ctx.sendMessage(`${emoji} [gif: ${query || 'random'}] ${emoji}`)
     },
   },
   {
     name: 'shrug',
-    description: 'Mesaja ¯\\_(ツ)_/¯ ekle',
     usage: 'cmd.shrug.usage',
     run: (ctx) => {
       const text = ctx.args.trim()
@@ -75,7 +79,6 @@ export const commands: Command[] = [
   },
   {
     name: 'remind',
-    description: 'Bir hatırlatma zamanla',
     usage: 'cmd.remind.usage',
     run: (ctx) => {
       const parsed = parseReminder(ctx.args)

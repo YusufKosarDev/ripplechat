@@ -4,6 +4,7 @@ import com.ripplechat.backend.presence.dto.PresenceEvent;
 import com.ripplechat.backend.user.UserRepository;
 import org.springframework.context.event.EventListener;
 import com.ripplechat.backend.redis.RedisBroadcastService;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -35,7 +36,7 @@ public class PresenceEventListener {
     @EventListener
     public void onConnected(SessionConnectedEvent event) {
         String username = usernameOf(event.getUser());
-        String sessionId = (String) event.getMessage().getHeaders().get(org.springframework.messaging.simp.SimpMessageHeaderAccessor.SESSION_ID_HEADER);
+        String sessionId = (String) event.getMessage().getHeaders().get(SimpMessageHeaderAccessor.SESSION_ID_HEADER);
         if (username != null && sessionId != null && presenceService.connected(username, sessionId)) {
             broadcast(username, PresenceStatus.ONLINE);
         }

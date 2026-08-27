@@ -10,6 +10,7 @@ const ForwardModal = lazy(() => import('../ForwardModal'))
 const MediaGalleryModal = lazy(() => import('../MediaGalleryModal'))
 const ScheduledMessagesModal = lazy(() => import('../ScheduledMessagesModal'))
 const WebhooksModal = lazy(() => import('../WebhooksModal'))
+const SafetyNumberModal = lazy(() => import('../SafetyNumberModal'))
 
 interface ChannelOverlaysProps {
   channelId: string
@@ -41,6 +42,10 @@ interface ChannelOverlaysProps {
   showWebhooks: boolean
   onCloseWebhooks: () => void
 
+  /** Both identity public keys, present only for a DM with E2EE available. */
+  safetyNumberKeys: { ours: string; theirs: string; theirName: string } | null
+  onCloseSafetyNumber: () => void
+
   showPinned: boolean
   pinned: Message[]
   onClosePinned: () => void
@@ -70,6 +75,8 @@ export default function ChannelOverlays({
   onCloseScheduled,
   showWebhooks,
   onCloseWebhooks,
+  safetyNumberKeys,
+  onCloseSafetyNumber,
   showPinned,
   pinned,
   onClosePinned,
@@ -103,6 +110,15 @@ export default function ChannelOverlays({
         )}
 
         {showWebhooks && <WebhooksModal channelId={channelId} onClose={onCloseWebhooks} />}
+
+        {safetyNumberKeys && (
+          <SafetyNumberModal
+            ourPublicKey={safetyNumberKeys.ours}
+            theirPublicKey={safetyNumberKeys.theirs}
+            theirName={safetyNumberKeys.theirName}
+            onClose={onCloseSafetyNumber}
+          />
+        )}
       </Suspense>
 
       {showPinned && <PinnedDrawer pinned={pinned} onClose={onClosePinned} onUnpin={onUnpin} />}

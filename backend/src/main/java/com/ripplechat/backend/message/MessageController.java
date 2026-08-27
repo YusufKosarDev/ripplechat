@@ -31,6 +31,7 @@ import java.util.UUID;
 public class MessageController {
 
     private final MessageService messageService;
+    private final MessageModerationService moderationService;
     private final MessageQueryService messageQueryService;
 
     @PostMapping
@@ -74,14 +75,14 @@ public class MessageController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void pin(@PathVariable UUID channelId, @PathVariable UUID messageId,
                     @AuthenticationPrincipal String username) {
-        messageService.pin(channelId, messageId, username);
+        moderationService.pin(channelId, messageId, username);
     }
 
     @DeleteMapping("/{messageId}/pin")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unpin(@PathVariable UUID channelId, @PathVariable UUID messageId,
                       @AuthenticationPrincipal String username) {
-        messageService.unpin(channelId, messageId, username);
+        moderationService.unpin(channelId, messageId, username);
     }
 
     /** "Delete for me": hides the message from the caller's feed only. */
@@ -89,7 +90,7 @@ public class MessageController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void hide(@PathVariable UUID channelId, @PathVariable UUID messageId,
                      @AuthenticationPrincipal String username) {
-        messageService.hideForMe(channelId, messageId, username);
+        moderationService.hideForMe(channelId, messageId, username);
     }
 
     @GetMapping

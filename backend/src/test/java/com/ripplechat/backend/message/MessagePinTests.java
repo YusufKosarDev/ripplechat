@@ -19,6 +19,8 @@ class MessagePinTests extends AbstractIntegrationTest {
     @Autowired
     MessageService messageService;
     @Autowired
+    MessageModerationService moderationService;
+    @Autowired
     MessageQueryService messageQueryService;
 
     @Test
@@ -27,11 +29,11 @@ class MessagePinTests extends AbstractIntegrationTest {
         var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("önemli", null), "owner");
 
-        messageService.pin(channel.id(), msg.id(), "owner");
+        moderationService.pin(channel.id(), msg.id(), "owner");
         assertThat(messageQueryService.listPinned(channel.id(), "owner"))
                 .extracting(MessageResponse::id).containsExactly(msg.id());
 
-        messageService.unpin(channel.id(), msg.id(), "owner");
+        moderationService.unpin(channel.id(), msg.id(), "owner");
         assertThat(messageQueryService.listPinned(channel.id(), "owner")).isEmpty();
     }
 
@@ -42,7 +44,7 @@ class MessagePinTests extends AbstractIntegrationTest {
         var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("x", null), "owner");
 
-        assertThatThrownBy(() -> messageService.pin(channel.id(), msg.id(), "outsider"))
+        assertThatThrownBy(() -> moderationService.pin(channel.id(), msg.id(), "outsider"))
                 .isInstanceOf(ForbiddenException.class);
     }
 }

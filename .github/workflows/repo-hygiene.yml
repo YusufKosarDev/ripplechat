@@ -12,3 +12,6 @@ jobs:
 
       - name: Check text files have no NUL bytes (encoding corruption guard)
         run: bash scripts/check-encoding.sh
+
+      - name: Check Java sources import types instead of writing them inline
+        run: bash scripts/check-java-imports.sh

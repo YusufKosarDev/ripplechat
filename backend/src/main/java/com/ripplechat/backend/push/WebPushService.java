@@ -1,6 +1,7 @@
 package com.ripplechat.backend.push;
 
 import tools.jackson.databind.ObjectMapper;
+import com.ripplechat.backend.common.MessagePreview;
 import com.ripplechat.backend.channel.Channel;
 import com.ripplechat.backend.channel.ChannelType;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
@@ -163,7 +164,7 @@ public class WebPushService {
     private String snippet(Message message) {
         String content = message.getContent() == null ? "" : message.getContent();
         if (content.isBlank() && message.getAttachmentUrl() != null) {
-            return "📷 Görsel";
+            return MessagePreview.ATTACHMENT;
         }
         return content.length() > SNIPPET ? content.substring(0, SNIPPET) : content;
     }

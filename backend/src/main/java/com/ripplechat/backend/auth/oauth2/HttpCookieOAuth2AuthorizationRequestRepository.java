@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Component
@@ -78,16 +79,16 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
         }
     }
 
-    private java.util.Optional<Cookie> getCookie(HttpServletRequest request, String name) {
+    private Optional<Cookie> getCookie(HttpServletRequest request, String name) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if (cookie.getName().equals(name)) {
-                    return java.util.Optional.of(cookie);
+                    return Optional.of(cookie);
                 }
             }
         }
-        return java.util.Optional.empty();
+        return Optional.empty();
     }
 
     private String serialize(OAuth2AuthorizationRequest authorizationRequest) {

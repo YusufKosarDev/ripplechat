@@ -22,6 +22,10 @@
 
 **[Live demo](https://ripplechat-app.vercel.app)** · **[API docs](https://ripplechat-backend.onrender.com/swagger-ui.html)** · demo account `demo` / `demo1234`
 
+![RippleChat demo](docs/demo.gif)
+
+> The backend runs on a free tier and can cold-start, so the clip above shows the product while it wakes.
+
 ### In one minute
 
 A full chat product rather than a chat demo: channels, DMs and group DMs, threads, reactions,
@@ -57,7 +61,7 @@ Built solo over ~5 weeks, 280+ commits.
 |----------|----------|
 | `demo`   | `demo1234` |
 
-It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sample messages, reactions, a thread and a poll.
+It lands on a pre-seeded workspace (`#general`, `#engineering`, `#design`) with sample messages, reactions, a thread and a poll.
 
 ![RippleChat](docs/screenshots/landing.png)
 
@@ -65,7 +69,7 @@ It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sa
 
 ## ✨ Features
 
-Every third-party service below is optional — the app boots and degrades gracefully without it.
+Every *third-party* service below is optional — the app boots and degrades gracefully without it. PostgreSQL and Redis are the exception: they are core infrastructure and both ship in `docker-compose.yml`.
 
 <details>
 <summary><b>⚡ Real-time & Communication</b></summary>
@@ -92,7 +96,7 @@ Every third-party service below is optional — the app boots and degrades grace
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
 - **AI channel summarization (Claude)** — a "✨ Summarize" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-3-5-sonnet-20241022` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
-- **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying. **Gracefully degrades** to PostgreSQL full-text when Elasticsearch is unavailable, so the app still boots and search keeps working
+- **Full-text search** — searches message content with sender, channel and date filters. Runs on **PostgreSQL full-text** (`to_tsvector`, GIN-backed) by default, so search works on a fresh clone with nothing extra to install. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` against a real Elasticsearch to swap in the n-gram analyzer and BM25 ranking instead — both backends apply the same filters and return the same rows, only the ranking differs
 - **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
 
@@ -144,6 +148,7 @@ Every third-party service below is optional — the app boots and degrades grace
 
 - **Two-Factor Authentication (2FA)** — TOTP-based multi-factor authentication via Google Authenticator/Authy using a secure Pre-Auth JWT handshake, with **single-use recovery codes** (shown once at enrollment, hash-only storage) that stand in for the authenticator at login and can be regenerated
 - **JWT authentication** with stateless sessions and BCrypt-hashed passwords
+- **Sign in with Google (OAuth2)** — an alternative to the password flow: the backend runs the authorization-code exchange, links or provisions the account, and hands back the same JWT + refresh-token pair. The authorization request rides in a short-lived cookie rather than the session, and the post-login redirect is checked against an allowlist on **scheme, host and port**, since that URL carries the tokens. Graceful-disable: `/api/auth/providers` reports whether a client id is configured and the button is hidden when it is not
 - **Password reset & email verification** — token'd, single-use, expiring links delivered by email (only the SHA-256 hash is stored). The forgot-password endpoint is rate-limited and never reveals whether an address is registered; a reset ends every existing session. Email gracefully degrades to logging the link when no SMTP server is configured, so the flows work in development
 - **Refresh tokens** with rotation, IP/User-Agent metadata tracking, and server-side revocation — short-lived access tokens are renewed transparently, and logout truly invalidates the session
 - **Session & Device Management** — users can view active devices (with browser, OS, and IP address details) and perform remote session revocation (log out other devices)
@@ -152,6 +157,7 @@ Every third-party service below is optional — the app boots and degrades grace
 - **User blocking** — hide messages from blocked users
 - **GDPR self-service** — download all of your own data as JSON, and erase your account: personal data is scrubbed and sign-in/session/notification artifacts are purged, while your past messages are retained under an anonymised "Deleted User" so other people's conversation history stays intact
 - **End-to-end encryption (E2EE) (V2)** (opt-in) for 1-to-1 direct messages — implements **Signal's Double Ratchet Protocol** and **X3DH (Extended Triple Diffie-Hellman)** key agreement using Web Crypto API. Features **Forward Secrecy** (past keys are deleted) and **Break-in Recovery** (new DH ratchet steps heal the session), with automatic prekey generation and replenishment. Also supports legacy manual passphrase-derived (PBKDF2) symmetric encryption. Plaintexts are cached locally in the browser's IndexedDB decrypted cache, keeping the server blind to the content.
+- **Safety numbers** — because prekey bundles and identity keys are served by *this* backend, a compromised server could hand each side a key it controls and sit in the middle; the ratchet secures the channel, not the identity at the far end of it. Each DM therefore exposes a **safety number** (iterated SHA-256 over both identity keys, rendered as twelve five-digit groups, ordered so both people see the same value) to compare out of band. Trust is otherwise **TOFU** — first key seen is trusted — which is the honest description of any system that distributes keys through its own server
 - **Abuse protection** — input size limits plus distributed (Redis) rate limiting on login, **2FA verification**, **registration**, message sends, reactions, and webhook ingestion (rate-limited responses carry a `Retry-After` hint)
 - **Account lockout** — after repeated failed password attempts an account is *temporarily* locked (auto-unlocks after a short cooldown, kept short to bound the DoS surface of a targeted lockout; the demo account is exempt). Counters live in Redis and lock events are audit-logged
 - **Security headers** — the backend sets HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a `frame-ancestors` CSP on every response; the static frontend (Vercel) adds a strict enforced **Content-Security-Policy**, `Permissions-Policy`, and the same hardening headers
@@ -220,7 +226,7 @@ k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messa
 - Spring Security (JWT access + rotating refresh tokens, HS384)
 - Spring Data JPA · Spring Data Redis · Spring Data Elasticsearch
 - Spring WebSocket (STOMP messaging)
-- PostgreSQL (primary datastore) · Redis (distributed Pub/Sub & caching) · Elasticsearch (message search engine)
+- PostgreSQL (primary datastore + default full-text search) · Redis (distributed Pub/Sub & caching) · Elasticsearch (opt-in search engine)
 - Cloudinary (media uploads) · web-push/VAPID (notifications) · dev.samstevens.totp (2FA) · Giphy (GIF search) · Anthropic Java SDK (Claude channel summarization)
 - Caffeine (link-preview cache) · RFC 7807 ProblemDetail · gzip compression
 - springdoc-openapi (Swagger UI) · Spring Boot Actuator · Micrometer + Prometheus
@@ -273,7 +279,7 @@ flowchart TB
         direction LR
         PG[("PostgreSQL 16<br/>Flyway V1–V37")]
         RD[("Redis<br/>pub/sub · rate limit<br/>lockout · ShedLock")]
-        ES[("Elasticsearch<br/>search + PG fallback")]
+        ES[("Elasticsearch<br/>opt-in; PG is default")]
     end
 
     subgraph Ext["🔌 External services — optional, graceful-disable"]
@@ -320,7 +326,7 @@ e2ee (X3DH prekeys · group sender keys) · outbox (transactional async cleanup)
 ### Prerequisites
 - **Java 21**
 - **Node.js** (with npm)
-- **Docker** (for PostgreSQL)
+- **Docker** (for PostgreSQL and Redis)
 - **Maven** (or use the bundled `mvnw` wrapper)
 
 ### 1. Clone & configure environment
@@ -335,11 +341,14 @@ Edit `.env` and set real values — most importantly a strong `JWT_SECRET` (≥ 
 
 > The Vite dev server proxies API and WebSocket traffic to the backend on **port 8081**, which is what `SERVER_PORT` already defaults to in `.env.example` — change it only if you also change the proxy in `frontend/vite.config.ts`.
 
-### 2. Start PostgreSQL
+### 2. Start PostgreSQL and Redis
 
 ```bash
 docker compose up -d
 ```
+
+Redis is **required**, not one of the optional services: the rate limiter,
+login lockout, presence and the cross-replica WebSocket fan-out all use it.
 
 ### 3. Run the backend
 
@@ -368,6 +377,7 @@ Open **http://localhost:5173** — register an account and start chatting. The d
 | Frontend    | http://localhost:5173   |
 | Backend API | http://localhost:8081   |
 | PostgreSQL  | localhost:5434 (host)   |
+| Redis       | localhost:6380 (host)   |
 
 ### Running in production
 
@@ -383,7 +393,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 
 On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V37__group_sender_keys`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
-Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
+Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Search runs on PostgreSQL full-text by default and never contacts Elasticsearch; set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` (with an ES instance reachable at `spring.elasticsearch.uris`) to use it instead. Set `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
 ---
 
@@ -412,7 +422,7 @@ ripplechat/
 │   │   ├── read/                # Read receipts
 │   │   ├── notification/        # Activity center (mentions, replies, reactions)
 │   │   ├── bookmark/            # Saved / bookmarked messages
-│   │   ├── search/              # Message search (Elasticsearch, PostgreSQL tsvector fallback)
+│   │   ├── search/              # Message search (PostgreSQL tsvector by default, Elasticsearch opt-in)
 │   │   ├── e2ee/                # Server side of E2EE: X3DH prekey storage, group sender keys
 │   │   ├── push/                # Web push (VAPID) subscriptions & sending
 │   │   ├── mail/                # Transactional email (reset / verification; logs when no SMTP)
@@ -518,7 +528,7 @@ The timer-driven `@Scheduled` tasks are also replica-safe:
 
 - **Single-runner scheduling (ShedLock)** — the disappearing-message expiry sweep and the scheduled-message dispatcher run on a timer. On multiple replicas they would run redundantly (e.g. double-delivering a scheduled message), so each task is wrapped with `@SchedulerLock` and a **ShedLock** distributed lock (backed by Postgres) elects a single runner — exactly one replica executes each tick.
 
-> An **external STOMP relay** is also implemented, as an opt-in alternative to the Redis Pub/Sub bridge: set `WEBSOCKET_BROKER_TYPE=rabbitmq` (plus the `RABBITMQ_*` connection variables — a STOMP-enabled RabbitMQ ships in `docker-compose.yml`) and the in-JVM broker is replaced with `enableStompBrokerRelay`, moving broker state out of the application entirely. The default stays the lighter Redis Pub/Sub bridge, which avoids the extra broker dependency.
+> An **external STOMP relay** is also implemented, as an opt-in alternative to the Redis Pub/Sub bridge: set `WEBSOCKET_BROKER_TYPE=rabbitmq` (plus the `RABBITMQ_*` connection variables — a STOMP-enabled RabbitMQ ships in `docker-compose.yml` behind a profile — start it with `docker compose --profile rabbitmq up -d`) and the in-JVM broker is replaced with `enableStompBrokerRelay`, moving broker state out of the application entirely. The default stays the lighter Redis Pub/Sub bridge, which avoids the extra broker dependency.
 
 Larger features still on the roadmap: **group voice/video calls** via an SFU media server (the current WebRTC calls are peer-to-peer 1:1 — see the grounded architecture plan in [`docs/group-calls-sfu.md`](docs/group-calls-sfu.md)), and a **native mobile wrapper** (Capacitor) around the existing PWA (wiring plan in [`docs/mobile-capacitor.md`](docs/mobile-capacitor.md)).
 

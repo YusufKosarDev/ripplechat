@@ -122,10 +122,10 @@ public class UserService {
 
         if (request.currentPassword() == null
                 || !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new BadRequestException("mevcut şifre yanlış");
+            throw new BadRequestException("current password is incorrect");
         }
         if (request.newPassword() == null || request.newPassword().length() < 8) {
-            throw new BadRequestException("yeni şifre en az 8 karakter olmalı");
+            throw new BadRequestException("new password must be at least 8 characters");
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);

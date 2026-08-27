@@ -13,6 +13,8 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Issues, rotates and revokes opaque refresh tokens. The raw token returned to
@@ -52,12 +54,12 @@ public class RefreshTokenService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.List<RefreshToken> getActiveSessions(User user) {
+    public List<RefreshToken> getActiveSessions(User user) {
         return repository.findAllByUserAndRevokedFalseAndExpiresAtAfter(user, Instant.now());
     }
 
     @Transactional
-    public void revokeSession(User user, java.util.UUID sessionId) {
+    public void revokeSession(User user, UUID sessionId) {
         repository.findById(sessionId).ifPresent(token -> {
             if (token.getUser().getId().equals(user.getId())) {
                 repository.delete(token);

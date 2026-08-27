@@ -17,26 +17,27 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
 
     /** Same allowlist as REST CORS (env APP_ALLOWED_ORIGINS); no "*" in prod. */
-    @Value("${app.allowed-origins:}")
-    private String allowedOrigins;
+    private final String allowedOrigins;
+    private final String brokerType;
+    private final String rabbitmqHost;
+    private final int rabbitmqStompPort;
+    private final String rabbitmqUsername;
+    private final String rabbitmqPassword;
 
-    @Value("${app.websocket.broker.type:simple}")
-    private String brokerType;
-
-    @Value("${spring.rabbitmq.host:localhost}")
-    private String rabbitmqHost;
-
-    @Value("${app.rabbitmq.stomp.port:61613}")
-    private int rabbitmqStompPort;
-
-    @Value("${spring.rabbitmq.username:guest}")
-    private String rabbitmqUsername;
-
-    @Value("${spring.rabbitmq.password:guest}")
-    private String rabbitmqPassword;
-
-    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor) {
+    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor,
+                           @Value("${app.allowed-origins:}") String allowedOrigins,
+                           @Value("${app.websocket.broker.type:simple}") String brokerType,
+                           @Value("${spring.rabbitmq.host:localhost}") String rabbitmqHost,
+                           @Value("${app.rabbitmq.stomp.port:61613}") int rabbitmqStompPort,
+                           @Value("${spring.rabbitmq.username:guest}") String rabbitmqUsername,
+                           @Value("${spring.rabbitmq.password:guest}") String rabbitmqPassword) {
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.allowedOrigins = allowedOrigins;
+        this.brokerType = brokerType;
+        this.rabbitmqHost = rabbitmqHost;
+        this.rabbitmqStompPort = rabbitmqStompPort;
+        this.rabbitmqUsername = rabbitmqUsername;
+        this.rabbitmqPassword = rabbitmqPassword;
     }
 
     @Override

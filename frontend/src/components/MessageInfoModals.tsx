@@ -3,6 +3,7 @@ import { useT } from '../i18n'
 
 /** Shared centered-overlay shell for the small info modals below. */
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useT()
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16"
@@ -14,7 +15,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-semibold tracking-tight">{title}</span>
-          <button onClick={onClose} aria-label="Kapat" className={`text-fg-faint transition hover:text-fg ${focusRing}`}>
+          <button onClick={onClose} aria-label={t('common.close')} className={`text-fg-faint transition hover:text-fg ${focusRing}`}>
             ✕
           </button>
         </div>

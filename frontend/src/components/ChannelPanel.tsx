@@ -89,6 +89,7 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
   const [showMembers, setShowMembers] = useState(false)
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null)
   const [showGallery, setShowGallery] = useState(false)
+  const [showSafetyNumber, setShowSafetyNumber] = useState(false)
   const [showScheduled, setShowScheduled] = useState(false)
   const [showWebhooks, setShowWebhooks] = useState(false)
 
@@ -275,6 +276,8 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         isMuted={isMuted}
         onMuteToggle={() => selectedId && dispatch(toggleMute(selectedId))}
         onShowGallery={() => setShowGallery(true)}
+        canVerifySafetyNumber={Boolean(currentUser?.publicKey && dmPartner?.publicKey)}
+        onVerifySafetyNumber={() => setShowSafetyNumber(true)}
         onShowWebhooks={() => setShowWebhooks(true)}
         onShowMembers={() => setShowMembers(true)}
         onShowPinned={() => setShowPinned(true)}
@@ -339,6 +342,18 @@ export default function ChannelPanel({ onOpenSidebar }: ChannelPanelProps) {
         onCloseForward={() => setForwardingMsg(null)}
         showGallery={showGallery}
         onCloseGallery={() => setShowGallery(false)}
+        // Both keys have to be present to compute anything; the button that
+        // opens this only renders when the partner's is.
+        safetyNumberKeys={
+          showSafetyNumber && currentUser?.publicKey && dmPartner?.publicKey
+            ? {
+                ours: currentUser.publicKey,
+                theirs: dmPartner.publicKey,
+                theirName: dmPartner.displayName || dmPartner.username,
+              }
+            : null
+        }
+        onCloseSafetyNumber={() => setShowSafetyNumber(false)}
         showScheduled={showScheduled}
         onCloseScheduled={() => setShowScheduled(false)}
         showWebhooks={showWebhooks}

@@ -176,6 +176,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'date.todayAt': 'bugün {time}',
     'date.yesterdayAt': 'dün {time}',
 
+    'msg.addReaction': 'Tepki ekle',
     'msg.deleted': 'Bu mesaj silindi',
     'msg.save': 'Kaydet',
     'msg.cancel': 'İptal',
@@ -296,7 +297,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     'info.editHistory': 'Düzenleme geçmişi',
     'info.editedAtRow': '{when} tarihinde değiştirildi',
     'info.noPrevious': 'Önceki sürüm yok.',
+    'safety.title': 'Güvenlik numarası',
+    'safety.verify': 'Doğrula',
+    'safety.compare': 'Bu numarayı {name} ile yüz yüze veya güvendiğin başka bir kanaldan karşılaştır. İkinizde de aynıysa aradaki bağlantı doğrulanmış olur.',
+    'safety.why': 'Anahtarlar sunucu üzerinden dağıtıldığı için, bu karşılaştırma sunucunun araya girmediğini doğrulamanın tek yoludur. Numara değişirse karşı tarafın anahtarı değişmiş demektir.',
+    'safety.failed': 'Güvenlik numarası hesaplanamadı.',
     'gallery.empty': 'Bu sohbette paylaşılmış görsel yok.',
+    'gallery.openImage': 'Görseli yeni sekmede aç',
     'forward.title': 'Şuraya ilet',
 
     'attach.decrypting': 'Güvenli dosya çözülüyor…',
@@ -646,6 +653,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'date.todayAt': 'today at {time}',
     'date.yesterdayAt': 'yesterday at {time}',
 
+    'msg.addReaction': 'Add a reaction',
     'msg.deleted': 'This message was deleted',
     'msg.save': 'Save',
     'msg.cancel': 'Cancel',
@@ -766,7 +774,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     'info.editHistory': 'Edit history',
     'info.editedAtRow': 'Edited at {when}',
     'info.noPrevious': 'No previous versions.',
+    'safety.title': 'Safety number',
+    'safety.verify': 'Verify',
+    'safety.compare': 'Compare this number with {name} in person, or over another channel you trust. If you both see the same digits, the connection is verified.',
+    'safety.why': 'Keys are distributed through the server, so comparing this is the only way to rule out the server placing itself in the middle. If the number changes, the other side’s key changed.',
+    'safety.failed': 'Could not compute the safety number.',
     'gallery.empty': 'No images shared in this chat yet.',
+    'gallery.openImage': 'Open image in a new tab',
     'forward.title': 'Forward to',
 
     'attach.decrypting': 'Decrypting secure file…',

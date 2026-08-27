@@ -171,7 +171,7 @@ export default function LoginPage() {
         variant="secondary" 
         className="w-full mt-4 flex items-center justify-center gap-2"
         onClick={() => {
-          // Backend OAuth2 authorization endpoint'ine yönlendiriyoruz
+          // Hand off to the backend OAuth2 authorization endpoint.
           window.location.href = `${config.apiUrl}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(window.location.origin + '/oauth2/redirect')}`
         }}
       >

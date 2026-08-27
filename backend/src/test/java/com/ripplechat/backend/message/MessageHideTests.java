@@ -20,6 +20,8 @@ class MessageHideTests extends AbstractIntegrationTest {
     ChannelMembershipService membershipService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    MessageModerationService moderationService;
 
     @Test
     void hideRemovesFromMyFeedButNotOthers() {
@@ -29,7 +31,7 @@ class MessageHideTests extends AbstractIntegrationTest {
         membershipService.join(channel.id(), "member");
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("gizle beni", null), "owner");
 
-        messageService.hideForMe(channel.id(), msg.id(), "member");
+        moderationService.hideForMe(channel.id(), msg.id(), "member");
 
         var memberFeed = messageService.findByChannel(channel.id(), "member", PageRequest.of(0, 50));
         assertThat(memberFeed.content()).extracting(MessageResponse::id).doesNotContain(msg.id());

@@ -6,7 +6,6 @@ import com.ripplechat.backend.mail.MailService;
 import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,7 +27,6 @@ import java.util.HexFormat;
  * deliberately never reveal whether an email/account exists.
  */
 @Service
-@RequiredArgsConstructor
 public class AccountService {
 
     private static final Duration VERIFICATION_TTL = Duration.ofHours(24);
@@ -47,10 +45,27 @@ public class AccountService {
     private final RateLimiter rateLimiter;
     private final SecurityAuditLogger audit;
 
-    @Value("${app.frontend-base-url:http://localhost:5173}")
-    private String frontendBaseUrl;
+    private final String frontendBaseUrl;
 
     private final SecureRandom random = new SecureRandom();
+
+    public AccountService(UserRepository userRepository,
+                          AuthTokenRepository tokenRepository,
+                          PasswordEncoder passwordEncoder,
+                          MailService mailService,
+                          RefreshTokenService refreshTokenService,
+                          RateLimiter rateLimiter,
+                          SecurityAuditLogger audit,
+                          @Value("${app.frontend-base-url:http://localhost:5173}") String frontendBaseUrl) {
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.mailService = mailService;
+        this.refreshTokenService = refreshTokenService;
+        this.rateLimiter = rateLimiter;
+        this.audit = audit;
+        this.frontendBaseUrl = frontendBaseUrl;
+    }
 
     // --- Email verification -------------------------------------------------
 
