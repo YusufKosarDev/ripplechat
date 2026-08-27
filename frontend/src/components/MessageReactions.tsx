@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactionSummary } from '../api/types'
+import { useT } from '../i18n'
 import { focusRing } from './ui/focusRing'
 
 const PICKER = ['👍', '❤️', '😂', '🔥', '🎉', '👀']
@@ -11,6 +12,7 @@ interface MessageReactionsProps {
 }
 
 export default function MessageReactions({ reactions, currentUsername, onToggle }: MessageReactionsProps) {
+  const { t } = useT()
   const [open, setOpen] = useState(false)
 
   return (
@@ -40,7 +42,7 @@ export default function MessageReactions({ reactions, currentUsername, onToggle 
           type="button"
           onClick={() => setOpen((o) => !o)}
           className={`hidden items-center rounded-full border border-control px-2 py-0.5 text-xs text-fg-faint transition hover:border-control-hover hover:text-fg-muted group-hover:inline-flex group-focus-within:inline-flex ${focusRing}`}
-          title="Tepki ekle"
+          title={t('msg.addReaction')}
         >
           ＋
         </button>

@@ -176,6 +176,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'date.todayAt': 'bugün {time}',
     'date.yesterdayAt': 'dün {time}',
 
+    'msg.addReaction': 'Tepki ekle',
     'msg.deleted': 'Bu mesaj silindi',
     'msg.save': 'Kaydet',
     'msg.cancel': 'İptal',
@@ -646,6 +647,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'date.todayAt': 'today at {time}',
     'date.yesterdayAt': 'yesterday at {time}',
 
+    'msg.addReaction': 'Add a reaction',
     'msg.deleted': 'This message was deleted',
     'msg.save': 'Save',
     'msg.cancel': 'Cancel',

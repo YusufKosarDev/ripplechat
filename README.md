@@ -22,6 +22,10 @@
 
 **[Live demo](https://ripplechat-app.vercel.app)** · **[API docs](https://ripplechat-backend.onrender.com/swagger-ui.html)** · demo account `demo` / `demo1234`
 
+![RippleChat demo](docs/demo.gif)
+
+> The backend runs on a free tier and can cold-start, so the clip above shows the product while it wakes.
+
 ### In one minute
 
 A full chat product rather than a chat demo: channels, DMs and group DMs, threads, reactions,
