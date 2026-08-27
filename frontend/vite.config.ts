@@ -8,30 +8,26 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // injectManifest, not the default generateSW: in generateSW the plugin
+    // emits its own worker and manifest *over* the hand-written ones in
+    // public/, which silently dropped every push handler from the shipped
+    // sw.js and replaced the manifest with one pointing at icons that did not
+    // exist. src/sw.ts is now the real worker and gets the precache manifest
+    // injected into self.__WB_MANIFEST.
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      manifest: {
-        name: 'RippleChat',
-        short_name: 'RippleChat',
-        description: 'Gerçek zamanlı sohbet platformu',
-        theme_color: '#4f46e5',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
+      // public/manifest.webmanifest is the single source of truth; without
+      // this the plugin would generate a competing one again.
+      manifest: false,
+      // main.tsx already registers /sw.js on window load. Letting the plugin
+      // inject registerSW.js too would register the same scope twice.
+      injectRegister: false,
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      }
     })
   ],
   // SockJS (sockjs-client) references Node's `global`, which doesn't exist in
