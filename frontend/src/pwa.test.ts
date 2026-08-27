@@ -1,3 +1,7 @@
+// This suite reads build output off disk, so it needs Node's types. The app
+// tsconfig deliberately does not include them — app code must not reach for
+// node APIs — so pull them in just for this file.
+/// <reference types="node" />
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
