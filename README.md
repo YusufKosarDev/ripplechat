@@ -92,7 +92,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
 - **AI channel summarization (Claude)** — a "✨ Summarize" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-3-5-sonnet-20241022` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
-- **Advanced Full-Text Search (Elasticsearch)** — sub-millisecond search across millions of messages with exact matching, wildcard support, and complex querying. **Gracefully degrades** to PostgreSQL full-text when Elasticsearch is unavailable, so the app still boots and search keeps working
+- **Full-text search** — searches message content with sender, channel and date filters. Runs on **PostgreSQL full-text** (`to_tsvector`, GIN-backed) by default, so search works on a fresh clone with nothing extra to install. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` against a real Elasticsearch to swap in the n-gram analyzer and BM25 ranking instead — both backends apply the same filters and return the same rows, only the ranking differs
 - **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
 
@@ -220,7 +220,7 @@ k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messa
 - Spring Security (JWT access + rotating refresh tokens, HS384)
 - Spring Data JPA · Spring Data Redis · Spring Data Elasticsearch
 - Spring WebSocket (STOMP messaging)
-- PostgreSQL (primary datastore) · Redis (distributed Pub/Sub & caching) · Elasticsearch (message search engine)
+- PostgreSQL (primary datastore + default full-text search) · Redis (distributed Pub/Sub & caching) · Elasticsearch (opt-in search engine)
 - Cloudinary (media uploads) · web-push/VAPID (notifications) · dev.samstevens.totp (2FA) · Giphy (GIF search) · Anthropic Java SDK (Claude channel summarization)
 - Caffeine (link-preview cache) · RFC 7807 ProblemDetail · gzip compression
 - springdoc-openapi (Swagger UI) · Spring Boot Actuator · Micrometer + Prometheus
@@ -273,7 +273,7 @@ flowchart TB
         direction LR
         PG[("PostgreSQL 16<br/>Flyway V1–V37")]
         RD[("Redis<br/>pub/sub · rate limit<br/>lockout · ShedLock")]
-        ES[("Elasticsearch<br/>search + PG fallback")]
+        ES[("Elasticsearch<br/>opt-in; PG is default")]
     end
 
     subgraph Ext["🔌 External services — optional, graceful-disable"]
@@ -387,7 +387,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 
 On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V37__group_sender_keys`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
-Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=false` to run without Elasticsearch (search falls back to PostgreSQL full-text and the app never contacts ES), and `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
+Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Search runs on PostgreSQL full-text by default and never contacts Elasticsearch; set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` (with an ES instance reachable at `spring.elasticsearch.uris`) to use it instead. Set `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
 ---
 
@@ -416,7 +416,7 @@ ripplechat/
 │   │   ├── read/                # Read receipts
 │   │   ├── notification/        # Activity center (mentions, replies, reactions)
 │   │   ├── bookmark/            # Saved / bookmarked messages
-│   │   ├── search/              # Message search (Elasticsearch, PostgreSQL tsvector fallback)
+│   │   ├── search/              # Message search (PostgreSQL tsvector by default, Elasticsearch opt-in)
 │   │   ├── e2ee/                # Server side of E2EE: X3DH prekey storage, group sender keys
 │   │   ├── push/                # Web push (VAPID) subscriptions & sending
 │   │   ├── mail/                # Transactional email (reset / verification; logs when no SMTP)
