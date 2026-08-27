@@ -27,13 +27,21 @@ function quotedArgs(input: string): string[] {
   return matches ? matches.map((s) => s.slice(1, -1)) : []
 }
 
+// Duration units, Turkish and English, singular and plural. The plurals matter:
+// without them "2 hours standup" failed to match the unit, fell through to the
+// default of minutes, and scheduled the reminder 2 minutes out with "hours"
+// left in the reminder text -- silently wrong rather than rejected.
+const HOUR_UNITS = /^(saat|sa|hours?|hrs?|h|s)$/i
+const REMINDER_PATTERN =
+  /^(\d+)\s*(dakika|dakikas?|dak|dk|min(?:ute)?s?|m|saat|sa|hours?|hrs?|h|s)?\s+(.+)$/i
+
 /** Parses a `/remind` argument: a leading duration, then the reminder text. */
 function parseReminder(input: string): { when: Date; text: string } | null {
-  const m = input.trim().match(/^(\d+)\s*(dakika|dak|dk|min|m|saat|sa|hour|h|s)?\s+(.+)$/i)
+  const m = input.trim().match(REMINDER_PATTERN)
   if (!m) return null
   const n = parseInt(m[1], 10)
   const unit = (m[2] ?? 'm').toLowerCase()
-  const minutes = /^(saat|sa|hour|h|s)$/.test(unit) ? n * 60 : n
+  const minutes = HOUR_UNITS.test(unit) ? n * 60 : n
   if (minutes <= 0) return null
   return { when: new Date(Date.now() + minutes * 60_000), text: m[3].trim() }
 }
