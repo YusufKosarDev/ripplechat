@@ -18,6 +18,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: ripplechat-redis
+    restart: unless-stopped
+    ports:
+      # Host REDIS_HOST_PORT -> container 6379.
+      - "${REDIS_HOST_PORT}:6379"
+    # No volume on purpose: everything Redis holds here (rate-limit buckets,
+    # lockout counters, presence, pub/sub) is ephemeral by design and is meant
+    # to be rebuilt from scratch on restart.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: ripplechat-rabbitmq

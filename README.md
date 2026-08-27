@@ -65,7 +65,7 @@ It lands on a pre-seeded workspace (`#general`, `#engineering`, `#design`) with 
 
 ## ✨ Features
 
-Every third-party service below is optional — the app boots and degrades gracefully without it.
+Every *third-party* service below is optional — the app boots and degrades gracefully without it. PostgreSQL and Redis are the exception: they are core infrastructure and both ship in `docker-compose.yml`.
 
 <details>
 <summary><b>⚡ Real-time & Communication</b></summary>
@@ -320,7 +320,7 @@ e2ee (X3DH prekeys · group sender keys) · outbox (transactional async cleanup)
 ### Prerequisites
 - **Java 21**
 - **Node.js** (with npm)
-- **Docker** (for PostgreSQL)
+- **Docker** (for PostgreSQL and Redis)
 - **Maven** (or use the bundled `mvnw` wrapper)
 
 ### 1. Clone & configure environment
@@ -335,11 +335,14 @@ Edit `.env` and set real values — most importantly a strong `JWT_SECRET` (≥ 
 
 > The Vite dev server proxies API and WebSocket traffic to the backend on **port 8081**, which is what `SERVER_PORT` already defaults to in `.env.example` — change it only if you also change the proxy in `frontend/vite.config.ts`.
 
-### 2. Start PostgreSQL
+### 2. Start PostgreSQL and Redis
 
 ```bash
 docker compose up -d
 ```
+
+Redis is **required**, not one of the optional services: the rate limiter,
+login lockout, presence and the cross-replica WebSocket fan-out all use it.
 
 ### 3. Run the backend
 
@@ -368,6 +371,7 @@ Open **http://localhost:5173** — register an account and start chatting. The d
 | Frontend    | http://localhost:5173   |
 | Backend API | http://localhost:8081   |
 | PostgreSQL  | localhost:5434 (host)   |
+| Redis       | localhost:6380 (host)   |
 
 ### Running in production
 
