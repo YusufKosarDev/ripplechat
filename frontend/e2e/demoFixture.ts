@@ -19,7 +19,14 @@ export const channels = [
   { id: 'c-genel', name: 'general', description: 'Open to everyone', isPrivate: false, createdBy: me, createdAt: '2026-01-01T09:00:00Z' },
   { id: 'c-yazilim', name: 'engineering', description: 'Code, tooling and releases', isPrivate: false, createdBy: me, createdAt: '2026-01-01T09:00:00Z' },
 ]
-export const dms = [{ id: 'dm-1', otherUser: { ...elif, publicKey: '{"kty":"EC","crv":"P-256"}', lastSeenAt: '2026-01-02T11:50:00Z' }, createdAt: '2026-01-02T10:00:00Z' }]
+// Real P-256 public keys: the safety-number screen derives digits from x/y,
+// so a placeholder JWK would not compute.
+export const DEMO_PUBLIC_KEY =
+  '{"kty":"EC","crv":"P-256","x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU","y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"}'
+export const ELIF_PUBLIC_KEY =
+  '{"kty":"EC","crv":"P-256","x":"lQrDMcIWdrLBCXtLXCkq8HeMuoRxvOOL0Uc0lyJdCJI","y":"pxq2fVYIVDlWjM8pcRw9wBFq4kaTL3vJPMhH0v_Z4TQ"}'
+
+export const dms = [{ id: 'dm-1', otherUser: { ...elif, publicKey: ELIF_PUBLIC_KEY, lastSeenAt: '2026-01-02T11:50:00Z' }, createdAt: '2026-01-02T10:00:00Z' }]
 
 function msg(id: string, channelId: string, sender: typeof me, content: string, extras: Record<string, unknown> = {}) {
   return {
@@ -62,7 +69,7 @@ export async function stub(page: Page, authed = true) {
   await page.route('**/api/**', async (route) => {
     const { pathname } = new URL(route.request().url())
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
-    if (pathname.endsWith('/api/users/me')) return json({ ...me, email: 'demo@ripplechat.app', createdAt: '2026-01-01T09:00:00Z', admin: true, isTwoFactorEnabled: true })
+    if (pathname.endsWith('/api/users/me')) return json({ ...me, email: 'demo@ripplechat.app', createdAt: '2026-01-01T09:00:00Z', admin: true, isTwoFactorEnabled: true, publicKey: DEMO_PUBLIC_KEY })
     if (pathname.endsWith('/api/channels')) return json(channels)
     if (pathname.endsWith('/api/dm')) return json(dms)
     if (pathname.includes('/c-genel/messages')) return json(page0(genelMessages))
