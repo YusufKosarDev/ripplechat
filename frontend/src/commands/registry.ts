@@ -13,7 +13,6 @@ export interface CommandContext {
 
 export interface Command {
   name: string
-  description: string
   // i18n catalog key; CommandHints renders it with t(). Error messages passed
   // to showError are catalog keys too (the composer resolves them the same way).
   usage: string
@@ -42,7 +41,6 @@ function parseReminder(input: string): { when: Date; text: string } | null {
 export const commands: Command[] = [
   {
     name: 'poll',
-    description: 'Anket oluştur',
     usage: 'cmd.poll.usage',
     run: (ctx) => {
       const parts = quotedArgs(ctx.args)
@@ -56,17 +54,15 @@ export const commands: Command[] = [
   },
   {
     name: 'giphy',
-    description: 'Eğlenceli bir görsel gönder (placeholder)',
     usage: 'cmd.giphy.usage',
     run: (ctx) => {
       const query = ctx.args.trim()
       const emoji = GIPHY_PLACEHOLDERS[Math.floor(Math.random() * GIPHY_PLACEHOLDERS.length)]
-      ctx.sendMessage(`${emoji} [gif: ${query || 'rastgele'}] ${emoji}`)
+      ctx.sendMessage(`${emoji} [gif: ${query || 'random'}] ${emoji}`)
     },
   },
   {
     name: 'shrug',
-    description: 'Mesaja ¯\\_(ツ)_/¯ ekle',
     usage: 'cmd.shrug.usage',
     run: (ctx) => {
       const text = ctx.args.trim()
@@ -75,7 +71,6 @@ export const commands: Command[] = [
   },
   {
     name: 'remind',
-    description: 'Bir hatırlatma zamanla',
     usage: 'cmd.remind.usage',
     run: (ctx) => {
       const parsed = parseReminder(ctx.args)

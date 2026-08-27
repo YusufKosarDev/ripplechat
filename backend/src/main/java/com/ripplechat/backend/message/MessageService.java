@@ -6,6 +6,7 @@ import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
 import com.ripplechat.backend.redis.RateLimiter;
+import com.ripplechat.backend.common.MessagePreview;
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
@@ -160,7 +161,7 @@ public class MessageService {
                         message.setQuotedSender(quotedSenderName);
                         String preview = q.isDeleted() || q.getContent() == null ? "" : q.getContent();
                         if (preview.isBlank() && q.getAttachmentUrl() != null) {
-                            preview = "📷 Görsel";
+                            preview = MessagePreview.ATTACHMENT;
                         }
                         message.setQuotedContent(preview.length() > 140 ? preview.substring(0, 140) : preview);
                     });

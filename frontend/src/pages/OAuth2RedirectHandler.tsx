@@ -18,13 +18,13 @@ export default function OAuth2RedirectHandler() {
     const error = searchParams.get('error')
 
     if (error) {
-      // Başarısız ise login sayfasına hata ile gönder
+      // On failure, bounce back to the login page carrying the error.
       navigate(`/login?error=${encodeURIComponent(error)}`, { replace: true })
       return
     }
 
     if (accessToken && refreshToken) {
-      // Backend'den gelen tokenları API client'a ve Redux'a kaydet
+      // Persist the tokens the backend handed back into the API client and Redux.
       setTokens(accessToken, refreshToken)
       
       dispatch(oauth2LoginSuccess())

@@ -121,7 +121,7 @@ describe('slash commands', () => {
 
     it('falls back to a random pick when no query is given', () => {
       const ctx = run('giphy', '')
-      expect(ctx.sendMessage.mock.calls[0][0]).toContain('[gif: rastgele]')
+      expect(ctx.sendMessage.mock.calls[0][0]).toContain('[gif: random]')
     })
   })
 })

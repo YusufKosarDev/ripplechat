@@ -91,7 +91,7 @@ public class AiSummaryService {
                 .map(m -> senderName(m) + ": " + m.content())
                 .collect(Collectors.joining("\n"));
         if (transcript.isBlank()) {
-            return "Bu kanalda henüz özetlenecek mesaj yok.";
+            return "No messages to summarize in this channel yet.";
         }
 
         try {
@@ -100,7 +100,7 @@ public class AiSummaryService {
                             .model(model)
                             .maxTokens(1024L)
                             .system("You summarize a group chat for a member who is catching up. "
-                                    + "Reply in the same language as the conversation (usually Turkish). "
+                                    + "Reply in the same language as the conversation. "
                                     + "Give a short digest: the main topics, any decisions, and open "
                                     + "questions, as a few concise bullet points. Do not invent details "
                                     + "that aren't in the messages.")
@@ -111,7 +111,7 @@ public class AiSummaryService {
             StringBuilder sb = new StringBuilder();
             response.content().forEach(block -> block.text().ifPresent(t -> sb.append(t.text())));
             String summary = sb.toString().strip();
-            return summary.isBlank() ? "Özet oluşturulamadı." : summary;
+            return summary.isBlank() ? "Could not generate a summary." : summary;
         } catch (RuntimeException e) {
             log.error("AI summary failed for channel {}", channelId, e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI summary failed, please try again");

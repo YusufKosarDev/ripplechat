@@ -30,6 +30,6 @@ public class UploadController {
     @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, String> uploadFile(@RequestParam("file") MultipartFile file) {
         String name = file.getOriginalFilename();
-        return Map.of("url", uploadService.uploadFile(file), "name", name == null || name.isBlank() ? "dosya" : name);
+        return Map.of("url", uploadService.uploadFile(file), "name", name == null || name.isBlank() ? "file" : name);
     }
 }
