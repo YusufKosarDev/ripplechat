@@ -87,7 +87,8 @@ npx cap sync
 npx cap open android     # opens Android Studio to build/run/emulate
 ```
 
-`capacitor.config.ts` (committed to the repo — this part *is* in scope):
+`capacitor.config.ts` — the one file this plan would add to the repo, since it is
+inert without `@capacitor/cli` installed:
 
 ```ts
 import type { CapacitorConfig } from '@capacitor/cli'
