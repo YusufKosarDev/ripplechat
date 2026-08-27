@@ -15,3 +15,8 @@ jobs:
 
       - name: Check Java sources import types instead of writing them inline
         run: bash scripts/check-java-imports.sh
+
+      # No-op without build artifacts, so it does not force a build here; the
+      # backend/frontend workflows produce the reports it reads.
+      - name: Check the README's stated test figures still match the build output
+        run: bash scripts/check-readme-numbers.sh
