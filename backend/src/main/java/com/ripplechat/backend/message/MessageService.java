@@ -3,6 +3,7 @@ package com.ripplechat.backend.message;
 import com.ripplechat.backend.channel.Channel;
 import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.channel.membership.ChannelMembership;
+import com.ripplechat.backend.channel.membership.ChannelMembershipGuard;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
 import com.ripplechat.backend.redis.RateLimiter;
@@ -11,15 +12,14 @@ import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
+import com.ripplechat.backend.notification.Notification;
+import com.ripplechat.backend.notification.NotificationService;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MessageEditHistoryEntry;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.message.dto.ThreadSummary;
 import com.ripplechat.backend.message.dto.ThreadUpdate;
-import com.ripplechat.backend.media.MediaStorage;
-import com.ripplechat.backend.outbox.OutboxTask;
-import com.ripplechat.backend.outbox.OutboxTaskRepository;
 import com.ripplechat.backend.push.MessageSentEvent;
 import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.user.User;
@@ -36,24 +36,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MessageService {
 
-    private static final int MAX_LAST_REPLIERS = 3;
     private static final int MAX_MESSAGE_LENGTH = 4000;
-    // Attachment URLs must be ones we issued (Cloudinary uploads) or a GIF picked
-    // from Giphy — never arbitrary client input.
-    private static final String CLOUDINARY_PREFIX = "https://res.cloudinary.com/";
     // Send throttle: 10-message burst, then ~5/sec sustained per user.
     private static final double SEND_BURST = 10;
     private static final double SEND_REFILL_PER_SEC = 5;
@@ -63,21 +62,19 @@ public class MessageService {
     private final UserRepository userRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final MessageReactionService messageReactionService;
-    private final MessageHideRepository messageHideRepository;
     private final MessageEditHistoryRepository messageEditHistoryRepository;
-    private final com.ripplechat.backend.channel.membership.ChannelMembershipGuard membershipGuard;
+    private final ChannelMembershipGuard membershipGuard;
     private final RedisBroadcastService redisBroadcastService;
     private final SearchService searchService;
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher eventPublisher;
-    private final com.ripplechat.backend.notification.NotificationService notificationService;
-    private final OutboxTaskRepository outboxTaskRepository;
+    private final NotificationService notificationService;
     private final UserBlockRepository blockRepository;
+    private final MessageThreadSummaryService threadSummaryService;
+    private final MessageBroadcastService broadcastService;
 
     // Matches @username mentions in message content (letters, digits, _ and .).
-    private static final java.util.regex.Pattern MENTION_PATTERN =
-            java.util.regex.Pattern.compile("@([A-Za-z0-9_.]+)");
-    private final MediaStorage mediaStorage;
+    private static final Pattern MENTION_PATTERN = Pattern.compile("@([A-Za-z0-9_.]+)");
 
     /**
      * Persists a message and broadcasts it. A top-level message goes to the main
@@ -117,7 +114,7 @@ public class MessageService {
         if (channel.isDeleted()) {
             throw new ResourceNotFoundException("channel not found: " + channelId);
         }
-        requireMember(channelId, username);
+        membershipGuard.requireMember(channelId, username);
 
         User sender = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
@@ -177,7 +174,7 @@ public class MessageService {
             UUID parentId = saved.getParent().getId();
             redisBroadcastService.broadcast("/topic/channels/" + channelId + "/thread/" + parentId, response);
             redisBroadcastService.broadcast("/topic/channels/" + channelId + "/thread-updates",
-                    new ThreadUpdate(parentId, threadSummary(parentId)));
+                    new ThreadUpdate(parentId, threadSummaryService.summaryFor(parentId)));
         }
         eventPublisher.publishEvent(new MessageSentEvent(channelId, saved.getId(), username));
         notifyMentionsAndReply(saved, sender, content, channelId);
@@ -190,11 +187,11 @@ public class MessageService {
      * mentioned parent author isn't notified twice, and never notifies the sender.
      */
     private void notifyMentionsAndReply(Message saved, User sender, String content, UUID channelId) {
-        java.util.Set<UUID> notified = new java.util.HashSet<>();
+        Set<UUID> notified = new HashSet<>();
         if (saved.getParent() != null) {
             User parentAuthor = saved.getParent().getSender();
             notificationService.notify(parentAuthor, sender,
-                    com.ripplechat.backend.notification.Notification.TYPE_REPLY,
+                    Notification.TYPE_REPLY,
                     channelId, saved.getId(), content);
             if (parentAuthor != null) {
                 notified.add(parentAuthor.getId());
@@ -205,19 +202,19 @@ public class MessageService {
                 if (notified.add(user.getId())
                         && membershipRepository.existsByChannelIdAndUser_Username(channelId, mentioned)) {
                     notificationService.notify(user, sender,
-                            com.ripplechat.backend.notification.Notification.TYPE_MENTION,
+                            Notification.TYPE_MENTION,
                             channelId, saved.getId(), content);
                 }
             });
         }
     }
 
-    private static java.util.Set<String> parseMentions(String content) {
+    private static Set<String> parseMentions(String content) {
         if (content == null || content.isBlank()) {
-            return java.util.Set.of();
+            return Set.of();
         }
-        java.util.Set<String> names = new java.util.HashSet<>();
-        java.util.regex.Matcher m = MENTION_PATTERN.matcher(content);
+        Set<String> names = new HashSet<>();
+        Matcher m = MENTION_PATTERN.matcher(content);
         while (m.find()) {
             names.add(m.group(1));
         }
@@ -239,12 +236,12 @@ public class MessageService {
         if (target.isDeleted()) {
             throw new ResourceNotFoundException("channel not found: " + targetChannelId);
         }
-        requireMember(targetChannelId, username);
+        membershipGuard.requireMember(targetChannelId, username);
 
         Message source = messageRepository.findById(sourceMessageId)
                 .orElseThrow(() -> new ResourceNotFoundException("message not found: " + sourceMessageId));
         // You can only forward a message from a channel you're a member of.
-        requireMember(source.getChannel().getId(), username);
+        membershipGuard.requireMember(source.getChannel().getId(), username);
         if (source.isDeleted()) {
             throw new BadRequestException("cannot forward a deleted message");
         }
@@ -272,14 +269,14 @@ public class MessageService {
         if (!channelRepository.existsById(channelId)) {
             throw new ResourceNotFoundException("channel not found: " + channelId);
         }
-        requireMember(channelId, username);
+        membershipGuard.requireMember(channelId, username);
 
         User viewer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
         var page = messageRepository.findChannelFeed(channelId, viewer.getId(), pageable);
         List<UUID> ids = page.getContent().stream().map(Message::getId).toList();
         Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(ids);
-        Map<UUID, ThreadSummary> threads = threadSummariesByParent(ids);
+        Map<UUID, ThreadSummary> threads = threadSummaryService.summariesByParent(ids);
 
         return PageResponse.from(page.map(m -> MessageResponse.from(
                 m,
@@ -289,7 +286,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public List<MessageResponse> listThread(UUID channelId, UUID parentMessageId, String username) {
-        requireMember(channelId, username);
+        membershipGuard.requireMember(channelId, username);
         Message parent = messageRepository.findById(parentMessageId)
                 .orElseThrow(() -> new ResourceNotFoundException("message not found: " + parentMessageId));
         if (!parent.getChannel().getId().equals(channelId)) {
@@ -331,13 +328,13 @@ public class MessageService {
         message.setEditedAt(now);
         messageRepository.saveAndFlush(message);
         searchService.indexMessage(message);
-        broadcastUpdate(message);
+        broadcastService.broadcastUpdate(message);
     }
 
     /** Prior versions of a message (newest first). Membership-checked. */
     @Transactional(readOnly = true)
     public List<MessageEditHistoryEntry> editHistory(UUID channelId, UUID messageId, String username) {
-        requireMember(channelId, username);
+        membershipGuard.requireMember(channelId, username);
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
         if (!message.getChannel().getId().equals(channelId)) {
@@ -348,115 +345,8 @@ public class MessageService {
                 .toList();
     }
 
-    @Transactional
-    public void deleteMessage(UUID channelId, UUID messageId, String username) {
-        requireMember(channelId, username);
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
-        if (!message.getChannel().getId().equals(channelId)) {
-            throw new ResourceNotFoundException("message not found in channel: " + messageId);
-        }
-        // Owner of the message OR a channel moderator/owner may delete it.
-        boolean isSender = message.getSender().getUsername().equals(username);
-        if (!isSender) {
-            MembershipRole role = membershipRepository.findByChannelIdAndUser_Username(channelId, username)
-                    .map(ChannelMembership::getRole)
-                    .orElse(null);
-            if (role == null || !role.canModerate()) {
-                throw new ForbiddenException("you can only delete your own messages");
-            }
-        }
-        if (message.isDeleted()) {
-            return;
-        }
-        String attachmentUrl = message.getAttachmentUrl();
-        if (attachmentUrl != null) {
-            safeDeleteMedia(attachmentUrl);
-        }
-        message.setDeleted(true);
-        message.setContent("");
-        message.setAttachmentUrl(null);
-        message.setAttachmentName(null);
-        message.setAttachmentType(null);
-        messageRepository.saveAndFlush(message);
-        searchService.deleteMessage(messageId);
-        messageReactionService.deleteAllForMessage(messageId);
-        broadcastUpdate(message);
-    }
-
-    @Transactional
-    public void pin(UUID channelId, UUID messageId, String username) {
-        setPinned(channelId, messageId, username, true);
-    }
-
-    @Transactional
-    public void unpin(UUID channelId, UUID messageId, String username) {
-        setPinned(channelId, messageId, username, false);
-    }
-
-    private void setPinned(UUID channelId, UUID messageId, String username, boolean pinned) {
-        requireMember(channelId, username);
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
-        if (!message.getChannel().getId().equals(channelId)) {
-            throw new ResourceNotFoundException("message not found in channel: " + messageId);
-        }
-        if (message.isPinned() == pinned) {
-            return;
-        }
-        message.setPinned(pinned);
-        messageRepository.saveAndFlush(message);
-        broadcastUpdate(message);
-    }
-
-    /** "Delete for me": hides the message from this user's feed only. */
-    @Transactional
-    public void hideForMe(UUID channelId, UUID messageId, String username) {
-        requireMember(channelId, username);
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
-        if (!message.getChannel().getId().equals(channelId)) {
-            throw new ResourceNotFoundException("message not found in channel: " + messageId);
-        }
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-        if (!messageHideRepository.existsByMessageIdAndUserId(messageId, user.getId())) {
-            MessageHide hide = new MessageHide();
-            hide.setMessageId(messageId);
-            hide.setUserId(user.getId());
-            messageHideRepository.save(hide);
-        }
-    }
-
-    /**
-     * Sweeps disappearing messages whose expiry has passed: soft-deletes them
-     * (clearing content/attachment, dropping reactions) and notifies clients so
-     * they update to the "deleted" placeholder. Invoked on a fixed delay by
-     * {@link DisappearingMessageScheduler} (which holds the ShedLock lock); kept
-     * as a plain transactional method so it can also be called directly (e.g. in
-     * tests) without going through the scheduler lock.
-     */
-    @Transactional
-    public void purgeExpired() {
-        List<Message> expired = messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(Instant.now());
-        for (Message message : expired) {
-            String attachmentUrl = message.getAttachmentUrl();
-            if (attachmentUrl != null) {
-                safeDeleteMedia(attachmentUrl);
-            }
-            message.setDeleted(true);
-            message.setContent("");
-            message.setAttachmentUrl(null);
-            message.setAttachmentName(null);
-            message.setAttachmentType(null);
-            messageRepository.saveAndFlush(message);
-            messageReactionService.deleteAllForMessage(message.getId());
-            broadcastUpdate(message);
-        }
-    }
-
     private Message requireOwnMessage(UUID channelId, UUID messageId, String username) {
-        requireMember(channelId, username);
+        membershipGuard.requireMember(channelId, username);
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
         if (!message.getChannel().getId().equals(channelId)) {
@@ -466,96 +356,6 @@ public class MessageService {
             throw new ForbiddenException("you can only modify your own messages");
         }
         return message;
-    }
-
-    private void broadcastUpdate(Message message) {
-        List<ReactionSummary> reactions = messageReactionService
-                .summariesByMessage(List.of(message.getId()))
-                .getOrDefault(message.getId(), List.of());
-        ThreadSummary thread = message.getParent() == null
-                ? threadSummary(message.getId())
-                : ThreadSummary.empty();
-        MessageResponse response = MessageResponse.from(message, reactions, thread);
-        redisBroadcastService.broadcast(
-                "/topic/channels/" + message.getChannel().getId() + "/message-updates", response);
-    }
-
-    private Map<UUID, ThreadSummary> threadSummariesByParent(List<UUID> parentIds) {
-        if (parentIds.isEmpty()) {
-            return Map.of();
-        }
-
-        Map<UUID, Integer> counts = messageRepository.findReplyCounts(parentIds).stream()
-                .collect(Collectors.toMap(
-                        row -> toUuid(row[0]),
-                        row -> ((Number) row[1]).intValue()
-                ));
-
-        List<Object[]> replierRows = messageRepository.findLastReplierIds(parentIds);
-        
-        java.util.Set<UUID> senderIds = replierRows.stream()
-                .map(row -> toUuid(row[1]))
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        Map<UUID, UserSummary> userSummaries = Map.of();
-        if (!senderIds.isEmpty()) {
-            userSummaries = userRepository.findAllById(senderIds).stream()
-                    .map(UserSummary::from)
-                    .collect(Collectors.toMap(UserSummary::id, java.util.function.Function.identity()));
-        }
-
-        Map<UUID, List<UserSummary>> repliersByParent = new java.util.HashMap<>();
-        for (Object[] row : replierRows) {
-            UUID parentId = toUuid(row[0]);
-            UUID senderId = toUuid(row[1]);
-            if (parentId != null && senderId != null) {
-                UserSummary summary = userSummaries.get(senderId);
-                if (summary != null) {
-                    repliersByParent.computeIfAbsent(parentId, k -> new java.util.ArrayList<>()).add(summary);
-                }
-            }
-        }
-
-        Map<UUID, ThreadSummary> result = new java.util.HashMap<>();
-        for (UUID parentId : parentIds) {
-            int count = counts.getOrDefault(parentId, 0);
-            List<UserSummary> repliers = repliersByParent.getOrDefault(parentId, List.of());
-            result.put(parentId, new ThreadSummary(count, repliers));
-        }
-        return result;
-    }
-
-    private ThreadSummary threadSummary(UUID parentId) {
-        Map<UUID, ThreadSummary> summaries = threadSummariesByParent(List.of(parentId));
-        return summaries.getOrDefault(parentId, ThreadSummary.empty());
-    }
-
-    private UUID toUuid(Object obj) {
-        if (obj instanceof UUID) {
-            return (UUID) obj;
-        } else if (obj instanceof String) {
-            return UUID.fromString((String) obj);
-        } else if (obj != null) {
-            return UUID.fromString(obj.toString());
-        }
-        return null;
-    }
-
-    private void safeDeleteMedia(String url) {
-        if (url == null || url.isBlank()) {
-            return;
-        }
-        if (!url.startsWith(CLOUDINARY_PREFIX)) {
-            return;
-        }
-        OutboxTask task = new OutboxTask();
-        task.setId(UUID.randomUUID());
-        task.setTaskType("DELETE_MEDIA");
-        task.setPayload(url);
-        task.setStatus(OutboxTask.Status.PENDING);
-        task.setCreatedAt(Instant.now());
-        outboxTaskRepository.save(task);
     }
 
     private void validateBlockState(Channel channel, UUID senderId) {
@@ -574,17 +374,13 @@ public class MessageService {
         }
     }
 
-    private void requireMember(UUID channelId, String username) {
-        membershipGuard.requireMember(channelId, username);
-    }
-
     /** Allows our own Cloudinary uploads and GIFs picked from Giphy. */
     private boolean isAllowedAttachmentUrl(String url) {
-        if (url.startsWith(CLOUDINARY_PREFIX)) {
+        if (url.startsWith(MessageMediaCleanupService.CLOUDINARY_PREFIX)) {
             return true;
         }
         try {
-            String host = java.net.URI.create(url).getHost();
+            String host = URI.create(url).getHost();
             return host != null && (host.equals("giphy.com") || host.endsWith(".giphy.com"));
         } catch (Exception e) {
             return false;

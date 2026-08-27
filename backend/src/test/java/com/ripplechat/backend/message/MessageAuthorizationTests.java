@@ -25,6 +25,8 @@ class MessageAuthorizationTests extends AbstractIntegrationTest {
     ChannelMembershipService membershipService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    MessageModerationService moderationService;
 
     @Test
     void nonMemberCannotSendOrReadMessages() {
@@ -70,13 +72,13 @@ class MessageAuthorizationTests extends AbstractIntegrationTest {
 
         MessageResponse m1 = messageService.send(channel.id(), new CreateMessageRequest("m1", null), "author");
         // a plain member cannot delete someone else's message
-        assertThatThrownBy(() -> messageService.deleteMessage(channel.id(), m1.id(), "member"))
+        assertThatThrownBy(() -> moderationService.deleteMessage(channel.id(), m1.id(), "member"))
                 .isInstanceOf(ForbiddenException.class);
         // a moderator can
-        assertThatCode(() -> messageService.deleteMessage(channel.id(), m1.id(), "mod")).doesNotThrowAnyException();
+        assertThatCode(() -> moderationService.deleteMessage(channel.id(), m1.id(), "mod")).doesNotThrowAnyException();
 
         // and the author can delete their own
         MessageResponse m2 = messageService.send(channel.id(), new CreateMessageRequest("m2", null), "author");
-        assertThatCode(() -> messageService.deleteMessage(channel.id(), m2.id(), "author")).doesNotThrowAnyException();
+        assertThatCode(() -> moderationService.deleteMessage(channel.id(), m2.id(), "author")).doesNotThrowAnyException();
     }
 }

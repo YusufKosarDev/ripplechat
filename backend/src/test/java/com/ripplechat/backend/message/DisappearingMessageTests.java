@@ -5,6 +5,7 @@ import com.ripplechat.backend.channel.dto.ChannelResponse;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MessageResponse;
+import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,11 @@ class DisappearingMessageTests extends AbstractIntegrationTest {
     @Autowired
     MessageService messageService;
     @Autowired
+    MessageModerationService moderationService;
+    @Autowired
     MessageRepository messageRepository;
+    @Autowired
+    SearchService searchService;
 
     @Test
     void timerStampsExpiryAndCanBeTurnedOff() {
@@ -52,10 +57,37 @@ class DisappearingMessageTests extends AbstractIntegrationTest {
         stored.setExpiresAt(Instant.now().minusSeconds(10));
         messageRepository.saveAndFlush(stored);
 
-        messageService.purgeExpired();
+        moderationService.purgeExpired();
 
         Message after = messageRepository.findById(msg.id()).orElseThrow();
         assertThat(after.isDeleted()).isTrue();
         assertThat(after.getContent()).isEmpty();
+    }
+
+    /**
+     * The expiry sweep used to inline its own soft-delete and omitted the search
+     * de-indexing that the explicit delete performed, so a disappearing message
+     * stayed findable by its content after the content itself was gone. Both
+     * paths now share one softDelete().
+     */
+    @Test
+    void purgeExpiredAlsoRemovesTheMessageFromSearch() {
+        createUser("owner");
+        var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
+        channelService.setDisappearing(channel.id(), "owner", 3600);
+
+        MessageResponse msg = messageService.send(
+                channel.id(), new CreateMessageRequest("pineapple embargo", null), "owner");
+        assertThat(searchService.searchMessages("owner", "pineapple")).hasSize(1);
+
+        Message stored = messageRepository.findById(msg.id()).orElseThrow();
+        stored.setExpiresAt(Instant.now().minusSeconds(10));
+        messageRepository.saveAndFlush(stored);
+
+        moderationService.purgeExpired();
+
+        assertThat(searchService.searchMessages("owner", "pineapple"))
+                .as("an expired message must not linger in the search index")
+                .isEmpty();
     }
 }

@@ -77,10 +77,14 @@ update messages
 set content = 'Search runs on Elasticsearch, with a PostgreSQL fallback'
 where content = 'Bugün ufak bir yardımcı yazdım:';
 
+-- The dollar sign is assembled with chr(36) on purpose. Flyway treats a dollar
+-- followed by a braced name as a placeholder to substitute, so writing the JS
+-- template string literally aborts the migration with "No value provided for
+-- placeholder". That applies to comments too, hence the wording here.
 update messages
 set content = '```js' || chr(10) ||
               'function greet(name) {' || chr(10) ||
-              '  return `Hello, ${name}!`' || chr(10) ||
+              '  return `Hello, ' || chr(36) || '{name}!`' || chr(10) ||
               '}' || chr(10) ||
               'console.log(greet("RippleChat"))' || chr(10) ||
               '```'
