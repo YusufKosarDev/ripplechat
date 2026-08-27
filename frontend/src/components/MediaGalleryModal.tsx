@@ -38,7 +38,7 @@ export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryMo
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Medya"
+        aria-label={t('chat.media')}
         tabIndex={-1}
         className="flex max-h-[75vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-surface-overlay shadow-elevated"
         onClick={(e) => e.stopPropagation()}
@@ -47,7 +47,7 @@ export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryMo
           <span className="text-sm font-semibold tracking-tight">🖼️ Medya</span>
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t('common.close')}
             className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
           >
             ✕

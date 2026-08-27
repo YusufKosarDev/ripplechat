@@ -31,7 +31,7 @@ export default function ForwardModal({ onPick, onClose }: ForwardModalProps) {
           <span className="text-sm font-semibold tracking-tight">{t('forward.title')}</span>
           <button
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t('common.close')}
             className={`rounded-lg text-fg-faint transition hover:text-fg ${focusRing}`}
           >
             ✕
