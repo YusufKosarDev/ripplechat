@@ -14,7 +14,7 @@ import java.io.IOException;
 @Component
 public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
-    @Value("${app.frontend.login-uri:http://localhost:5173/login}")
+    @Value("${APP_OAUTH2_LOGIN_URI:http://localhost:5173/login}")
     private String loginUri;
 
     @Override

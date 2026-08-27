@@ -1,6 +1,5 @@
 package com.ripplechat.backend.auth.oauth2;
 
-import com.ripplechat.backend.auth.AuthService;
 import com.ripplechat.backend.auth.JwtService;
 import com.ripplechat.backend.auth.RefreshToken;
 import com.ripplechat.backend.auth.RefreshTokenService;
@@ -17,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +29,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
 
-    @Value("${app.frontend.oauth2-redirect-uri:http://localhost:5173/oauth2/redirect}")
+    @Value("${APP_OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/redirect}")
     private String redirectUri;
 
     @Value("${app.allowed-origins:}")
@@ -90,42 +90,47 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             if (uriStr.startsWith("//") || uriStr.startsWith("\\\\") || uriStr.contains("\\")) {
                 return false;
             }
-            java.net.URI clientRedirectUri = java.net.URI.create(uriStr);
+            URI clientRedirectUri = URI.create(uriStr);
             if (!clientRedirectUri.isAbsolute()) {
                 // If relative path, only allow a path starting with a single '/'
                 return uriStr.startsWith("/") && !uriStr.startsWith("//");
             }
-            String host = clientRedirectUri.getHost();
-            int port = clientRedirectUri.getPort();
-            if (host == null) {
+            if (clientRedirectUri.getHost() == null) {
                 return false;
             }
 
             if (allowedOrigins != null && !allowedOrigins.isBlank()) {
                 for (String allowedOrigin : allowedOrigins.split(",")) {
                     try {
-                        java.net.URI allowedUri = java.net.URI.create(allowedOrigin.trim());
-                        String allowedHost = allowedUri.getHost();
-                        int allowedPort = allowedUri.getPort();
-                        if (allowedHost != null && allowedHost.equalsIgnoreCase(host) && allowedPort == port) {
+                        if (sameOrigin(URI.create(allowedOrigin.trim()), clientRedirectUri)) {
                             return true;
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                        // A malformed entry in the allowlist must not authorise anything.
+                    }
                 }
             }
 
-            if (redirectUri != null) {
-                java.net.URI defaultUri = java.net.URI.create(redirectUri);
-                String defaultHost = defaultUri.getHost();
-                int defaultPort = defaultUri.getPort();
-                if (defaultHost != null && defaultHost.equalsIgnoreCase(host) && defaultPort == port) {
-                    return true;
-                }
-            }
-
-            return false;
+            return redirectUri != null && sameOrigin(URI.create(redirectUri), clientRedirectUri);
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Full origin comparison: scheme, host and port must all match.
+     *
+     * <p>The scheme check is the load-bearing part. Comparing only host and port
+     * treats {@code http://example.com} as equal to {@code https://example.com}
+     * — both report port -1 — so an allowlisted HTTPS origin would also
+     * authorise a plaintext redirect, and this URL carries the access and
+     * refresh tokens as query parameters.
+     */
+    private static boolean sameOrigin(URI allowed, URI candidate) {
+        return allowed.getHost() != null
+                && allowed.getHost().equalsIgnoreCase(candidate.getHost())
+                && allowed.getPort() == candidate.getPort()
+                && allowed.getScheme() != null
+                && allowed.getScheme().equalsIgnoreCase(candidate.getScheme());
     }
 }
