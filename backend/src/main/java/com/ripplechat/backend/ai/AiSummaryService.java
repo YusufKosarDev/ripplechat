@@ -51,7 +51,7 @@ public class AiSummaryService {
     public AiSummaryService(MessageQueryService messageQueryService,
                             RateLimiter rateLimiter,
                             @Value("${ANTHROPIC_API_KEY:}") String apiKey,
-                            @Value("${AI_MODEL:claude-3-5-sonnet-20241022}") String model) {
+                            @Value("${AI_MODEL:claude-sonnet-5}") String model) {
         this.messageQueryService = messageQueryService;
         this.rateLimiter = rateLimiter;
         this.model = model;

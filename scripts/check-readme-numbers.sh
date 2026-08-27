@@ -80,6 +80,23 @@ if [ -d frontend/e2e ]; then
   fi
 fi
 
+# --- frontend test count -----------------------------------------------------
+# From vitest's own JSON report, not a grep: `it.each` is one call site and six
+# tests, so counting source lines undercounts by exactly the kind of margin that
+# makes a stated figure wrong.
+vitest_report="frontend/coverage/vitest-report.json"
+if [ -f "$vitest_report" ]; then
+  actual=$(grep -o '"numTotalTests":[0-9]*' "$vitest_report" | head -1 | grep -o '[0-9]*')
+  stated=$(grep -oE '\*\*[0-9]+ tests · [0-9]+% line coverage\*\* \(v8\)' "$README" \
+    | grep -oE '^\*\*[0-9]+' | grep -oE '[0-9]+' || true)
+  checked=$((checked + 1))
+  if [ -n "$stated" ] && [ -n "$actual" ] && [ "$stated" != "$actual" ]; then
+    fail "README says $stated frontend tests; vitest reports $actual"
+  fi
+else
+  echo "skipped frontend test count (no vitest report — run npm run test:coverage)"
+fi
+
 # --- frontend line coverage --------------------------------------------------
 lcov="frontend/coverage/lcov.info"
 if [ -f "$lcov" ]; then
