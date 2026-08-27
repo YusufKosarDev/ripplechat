@@ -27,6 +27,12 @@ export default defineConfig({
       injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Precaching every emitted chunk meant ~200 Prism grammars (2.7 MB) were
+        // downloaded up front, which is exactly what CodeBlock's PrismAsyncLight
+        // import is designed to avoid. They stay lazily fetched, and the worker's
+        // runtime stale-while-revalidate cache keeps the ones actually used.
+        // og-image.png is 408 KB and only ever read by link-preview scrapers.
+        globIgnores: ['assets/prism/**', 'og-image.png'],
       },
     })
   ],
@@ -41,6 +47,17 @@ export default defineConfig({
     // The TipTap/ProseMirror editor is deliberately one big lazy chunk (it
     // loads after first paint and caches well); don't warn about it.
     chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // Route the syntax-highlighter grammars into assets/prism/ so the
+        // service worker can exclude them from the precache by path. Matching
+        // them by name otherwise means listing ~200 languages by hand.
+        chunkFileNames(chunk) {
+          const isGrammar = chunk.moduleIds.some((id) => id.includes('refractor'))
+          return isGrammar ? 'assets/prism/[name]-[hash].js' : 'assets/[name]-[hash].js'
+        },
+      },
+    },
   },
   server: {
     port: 5173,
