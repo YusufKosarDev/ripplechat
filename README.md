@@ -57,7 +57,7 @@ Built solo over ~5 weeks, 280+ commits.
 |----------|----------|
 | `demo`   | `demo1234` |
 
-It lands on a pre-seeded workspace (`#genel`, `#yazılım`, `#tasarım`) with sample messages, reactions, a thread and a poll.
+It lands on a pre-seeded workspace (`#general`, `#engineering`, `#design`) with sample messages, reactions, a thread and a poll.
 
 ![RippleChat](docs/screenshots/landing.png)
 
