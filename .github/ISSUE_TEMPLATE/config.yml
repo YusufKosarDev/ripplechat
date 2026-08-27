@@ -1,0 +1,10 @@
+# Without this, GitHub keeps an "Open a blank issue" link beside the templates,
+# which is where most low-information reports come from.
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/YusufKosarDev/ripplechat/security/advisories/new
+    about: Please report vulnerabilities privately rather than in a public issue. See SECURITY.md for scope.
+  - name: Try the live demo
+    url: https://ripplechat-app.vercel.app
+    about: Sign in with demo / demo1234 to reproduce behaviour before filing.

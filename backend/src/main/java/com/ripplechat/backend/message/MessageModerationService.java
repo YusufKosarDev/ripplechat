@@ -21,12 +21,11 @@ import java.util.UUID;
  * Everything that removes or flags an existing message: delete for everyone,
  * delete for me, pin/unpin, and the disappearing-message expiry sweep.
  *
- * <p>Split out of {@link MessageService}, which had grown to 592 lines and
- * fourteen dependencies. These operations share an authorisation shape (be a
- * member, then own the message or moderate the channel) and a soft-delete
- * routine that {@code MessageService} previously carried twice — once for an
- * explicit delete and once for the expiry sweep, which had already drifted
- * apart.
+ * <p>They belong together because they share an authorisation shape — be a
+ * member of the channel, then either own the message or moderate the channel —
+ * and because delete and the expiry sweep are the same soft-delete underneath.
+ * Keeping that in one place is what stops the two from drifting apart, which
+ * they previously had: the sweep used to skip the search de-index.
  */
 @Service
 @RequiredArgsConstructor

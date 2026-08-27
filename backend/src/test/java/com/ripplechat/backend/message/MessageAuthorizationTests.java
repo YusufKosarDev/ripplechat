@@ -26,6 +26,8 @@ class MessageAuthorizationTests extends AbstractIntegrationTest {
     @Autowired
     MessageService messageService;
     @Autowired
+    MessageQueryService messageQueryService;
+    @Autowired
     MessageModerationService moderationService;
 
     @Test
@@ -36,7 +38,7 @@ class MessageAuthorizationTests extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> messageService.send(channel.id(), new CreateMessageRequest("hi", null), "outsider"))
                 .isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> messageService.findByChannel(channel.id(), "outsider", PageRequest.of(0, 20)))
+        assertThatThrownBy(() -> messageQueryService.findByChannel(channel.id(), "outsider", PageRequest.of(0, 20)))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -54,7 +56,7 @@ class MessageAuthorizationTests extends AbstractIntegrationTest {
 
         // the author can edit
         messageService.editMessage(channel.id(), msg.id(), "owner", "edited");
-        var page = messageService.findByChannel(channel.id(), "owner", PageRequest.of(0, 20));
+        var page = messageQueryService.findByChannel(channel.id(), "owner", PageRequest.of(0, 20));
         assertThat(page.content().get(0).content()).isEqualTo("edited");
     }
 

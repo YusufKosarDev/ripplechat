@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/vitest-report.json",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "demo:gif": "playwright test demo-recording && node scripts/encode-gif.mjs"

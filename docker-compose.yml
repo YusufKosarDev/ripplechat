@@ -39,7 +39,7 @@ services:
   # `docker compose up -d` does not pull a ~250 MB image nothing will talk to.
   #   docker compose --profile rabbitmq up -d
   rabbitmq:
-    image: rabbitmq:3.12-management
+    image: rabbitmq:4-management
     container_name: ripplechat-rabbitmq
     profiles: ["rabbitmq"]
     restart: unless-stopped

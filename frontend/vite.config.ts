@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { CONTENT_SECURITY_POLICY } from './src/csp'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -73,8 +74,7 @@ export default defineConfig({
     // vercel.json) so `vite preview` — and the Playwright e2e suite that runs
     // against it — exercises the app under the real, enforced policy.
     headers: {
-      'Content-Security-Policy':
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://res.cloudinary.com https://*.giphy.com; font-src 'self' data:; connect-src 'self' https://ripplechat-backend.onrender.com wss://ripplechat-backend.onrender.com; media-src 'self' blob: https://res.cloudinary.com; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+      'Content-Security-Policy': CONTENT_SECURITY_POLICY,
     },
   },
 })

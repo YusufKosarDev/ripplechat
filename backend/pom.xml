@@ -226,7 +226,10 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
-			<scope>runtime</scope>
+			<!-- provided, not runtime: <optional> only stops it reaching downstream
+			     consumers, so at runtime scope devtools sits on this project's own test
+			     and runtime classpath and ships inside the fat jar. -->
+			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

@@ -20,6 +20,8 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
     ChannelService channelService;
     @Autowired
     MessageService messageService;
+    @Autowired
+    MessageQueryService messageQueryService;
 
     @Test
     void editsAreRecordedNewestFirst() {
@@ -27,13 +29,13 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
         var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("v1", null), "owner");
 
-        assertThat(messageService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
+        assertThat(messageQueryService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
 
         messageService.editMessage(channel.id(), msg.id(), "owner", "v2");
         messageService.editMessage(channel.id(), msg.id(), "owner", "v3");
 
         // History holds the two superseded versions, newest replacement first.
-        assertThat(messageService.editHistory(channel.id(), msg.id(), "owner"))
+        assertThat(messageQueryService.editHistory(channel.id(), msg.id(), "owner"))
                 .extracting(MessageEditHistoryEntry::content)
                 .containsExactly("v2", "v1");
     }
@@ -46,7 +48,7 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
 
         messageService.editMessage(channel.id(), msg.id(), "owner", "same");
 
-        assertThat(messageService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
+        assertThat(messageQueryService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
     }
 
     @Test
@@ -58,7 +60,7 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
         assertThatThrownBy(() -> messageService.editMessage(channel.id(), msg.id(), "owner", "   "))
                 .isInstanceOf(BadRequestException.class);
 
-        assertThat(messageService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
+        assertThat(messageQueryService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
     }
 
     @Test
@@ -69,7 +71,7 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
         MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("v1", null), "owner");
         messageService.editMessage(channel.id(), msg.id(), "owner", "v2");
 
-        assertThatThrownBy(() -> messageService.editHistory(channel.id(), msg.id(), "outsider"))
+        assertThatThrownBy(() -> messageQueryService.editHistory(channel.id(), msg.id(), "outsider"))
                 .isInstanceOf(ForbiddenException.class);
     }
 }

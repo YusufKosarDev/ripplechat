@@ -59,7 +59,25 @@ ENV SPRING_PROFILES_ACTIVE=prod
 # prod profile). EXPOSE is informational; Render detects the listening port.
 EXPOSE 8081
 
+# The app already exposes /actuator/health and permits it unauthenticated, so an
+# orchestrator can use it directly. start-period covers JVM boot plus Flyway on
+# a cold database; the app is not expected to answer before that.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=90s --retries=3 \
+    CMD curl -fsS "http://localhost:${PORT:-8081}/actuator/health" || exit 1
+
 # Exec form so SIGTERM reaches the JVM for graceful shutdown on redeploys.
-# -Xshare:auto (the default) means a missing/stale archive degrades to a
+#
+# The heap flags matter on a small instance: with none, the JVM takes 25% of the
+# container limit, so a 512 MB host gives the app ~128 MB and spends the rest on
+# nothing. SerialGC is the right collector at that size — G1's overhead buys
+# nothing below a couple of cores — and ExitOnOutOfMemoryError makes the
+# container die and restart rather than limp along swapping.
+#
+# -Xshare:auto (the default) means a missing or stale CDS archive degrades to a
 # normal start instead of failing.
-ENTRYPOINT ["java", "-XX:SharedArchiveFile=/app/application/app.jsa", "-jar", "/app/application/app.jar"]
+ENTRYPOINT ["java", \
+    "-XX:MaxRAMPercentage=75", \
+    "-XX:+UseSerialGC", \
+    "-XX:+ExitOnOutOfMemoryError", \
+    "-XX:SharedArchiveFile=/app/application/app.jsa", \
+    "-jar", "/app/application/app.jar"]

@@ -31,8 +31,8 @@ import java.util.UUID;
 public class MessageController {
 
     private final MessageService messageService;
-    private final MessageModerationService moderationService;
     private final MessageQueryService messageQueryService;
+    private final MessageModerationService moderationService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -68,7 +68,7 @@ public class MessageController {
     public List<MessageEditHistoryEntry> history(@PathVariable UUID channelId,
                                                  @PathVariable UUID messageId,
                                                  @AuthenticationPrincipal String username) {
-        return messageService.editHistory(channelId, messageId, username);
+        return messageQueryService.editHistory(channelId, messageId, username);
     }
 
     @PostMapping("/{messageId}/pin")
@@ -98,6 +98,6 @@ public class MessageController {
             @PathVariable UUID channelId,
             @AuthenticationPrincipal String username,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
-        return messageService.findByChannel(channelId, username, pageable);
+        return messageQueryService.findByChannel(channelId, username, pageable);
     }
 }

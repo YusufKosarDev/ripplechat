@@ -21,6 +21,8 @@ class MessageHideTests extends AbstractIntegrationTest {
     @Autowired
     MessageService messageService;
     @Autowired
+    MessageQueryService messageQueryService;
+    @Autowired
     MessageModerationService moderationService;
 
     @Test
@@ -33,10 +35,10 @@ class MessageHideTests extends AbstractIntegrationTest {
 
         moderationService.hideForMe(channel.id(), msg.id(), "member");
 
-        var memberFeed = messageService.findByChannel(channel.id(), "member", PageRequest.of(0, 50));
+        var memberFeed = messageQueryService.findByChannel(channel.id(), "member", PageRequest.of(0, 50));
         assertThat(memberFeed.content()).extracting(MessageResponse::id).doesNotContain(msg.id());
 
-        var ownerFeed = messageService.findByChannel(channel.id(), "owner", PageRequest.of(0, 50));
+        var ownerFeed = messageQueryService.findByChannel(channel.id(), "owner", PageRequest.of(0, 50));
         assertThat(ownerFeed.content()).extracting(MessageResponse::id).contains(msg.id());
     }
 }

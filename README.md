@@ -40,9 +40,9 @@ Five things worth a look if you are skimming:
 | **Horizontally scalable WebSockets** | a Redis Pub/Sub bridge fans a message published on one replica out to subscribers connected to any other; rate limits are an atomic Redis token bucket rather than per-instance counters |
 | **Correct under concurrency** | `@Scheduled` sweeps are wrapped in ShedLock so exactly one replica runs each tick, and media cleanup goes through a transactional outbox instead of a best-effort delete |
 | **A JVM that starts fast** | the image unpacks the fat jar, does a CDS training run and maps the class archive back in at boot — about 35% off startup, which matters on a free-tier host |
-| **Tested where it counts** | 175 backend integration tests against real PostgreSQL and Redis (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 20 Playwright end-to-end scenarios |
+| **Tested where it counts** | 206 backend tests against real PostgreSQL, Redis and Elasticsearch (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 21 Playwright end-to-end scenarios |
 
-Built solo over ~5 weeks, 280+ commits.
+Built solo over ~5 weeks of active development, 290+ commits.
 
 ---
 
@@ -95,7 +95,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 - **Saved messages** — bookmark any message and revisit them in a dedicated saved-items list (per-user, jump straight back to the message)
 - **Rich Text Editor (TipTap)** — WYSIWYG editor with live markdown rendering, bold/italic, code blocks, quotes, and bullet lists
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
-- **AI channel summarization (Claude)** — a "✨ Summarize" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (`claude-3-5-sonnet-20241022` by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
+- **AI channel summarization (Claude)** — a "✨ Summarize" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (Sonnet by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
 - **Full-text search** — searches message content with sender, channel and date filters. Runs on **PostgreSQL full-text** (`to_tsvector`, GIN-backed) by default, so search works on a fresh clone with nothing extra to install. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` against a real Elasticsearch to swap in the n-gram analyzer and BM25 ranking instead — both backends apply the same filters and return the same rows, only the ranking differs
 - **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
@@ -245,7 +245,7 @@ k6 run -e BASE_URL=http://localhost:8081 -e VUS=50 -e DURATION=1m loadtest/messa
 **Testing** — JUnit 5 · Testcontainers · JaCoCo · ArchUnit · PITest · Vitest · React Testing Library · Playwright · axe · k6. See [Testing](#-testing).
 
 **DevOps**
-- Docker Compose (PostgreSQL + optional STOMP-enabled RabbitMQ)
+- Docker Compose (PostgreSQL + Redis, plus an opt-in STOMP-enabled RabbitMQ)
 - Flyway (production schema migrations)
 - Maven · Spring profiles (dev / prod)
 - GitHub Actions CI (backend, frontend, e2e) · container image build & publish to GHCR on push to `main` (with an optional deploy-hook step) · Dependabot (Maven, npm, Actions) · `npm audit` gate on shipped dependencies
@@ -277,7 +277,7 @@ flowchart TB
 
     subgraph Data["🗄️ Stateful infrastructure"]
         direction LR
-        PG[("PostgreSQL 16<br/>Flyway V1–V37")]
+        PG[("PostgreSQL 16<br/>Flyway V1–V39")]
         RD[("Redis<br/>pub/sub · rate limit<br/>lockout · ShedLock")]
         ES[("Elasticsearch<br/>opt-in; PG is default")]
     end
@@ -391,7 +391,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V37__group_sender_keys`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V39__demo_workspace_parity`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are logged to the console instead of sent. Search runs on PostgreSQL full-text by default and never contacts Elasticsearch; set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` (with an ES instance reachable at `spring.elasticsearch.uris`) to use it instead. Set `SWAGGER_ENABLED=false` to stop publishing the API docs. End-to-end encryption is entirely client-side and needs no server configuration.
 
@@ -434,22 +434,29 @@ ripplechat/
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, request-id filter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations V1–V37 (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V39 (prod schema)
 ├── frontend/                    # React + TypeScript app
-│   ├── public/                  # PWA manifest + service worker (sw.js)
+│   ├── public/                  # PWA manifest, icons, OG image
 │   └── src/
 │       ├── api/                 # HTTP client & types
 │       ├── app/                 # Redux store & hooks
 │       ├── features/            # auth, channels, messages, threads, polls, presence,
 │       │                        #   reads, blocks, muted, e2ee, unread, connection, ui …
 │       ├── realtime/            # STOMP socket lifecycle
-│       ├── crypto/              # Client-side E2EE (Web Crypto)
+│       ├── crypto/              # Client-side E2EE (Double Ratchet, X3DH, safety numbers)
+│       ├── db/                  # IndexedDB store (offline history + pending sends)
+│       ├── sync/                # Flushes pending sends when the network returns
+│       ├── hooks/               # Composed behaviour (channel socket, composition, WebRTC …)
 │       ├── i18n/                # EN/TR translations + provider
 │       ├── commands/            # Slash-command registry
 │       ├── components/          # UI components (+ ui/ primitives & useDialog)
 │       ├── pages/               # Route-level views
+│       ├── sw.ts                # Service worker: precache + Web Push (injectManifest)
 │       └── ../e2e/              # Playwright end-to-end tests
-├── docker-compose.yml           # PostgreSQL (+ STOMP-enabled RabbitMQ for the opt-in relay)
+├── scripts/                     # CI hygiene guards (encoding, imports, README figures)
+├── loadtest/                    # k6 scenario for the read-heavy API path
+├── docs/                        # Screenshots, demo GIF, design notes
+├── docker-compose.yml           # PostgreSQL + Redis (+ RabbitMQ behind an opt-in profile)
 └── .env.example                 # Environment template
 ```
 
@@ -498,12 +505,12 @@ and by end-to-end scenarios everywhere else.
 
 | Suite | What it covers | Size |
 |---|---|---|
-| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, channel authorisation, messaging, search, webhooks, admin, the outbox, and a live STOMP round-trip | **175 tests · 68% line coverage** (JaCoCo) |
+| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, channel authorisation, messaging, search, webhooks, admin, the outbox, and a live STOMP round-trip | **206 tests · 70% line coverage** (JaCoCo) |
 | **Architecture** (ArchUnit) | naming, one-directional layer dependencies, an independent `common` package, constructor injection | enforced on every build |
-| **Mutation** (PITest) | the security-critical classes: rate limiter, JWT service, SSRF guard, upload validation | `mvn -Ppitest test org.pitest:pitest-maven:mutationCoverage` |
-| **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips, the STOMP client, the channel hook, the send path, reducers, slash commands | **190 tests · 33% line coverage** (v8) |
-| **End-to-end** (Playwright) | the real production build against a stubbed backend: landing, login, 2FA, chat, search, scheduled messages, blocking, pinning, theme and language toggles | **20 scenarios** (+8 screenshot generators) |
-| **Accessibility** (axe) | landing, login and register pages, failing on critical/serious violations | part of the e2e run |
+| **Mutation** (PITest) | the security-critical classes: rate limiter, JWT service, SSRF guard, upload validation, request-id filter, poll tallying | **70% killed · 86% test strength** (`./mvnw -Ppitest test org.pitest:pitest-maven:mutationCoverage`) |
+| **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips, the STOMP client, the channel hook, the send path, reducers, slash commands | **209 tests · 33% line coverage** (v8) |
+| **End-to-end** (Playwright) | the real production build against a stubbed backend: landing, login, 2FA, chat, search, scheduled messages, blocking, pinning, theme and language toggles | **21 scenarios** (+9 screenshot and demo-reel generators) |
+| **Accessibility** (axe) | the landing, login and register pages plus the chat workspace itself, failing on critical/serious violations | part of the e2e run |
 | **Load** (k6) | the read-heavy API path — see [Performance](#-performance) | `k6 run loadtest/messaging.js` |
 
 ```bash
