@@ -34,9 +34,14 @@ services:
       timeout: 5s
       retries: 5
 
+  # Opt-in: only needed for WEBSOCKET_BROKER_TYPE=rabbitmq, the alternative to
+  # the default Redis pub/sub bridge. Behind a profile so the everyday
+  # `docker compose up -d` does not pull a ~250 MB image nothing will talk to.
+  #   docker compose --profile rabbitmq up -d
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: ripplechat-rabbitmq
+    profiles: ["rabbitmq"]
     restart: unless-stopped
     ports:
       - "5672:5672"      # AMQP
