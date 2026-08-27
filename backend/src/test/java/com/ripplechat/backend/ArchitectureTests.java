@@ -1,5 +1,6 @@
 package com.ripplechat.backend;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -48,14 +49,22 @@ class ArchitectureTests {
                     .should().dependOnClassesThat().haveSimpleNameEndingWith("Service")
                     .orShould().dependOnClassesThat().haveSimpleNameEndingWith("Controller");
 
+    /**
+     * {@code common} is the shared base every feature may depend on, so it must
+     * not depend on any of them.
+     *
+     * <p>Stated as "anything in the application outside common", not as a list of
+     * feature packages. The list version named a {@code ..call..} package that
+     * does not exist and covered 18 of the 27 that do, so nine packages could
+     * have been depended on freely while the rule reported success. This form
+     * cannot fall behind the codebase.
+     */
     @ArchTest
     static final ArchRule common_does_not_depend_on_feature_packages =
             noClasses().that().resideInAPackage("..common..")
-                    .should().dependOnClassesThat().resideInAnyPackage(
-                            "..auth..", "..channel..", "..message..", "..user..", "..poll..",
-                            "..reaction..", "..search..", "..presence..", "..typing..", "..read..",
-                            "..push..", "..link..", "..media..", "..gif..", "..websocket..", "..demo..",
-                            "..redis..", "..call..");
+                    .should().dependOnClassesThat(
+                            JavaClass.Predicates.resideInAPackage("com.ripplechat.backend..")
+                                    .and(JavaClass.Predicates.resideOutsideOfPackage("..common..")));
 
     /**
      * Covers {@code @Value} as well as {@code @Autowired}. The rule used to name

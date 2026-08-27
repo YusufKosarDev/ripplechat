@@ -3,8 +3,9 @@ package com.ripplechat.backend.ai;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.models.messages.Message;
+import com.anthropic.models.messages.MessageCreateParams;
 import com.ripplechat.backend.common.dto.PageResponse;
-import com.ripplechat.backend.message.MessageService;
+import com.ripplechat.backend.message.MessageQueryService;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.redis.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
@@ -42,16 +43,16 @@ public class AiSummaryService {
     private static final double AI_BURST = 3;
     private static final double AI_REFILL_PER_SEC = 0.05;
 
-    private final MessageService messageService;
+    private final MessageQueryService messageQueryService;
     private final RateLimiter rateLimiter;
     private final AnthropicClient client; // null when disabled
     private final String model;
 
-    public AiSummaryService(MessageService messageService,
+    public AiSummaryService(MessageQueryService messageQueryService,
                             RateLimiter rateLimiter,
                             @Value("${ANTHROPIC_API_KEY:}") String apiKey,
                             @Value("${AI_MODEL:claude-3-5-sonnet-20241022}") String model) {
-        this.messageService = messageService;
+        this.messageQueryService = messageQueryService;
         this.rateLimiter = rateLimiter;
         this.model = model;
         this.client = (apiKey == null || apiKey.isBlank())
@@ -82,7 +83,7 @@ public class AiSummaryService {
         // sort decides), then flip back to chronological order so the transcript
         // reads oldest→newest for the model. Membership is enforced here (403 for
         // non-members). Deleted/empty messages are dropped from the transcript.
-        PageResponse<MessageResponse> page = messageService.findByChannel(
+        PageResponse<MessageResponse> page = messageQueryService.findByChannel(
                 channelId, username, PageRequest.of(0, MAX_MESSAGES, Sort.by("createdAt").descending()));
         List<MessageResponse> chronological = new ArrayList<>(page.content());
         Collections.reverse(chronological);
@@ -95,8 +96,8 @@ public class AiSummaryService {
         }
 
         try {
-            com.anthropic.models.messages.MessageCreateParams params =
-                    com.anthropic.models.messages.MessageCreateParams.builder()
+            MessageCreateParams params =
+                    MessageCreateParams.builder()
                             .model(model)
                             .maxTokens(1024L)
                             .system("You summarize a group chat for a member who is catching up. "

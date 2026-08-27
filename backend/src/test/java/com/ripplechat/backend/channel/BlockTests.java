@@ -3,6 +3,7 @@ package com.ripplechat.backend.channel;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
 import com.ripplechat.backend.channel.membership.ChannelMembershipService;
 import com.ripplechat.backend.common.exception.ForbiddenException;
+import com.ripplechat.backend.message.MessageQueryService;
 import com.ripplechat.backend.message.MessageService;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MessageResponse;
@@ -31,6 +32,8 @@ class BlockTests extends AbstractIntegrationTest {
     @Autowired
     MessageService messageService;
     @Autowired
+    MessageQueryService messageQueryService;
+    @Autowired
     NotificationService notificationService;
 
     @Test
@@ -56,10 +59,10 @@ class BlockTests extends AbstractIntegrationTest {
 
         blockService.block("alice", bob.getId());
 
-        var aliceFeed = messageService.findByChannel(channel.id(), "alice", PageRequest.of(0, 50));
+        var aliceFeed = messageQueryService.findByChannel(channel.id(), "alice", PageRequest.of(0, 50));
         assertThat(aliceFeed.content()).isEmpty();
 
-        var bobFeed = messageService.findByChannel(channel.id(), "bob", PageRequest.of(0, 50));
+        var bobFeed = messageQueryService.findByChannel(channel.id(), "bob", PageRequest.of(0, 50));
         assertThat(bobFeed.content()).hasSize(1);
     }
 
@@ -112,18 +115,18 @@ class BlockTests extends AbstractIntegrationTest {
         messageService.send(channel.id(), new CreateMessageRequest("reply", parent.id()), "bob");
 
         // Verify thread has 1 reply
-        var repliesBefore = messageService.listThread(channel.id(), parent.id(), "alice");
+        var repliesBefore = messageQueryService.listThread(channel.id(), parent.id(), "alice");
         assertThat(repliesBefore).hasSize(1);
 
         // Alice blocks Bob
         blockService.block("alice", bob.getId());
 
         // Verify thread now hides the reply from Alice's view
-        var repliesAfterAlice = messageService.listThread(channel.id(), parent.id(), "alice");
+        var repliesAfterAlice = messageQueryService.listThread(channel.id(), parent.id(), "alice");
         assertThat(repliesAfterAlice).isEmpty();
 
         // Verify Bob can still see his reply
-        var repliesAfterBob = messageService.listThread(channel.id(), parent.id(), "bob");
+        var repliesAfterBob = messageQueryService.listThread(channel.id(), parent.id(), "bob");
         assertThat(repliesAfterBob).hasSize(1);
     }
 

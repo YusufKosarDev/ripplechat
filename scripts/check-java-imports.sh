@@ -11,11 +11,8 @@
 #     public java.util.Map<String, Boolean> providers() {
 # in a handful of files while the other ~200 used imports.
 #
-# Two things are deliberately exempt:
-#   - JPQL/SQL inside @Query strings, where an enum literal genuinely needs the
-#     fully-qualified name and an import cannot help;
-#   - AiSummaryService, where com.anthropic...Message collides with the app's own
-#     Message type, so only one of the two can be imported.
+# One thing is deliberately exempt: JPQL/SQL inside @Query strings, where an enum
+# literal genuinely needs the fully-qualified name and an import cannot help.
 set -euo pipefail
 
 # Packages that should always be reachable via an import. The (\.[a-z]...)* group
@@ -25,10 +22,6 @@ PATTERN='(^|[^a-zA-Z0-9_."])(java\.(util|net|time|security|nio)|jakarta\.(persis
 
 bad=0
 while IFS= read -r -d '' f; do
-  case "$f" in
-    */AiSummaryService.java) continue ;;
-  esac
-
   # Blank out text blocks before matching, keeping line numbers intact. A @Query
   # body spans lines carrying no quote character of their own, so a per-line
   # quote filter alone would not exclude them.

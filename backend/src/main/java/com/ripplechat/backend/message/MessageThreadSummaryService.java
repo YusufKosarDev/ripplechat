@@ -21,10 +21,10 @@ import java.util.stream.Collectors;
  * Builds the "N replies, last repliers" summary shown on a message that starts a
  * thread.
  *
- * <p>Split out of {@link MessageService}: it is a self-contained read-model with
- * three callers that have nothing else in common — the channel feed, a freshly
- * sent message, and {@link MessageBroadcastService} — and its batch/single pair
- * exists purely to keep the feed from issuing a query per message.
+ * <p>Three unrelated callers need it — the channel feed, a freshly sent reply,
+ * and {@link MessageBroadcastService} — so it stands on its own. The batch form
+ * exists because the feed would otherwise issue a query per message; the single
+ * form is a thin wrapper over it.
  */
 @Service
 @RequiredArgsConstructor

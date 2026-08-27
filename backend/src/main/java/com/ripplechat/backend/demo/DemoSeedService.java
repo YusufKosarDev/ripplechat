@@ -163,7 +163,7 @@ public class DemoSeedService {
     }
 
     /**
-     * Seeds a demo poll in #genel if the channel exists and has none yet. Polls
+     * Seeds a demo poll in #general if the channel exists and has none yet. Polls
      * are now persistent, so this is a one-time, idempotent backfill (it also
      * adds the poll to a demo workspace that predates persistent polls).
      */

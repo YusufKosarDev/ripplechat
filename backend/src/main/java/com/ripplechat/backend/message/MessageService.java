@@ -48,6 +48,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * The write path for messages: send, forward, edit, and the quote/mention/
+ * attachment rules that go with them.
+ *
+ * <p>A send is the busiest operation in the app — it rate-limits, validates,
+ * resolves a quoted message, persists, indexes for search, notifies mentions and
+ * replies, and broadcasts — which is why this class has the dependency list it
+ * does. Reads live in {@link MessageQueryService}, removal and pinning in
+ * {@link MessageModerationService}.
+ */
 @Service
 @RequiredArgsConstructor
 public class MessageService {
@@ -61,7 +71,6 @@ public class MessageService {
     private final ChannelRepository channelRepository;
     private final UserRepository userRepository;
     private final ChannelMembershipRepository membershipRepository;
-    private final MessageReactionService messageReactionService;
     private final MessageEditHistoryRepository messageEditHistoryRepository;
     private final ChannelMembershipGuard membershipGuard;
     private final RedisBroadcastService redisBroadcastService;
@@ -264,47 +273,6 @@ public class MessageService {
         return response;
     }
 
-    @Transactional(readOnly = true)
-    public PageResponse<MessageResponse> findByChannel(UUID channelId, String username, Pageable pageable) {
-        if (!channelRepository.existsById(channelId)) {
-            throw new ResourceNotFoundException("channel not found: " + channelId);
-        }
-        membershipGuard.requireMember(channelId, username);
-
-        User viewer = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-        var page = messageRepository.findChannelFeed(channelId, viewer.getId(), pageable);
-        List<UUID> ids = page.getContent().stream().map(Message::getId).toList();
-        Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(ids);
-        Map<UUID, ThreadSummary> threads = threadSummaryService.summariesByParent(ids);
-
-        return PageResponse.from(page.map(m -> MessageResponse.from(
-                m,
-                reactions.getOrDefault(m.getId(), List.of()),
-                threads.getOrDefault(m.getId(), ThreadSummary.empty()))));
-    }
-
-    @Transactional(readOnly = true)
-    public List<MessageResponse> listThread(UUID channelId, UUID parentMessageId, String username) {
-        membershipGuard.requireMember(channelId, username);
-        Message parent = messageRepository.findById(parentMessageId)
-                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + parentMessageId));
-        if (!parent.getChannel().getId().equals(channelId)) {
-            throw new ResourceNotFoundException("message not found in channel: " + parentMessageId);
-        }
-
-        User viewer = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-
-        List<Message> replies = messageRepository.findThreadReplies(parentMessageId, viewer.getId());
-
-        Map<UUID, List<ReactionSummary>> reactions = messageReactionService.summariesByMessage(
-                replies.stream().map(Message::getId).toList());
-        return replies.stream()
-                .map(m -> MessageResponse.from(m, reactions.getOrDefault(m.getId(), List.of()), ThreadSummary.empty()))
-                .toList();
-    }
-
     @Transactional
     public void editMessage(UUID channelId, UUID messageId, String username, String content) {
         Message message = requireOwnMessage(channelId, messageId, username);
@@ -329,20 +297,6 @@ public class MessageService {
         messageRepository.saveAndFlush(message);
         searchService.indexMessage(message);
         broadcastService.broadcastUpdate(message);
-    }
-
-    /** Prior versions of a message (newest first). Membership-checked. */
-    @Transactional(readOnly = true)
-    public List<MessageEditHistoryEntry> editHistory(UUID channelId, UUID messageId, String username) {
-        membershipGuard.requireMember(channelId, username);
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
-        if (!message.getChannel().getId().equals(channelId)) {
-            throw new ResourceNotFoundException("message not found in channel: " + messageId);
-        }
-        return messageEditHistoryRepository.findByMessage_IdOrderByEditedAtDesc(messageId).stream()
-                .map(MessageEditHistoryEntry::from)
-                .toList();
     }
 
     private Message requireOwnMessage(UUID channelId, UUID messageId, String username) {

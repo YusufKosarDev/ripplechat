@@ -14,16 +14,16 @@ import java.util.UUID;
 @RequestMapping("/api/channels/{channelId}/messages/{messageId}/thread")
 public class ThreadController {
 
-    private final MessageService messageService;
+    private final MessageQueryService messageQueryService;
 
-    public ThreadController(MessageService messageService) {
-        this.messageService = messageService;
+    public ThreadController(MessageQueryService messageQueryService) {
+        this.messageQueryService = messageQueryService;
     }
 
     @GetMapping
     public List<MessageResponse> thread(@PathVariable UUID channelId,
                                         @PathVariable UUID messageId,
                                         @AuthenticationPrincipal String username) {
-        return messageService.listThread(channelId, messageId, username);
+        return messageQueryService.listThread(channelId, messageId, username);
     }
 }

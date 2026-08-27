@@ -13,10 +13,9 @@ import java.util.List;
  * Publishes an updated message to its channel's update topic, so open clients
  * re-render it in place (an edit, a pin, a soft delete).
  *
- * <p>Shared rather than duplicated: this is called from both
- * {@link MessageService} (edits) and {@link MessageModerationService} (pin,
- * delete, expiry sweep). Keeping one copy is what stops those paths from
- * drifting into broadcasting subtly different payloads for the same event.
+ * <p>Edits, pins, deletes and the expiry sweep all reach this from different
+ * classes. One implementation means those paths cannot drift into broadcasting
+ * subtly different payloads for what a client sees as the same event.
  */
 @Service
 @RequiredArgsConstructor
