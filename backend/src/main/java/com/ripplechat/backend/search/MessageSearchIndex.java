@@ -12,19 +12,23 @@ import java.util.UUID;
  * {@code app.search.elasticsearch.enabled} flag:
  *
  * <ul>
- *   <li>{@link ElasticsearchMessageSearchIndex} — the default, full Elasticsearch
- *       engine (n-gram analyzer, sender/date filters).</li>
- *   <li>{@link DatabaseMessageSearchIndex} — a PostgreSQL full-text fallback used
- *       when Elasticsearch is unavailable, so the app still boots and search keeps
- *       working (without the secondary sender/date filters).</li>
+ *   <li>{@link DatabaseMessageSearchIndex} — PostgreSQL full-text, the default.
+ *       Needs no extra infrastructure, so search works on a fresh clone.</li>
+ *   <li>{@link ElasticsearchMessageSearchIndex} — opt-in via the flag, for a
+ *       deployment that actually runs Elasticsearch (n-gram analyzer, BM25).</li>
  * </ul>
+ *
+ * <p>Both apply the same channel, sender, date and blocked-author filters; only
+ * the ranking function differs.</p>
  */
 public interface MessageSearchIndex {
 
     /**
      * Returns the ids of messages matching {@code query} within the given channels,
-     * ranked and paged. {@code from} (sender) and {@code since} are honoured by the
-     * Elasticsearch backend; the PostgreSQL fallback applies content + channel + paging only.
+     * ranked and paged. {@code from} (sender), {@code since} and
+     * {@code blockedUsernames} are honoured by both backends. Blocked authors are
+     * filtered again during hydration, but an implementation must still exclude
+     * them here or they consume slots in the ranked page.
      */
     List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, List<String> blockedUsernames, int page, int size);
 

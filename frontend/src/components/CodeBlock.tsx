@@ -8,6 +8,41 @@ import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light'
 import { useAppSelector } from '../app/hooks'
 import { focusRing } from './ui/focusRing'
 
+/**
+ * Fence shorthand → the key PrismAsyncLight's loader map actually uses.
+ *
+ * The loader map is keyed by canonical names ("javascript", "python"), while
+ * people type the alias ("js", "py"). An unknown key silently loads no grammar
+ * and the block renders as plain text — which is what every ```js block in the
+ * app did before this map existed.
+ */
+const LANGUAGE_ALIASES: Record<string, string> = {
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  py: 'python',
+  rb: 'ruby',
+  sh: 'bash',
+  shell: 'bash',
+  zsh: 'bash',
+  yml: 'yaml',
+  md: 'markdown',
+  html: 'markup',
+  xml: 'markup',
+  svg: 'markup',
+  vue: 'markup',
+  cs: 'csharp',
+  'c++': 'cpp',
+  golang: 'go',
+  kt: 'kotlin',
+  rs: 'rust',
+  ps1: 'powershell',
+  dockerfile: 'docker',
+  tf: 'hcl',
+  psql: 'sql',
+}
+
 interface CodeBlockProps {
   language: string
   value: string
@@ -34,6 +69,8 @@ export default function CodeBlock({ language, value }: CodeBlockProps) {
   }
 
   const dark = theme === 'dark'
+  // The label keeps whatever the author typed; only the lookup is normalised.
+  const grammar = LANGUAGE_ALIASES[language.toLowerCase()] ?? language.toLowerCase()
 
   return (
     <div className="my-2 overflow-hidden rounded-lg border border-control">
@@ -44,7 +81,7 @@ export default function CodeBlock({ language, value }: CodeBlockProps) {
         </button>
       </div>
       <SyntaxHighlighter
-        language={language}
+        language={grammar}
         style={dark ? oneDark : oneLight}
         customStyle={{
           margin: 0,

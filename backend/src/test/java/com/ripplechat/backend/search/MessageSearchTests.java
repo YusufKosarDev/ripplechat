@@ -6,6 +6,7 @@ import com.ripplechat.backend.message.MessageService;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.search.dto.SearchResultResponse;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
+import org.springframework.test.context.TestPropertySource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -13,6 +14,13 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Exercises the Elasticsearch search path explicitly. The application default is
+ * the PostgreSQL fallback, so without this the suite would silently drift onto
+ * that backend and leave the Elasticsearch implementation untested -- with no
+ * test failing to say so.
+ */
+@TestPropertySource(properties = "app.search.elasticsearch.enabled=true")
 class MessageSearchTests extends AbstractIntegrationTest {
 
     @Autowired

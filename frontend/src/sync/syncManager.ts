@@ -15,12 +15,12 @@ export async function syncPendingMessages() {
     // visitor downloads. Load the realtime layer only when there is actually
     // something to sync (by then the chat route has cached the chunk anyway).
     const { sendChatMessage } = await import('../realtime/chatSocket')
-    // Sadece henüz STOMP'a gitmemiş, offline'da yazılmış olanları sıralı gönder.
+    // Replay only what was written offline and never reached STOMP, in order.
     const sorted = [...pendingMessages].sort((a, b) => a.timestamp - b.timestamp)
 
     for (const msg of sorted) {
       if (navigator.onLine) {
-        // Sunucuya tekrar gönder
+        // Re-send to the server.
         sendChatMessage(
           msg.channelId,
           msg.content,
@@ -30,10 +30,10 @@ export async function syncPendingMessages() {
           msg.attachmentName ?? undefined,
           msg.attachmentType ?? undefined
         )
-        // Gönderildi sayıp yerel IndexedDB'den sil (gerçek mesaj websocket'ten geri dönecek)
+        // Treat as sent and drop from IndexedDB — the real message comes back over the socket.
         await removePendingMessage(msg.tempId)
       } else {
-        break // Hâlâ offline ise dur.
+        break // Still offline: stop here.
       }
     }
   } catch (err) {

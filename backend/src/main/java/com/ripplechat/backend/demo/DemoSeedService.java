@@ -33,8 +33,19 @@ public class DemoSeedService {
 
     public static final String DEMO_USERNAME = "demo";
     private static final String DEMO_PASSWORD = "demo1234";
-    private static final String GENERAL_CHANNEL = "genel";
-    private static final List<String> SEED_CHANNELS = List.of(GENERAL_CHANNEL, "yazılım", "tasarım");
+    private static final String GENERAL_CHANNEL = "general";
+    private static final String DEV_CHANNEL = "engineering";
+    private static final String DESIGN_CHANNEL = "design";
+    private static final List<String> SEED_CHANNELS = List.of(GENERAL_CHANNEL, DEV_CHANNEL, DESIGN_CHANNEL);
+
+    /**
+     * The names these channels had before the workspace was translated to
+     * English. {@code V38__demo_workspace_english.sql} renames them in place,
+     * but {@link #resetMutableDemoState()} must recognise the old names too:
+     * on a database where that migration has not run, treating them as junk
+     * would soft-delete the entire demo workspace on the next nightly sweep.
+     */
+    private static final List<String> LEGACY_SEED_CHANNELS = List.of("genel", "yazılım", "tasarım");
 
     /**
      * Disappearing-message timer applied to the seed channels. Visitor messages
@@ -58,41 +69,42 @@ public class DemoSeedService {
             return false; // already seeded
         }
 
-        User demo = user(DEMO_USERNAME, "demo@ripplechat.app", "Demo Kullanıcı", "indigo");
+        // The wording here is deliberately identical to the fixture in
+        // frontend/e2e/screenshots.spec.ts, which is what docs/screenshots/*.png
+        // are generated from — so what a visitor lands on matches the README.
+        User demo = user(DEMO_USERNAME, "demo@ripplechat.app", "Demo User", "indigo");
         User elif = user("elif", "elif@ripplechat.app", "Elif", "rose");
         User kerem = user("kerem", "kerem@ripplechat.app", "Kerem", "emerald");
 
-        Channel general = channel(GENERAL_CHANNEL, "Herkese açık genel sohbet", demo, List.of(elif, kerem));
-        Channel dev = channel("yazılım", "Kod, araçlar ve geliştirme", demo, List.of(elif, kerem));
-        Channel design = channel("tasarım", "UI/UX ve görsel tasarım", demo, List.of(elif, kerem));
+        Channel general = channel(GENERAL_CHANNEL, "Open to everyone", demo, List.of(elif, kerem));
+        Channel dev = channel(DEV_CHANNEL, "Code, tooling and releases", demo, List.of(elif, kerem));
+        Channel design = channel(DESIGN_CHANNEL, "UI/UX and visual design", demo, List.of(elif, kerem));
 
-        // #genel — welcome + reactions + markdown + a thread
-        Message welcome = message(general, demo,
-                "RippleChat'e hoş geldin! 🎉 Burası gerçek zamanlı, topluluk odaklı bir sohbet alanı. "
-                        + "Soldan kanallar arasında gezinebilir, mesaj gönderebilirsin.");
-        react(welcome, elif, "🎉");
-        react(welcome, kerem, "🔥");
-        react(welcome, demo, "👍");
+        // #general — welcome + reactions + markdown + a thread
+        Message welcome = message(general, demo, "Welcome to RippleChat! 🎉");
+        react(welcome, elif, "🔥");
 
-        message(general, elif, "Selam! Bir mesajın üstüne gelince beliren ＋ ile emoji reaksiyonu ekleyebilirsin 👀");
-        Message md = message(general, kerem,
-                "Markdown desteği var: **kalın**, *italik*, `satır içi kod` ve [bağlantılar](https://ripplechat.app) 🙂");
-        react(md, elif, "👍");
+        message(general, elif, "Hey! We just moved the team over here 👋");
+        message(general, kerem, "It is realtime — messages land the moment you hit send ⚡");
 
         Message threadParent = message(general, demo,
-                "Bir konuyu dağıtmadan tartışmak için thread kullanın — bu mesaja yanıt verin 🧵");
-        reply(threadParent, elif, "Thread çalışıyor! Ana akış tertemiz kalıyor 🙌");
-        reply(threadParent, kerem, "Süper, uzun tartışmalar için birebir.");
+                "React with an emoji, or open a thread on any message 🧵");
+        react(threadParent, elif, "🎉");
+        react(threadParent, kerem, "🎉");
+        reply(threadParent, elif, "Threads keep the main channel readable 🙌");
+        reply(threadParent, kerem, "Exactly — ideal for the long discussions.");
 
-        // #yazılım — a syntax-highlighted code block
-        message(dev, kerem, "Bugün ufak bir yardımcı yazdım:");
-        message(dev, kerem,
-                "```js\nfunction selamla(ad) {\n  return `Merhaba, ${ad}!`\n}\n\nconsole.log(selamla('RippleChat'))\n```");
-        message(dev, elif, "Temiz görünüyor 👏 Kod blokları sözdizimi vurgulu geliyor.");
+        message(general, elif, "Markdown works too: **bold**, *italic* and `inline code` 🙂");
+        message(general, kerem,
+                "```js\nfunction greet(name) {\n  return `Hello, ${name}!`\n}\nconsole.log(greet(\"RippleChat\"))\n```");
 
-        // #tasarım
-        message(design, elif, "Koyu tema gerçekten şık olmuş ✨ Sağ üstten açık/koyu geçiş yapabilirsiniz.");
-        message(design, demo, "Mobilde de düzgün çalışıyor — responsive tasarım hazır.");
+        // #engineering
+        message(dev, kerem, "Search runs on Elasticsearch, with a PostgreSQL fallback");
+        message(dev, elif, "Code blocks come through syntax-highlighted 👏");
+
+        // #design
+        message(design, elif, "The dark theme turned out well ✨ Toggle it from the top right.");
+        message(design, demo, "Works on mobile too — the layout is fully responsive.");
         return true;
     }
 
@@ -128,7 +140,7 @@ public class DemoSeedService {
             demo.setPassword(passwordEncoder.encode(DEMO_PASSWORD));
             demo.setTwoFactorEnabled(false);
             demo.setTotpSecret(null);
-            demo.setDisplayName("Demo Kullanıcı");
+            demo.setDisplayName("Demo User");
             demo.setAvatarColor("indigo");
             demo.setAvatarUrl(null);
             demo.setStatusEmoji(null);
@@ -140,7 +152,9 @@ public class DemoSeedService {
 
         for (Channel channel : channelRepository.findByCreatedBy_UsernameAndDeletedFalse(DEMO_USERNAME)) {
             // DMs a visitor opened have a null name; they are junk too.
-            boolean isSeedChannel = channel.getName() != null && SEED_CHANNELS.contains(channel.getName());
+            String name = channel.getName();
+            boolean isSeedChannel =
+                    name != null && (SEED_CHANNELS.contains(name) || LEGACY_SEED_CHANNELS.contains(name));
             if (!isSeedChannel) {
                 channel.setDeleted(true);
                 channelRepository.save(channel);
@@ -161,7 +175,7 @@ public class DemoSeedService {
                     if (!pollRepository.findByChannelIdOrderByCreatedAtAsc(general.getId()).isEmpty()) {
                         return;
                     }
-                    Poll poll = new Poll(general.getId(), "Favori programlama diliniz?", DEMO_USERNAME);
+                    Poll poll = new Poll(general.getId(), "What's your favourite programming language?", DEMO_USERNAME);
                     poll.addOption("0", "JavaScript", 0);
                     poll.addOption("1", "Java", 1);
                     poll.addOption("2", "Python", 2);

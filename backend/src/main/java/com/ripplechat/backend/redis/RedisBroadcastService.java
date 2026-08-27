@@ -2,7 +2,6 @@ package com.ripplechat.backend.redis;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -10,7 +9,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class RedisBroadcastService {
 
@@ -18,8 +16,17 @@ public class RedisBroadcastService {
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @Value("${app.websocket.broker.type:simple}")
-    private String brokerType;
+    private final String brokerType;
+
+    public RedisBroadcastService(RedisTemplate<String, Object> redisTemplate,
+                                 ObjectMapper objectMapper,
+                                 SimpMessagingTemplate messagingTemplate,
+                                 @Value("${app.websocket.broker.type:simple}") String brokerType) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.messagingTemplate = messagingTemplate;
+        this.brokerType = brokerType;
+    }
 
     /**
      * Broadcasts the payload. If the broker type is rabbitmq, it delegates directly

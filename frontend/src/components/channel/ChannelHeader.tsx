@@ -16,6 +16,9 @@ interface ChannelHeaderProps {
   isMuted: boolean
   onMuteToggle: () => void
   onShowGallery: () => void
+  /** False when our own identity key is missing, so there is nothing to compare. */
+  canVerifySafetyNumber: boolean
+  onVerifySafetyNumber: () => void
   onShowWebhooks: () => void
   onShowMembers: () => void
   onShowPinned: () => void
@@ -61,6 +64,8 @@ export default function ChannelHeader({
   isMuted,
   onMuteToggle,
   onShowGallery,
+  canVerifySafetyNumber,
+  onVerifySafetyNumber,
   onShowWebhooks,
   onShowMembers,
   onShowPinned,
@@ -156,8 +161,17 @@ export default function ChannelHeader({
         </Button>
         {dm && (
           dmPartner?.publicKey ? (
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-500 bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 rounded" title={t('chat.e2eeAutoTooltip')}>
-              <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> {t('chat.e2eeActive')}
+            <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-500" title={t('chat.e2eeAutoTooltip')}>
+                <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> {t('chat.e2eeActive')}
+              </div>
+              {/* Encryption alone does not prove who is on the other end: the
+                  server hands out the keys. Comparing safety numbers does. */}
+              {canVerifySafetyNumber && (
+                <Button variant="secondary" size="sm" onClick={onVerifySafetyNumber} title={t('safety.title')}>
+                  {t('safety.verify')}
+                </Button>
+              )}
             </div>
           ) : (
             <Button

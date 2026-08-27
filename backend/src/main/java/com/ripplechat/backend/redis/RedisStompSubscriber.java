@@ -1,22 +1,27 @@
 package com.ripplechat.backend.redis;
 
 import tools.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class RedisStompSubscriber {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${app.websocket.broker.type:simple}")
-    private String brokerType;
+    private final String brokerType;
+
+    public RedisStompSubscriber(SimpMessagingTemplate messagingTemplate,
+                                ObjectMapper objectMapper,
+                                @Value("${app.websocket.broker.type:simple}") String brokerType) {
+        this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
+        this.brokerType = brokerType;
+    }
 
     /**
      * This method is invoked by the RedisMessageListenerAdapter whenever a message

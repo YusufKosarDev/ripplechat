@@ -18,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.Security;
 import java.time.Duration;
 
 /**
@@ -34,9 +35,9 @@ public class LinkPreviewService {
         // Enforce a positive DNS cache TTL (e.g., 30 seconds) to prevent DNS rebinding attacks.
         // If it is disabled (0), we force it to 30s so the checked IP is cached and reused for the request.
         try {
-            String ttl = java.security.Security.getProperty("networkaddress.cache.ttl");
+            String ttl = Security.getProperty("networkaddress.cache.ttl");
             if (ttl == null || "0".equals(ttl)) {
-                java.security.Security.setProperty("networkaddress.cache.ttl", "30");
+                Security.setProperty("networkaddress.cache.ttl", "30");
             }
         } catch (Exception ignored) {}
     }
@@ -109,7 +110,7 @@ public class LinkPreviewService {
         }
     }
 
-    private LinkPreview parse(String html, String baseUrl) {
+    LinkPreview parse(String html, String baseUrl) {
         Document doc = Jsoup.parse(html, baseUrl);
         String title = firstNonBlank(metaContent(doc, "og:title"), doc.title());
         String description = firstNonBlank(metaContent(doc, "og:description"), metaContent(doc, "description"));
@@ -121,19 +122,28 @@ public class LinkPreviewService {
         return new LinkPreview(baseUrl, cap(title, 200), cap(description, 300), image, cap(siteName, 100));
     }
 
-    private String absImage(Document doc) {
-        Element el = doc.selectFirst("meta[property=og:image]");
-        if (el == null) {
-            el = doc.selectFirst("meta[name=twitter:image]");
-        }
-        if (el == null) {
+    String absImage(Document doc) {
+        String fromOg = absAttr(doc.selectFirst("meta[property=og:image]"));
+        return fromOg != null ? fromOg : absAttr(doc.selectFirst("meta[name=twitter:image]"));
+    }
+
+    /**
+     * Resolves a meta tag's {@code content} against the document's base URL.
+     *
+     * <p>The emptiness check is on the raw attribute, not the resolved value:
+     * {@code absUrl} resolves an empty {@code content} to the base URL itself,
+     * so a tag like {@code <meta property="og:image" content="">} would
+     * otherwise offer the article's own URL as its preview image.
+     */
+    private String absAttr(Element el) {
+        if (el == null || el.attr("content").isBlank()) {
             return null;
         }
         String abs = el.absUrl("content");
         return abs.isBlank() ? null : abs;
     }
 
-    private String metaContent(Document doc, String key) {
+    String metaContent(Document doc, String key) {
         Element el = doc.selectFirst("meta[property=" + key + "]");
         if (el == null) {
             el = doc.selectFirst("meta[name=" + key + "]");
@@ -142,7 +152,7 @@ public class LinkPreviewService {
     }
 
     /** Rejects non-http(s) schemes, non-standard ports (SSRF guard), and private/loopback/link-local hosts. */
-    private boolean isAllowed(URI uri) {
+    boolean isAllowed(URI uri) {
         String scheme = uri.getScheme();
         if (scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
             return false;
@@ -176,15 +186,15 @@ public class LinkPreviewService {
         return bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc; // fc00::/7
     }
 
-    private String firstNonBlank(String a, String b) {
+    String firstNonBlank(String a, String b) {
         return !isBlank(a) ? a : (!isBlank(b) ? b : null);
     }
 
-    private boolean isBlank(String s) {
+    boolean isBlank(String s) {
         return s == null || s.isBlank();
     }
 
-    private String cap(String s, int max) {
+    String cap(String s, int max) {
         if (s == null) {
             return null;
         }

@@ -18,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -224,7 +226,7 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.List<ActiveSessionResponse> getActiveSessions(String username) {
+    public List<ActiveSessionResponse> getActiveSessions(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return refreshTokenService.getActiveSessions(user).stream()
@@ -233,7 +235,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void revokeSession(String username, java.util.UUID sessionId) {
+    public void revokeSession(String username, UUID sessionId) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         refreshTokenService.revokeSession(user, sessionId);

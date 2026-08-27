@@ -22,5 +22,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* The service worker needs the WebWorker lib, which conflicts with DOM.
+     It compiles under tsconfig.worker.json instead. */
+  "exclude": ["src/sw.ts"]
 }

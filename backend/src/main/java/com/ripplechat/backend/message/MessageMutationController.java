@@ -17,9 +17,11 @@ import java.util.UUID;
 public class MessageMutationController {
 
     private final MessageService messageService;
+    private final MessageModerationService moderationService;
 
-    public MessageMutationController(MessageService messageService) {
+    public MessageMutationController(MessageService messageService, MessageModerationService moderationService) {
         this.messageService = messageService;
+        this.moderationService = moderationService;
     }
 
     @MessageMapping("/channels/{channelId}/messages/{messageId}/edit")
@@ -34,6 +36,6 @@ public class MessageMutationController {
     public void delete(@DestinationVariable UUID channelId,
                        @DestinationVariable UUID messageId,
                        Principal principal) {
-        messageService.deleteMessage(channelId, messageId, principal.getName());
+        moderationService.deleteMessage(channelId, messageId, principal.getName());
     }
 }

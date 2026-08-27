@@ -470,7 +470,7 @@ export async function decryptTextV2(partnerId: string, payload: string): Promise
 
     const serialized = await getRatchetSession(partnerId)
     if (!serialized) {
-      throw new Error('Oturum bulunamadı')
+      throw new Error('Ratchet session not found')
     }
 
     session = await deserializeSession(serialized)

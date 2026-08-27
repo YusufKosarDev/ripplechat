@@ -12,7 +12,7 @@ import com.ripplechat.backend.auth.dto.Verify2FaRequest;
 import com.ripplechat.backend.auth.dto.VerifyEmailRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,18 +26,28 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
     private final AccountService accountService;
+    private final String googleClientId;
 
-    @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.client.registration.google.client-id:placeholder}")
-    private String googleClientId;
+    // Explicit constructor rather than @RequiredArgsConstructor: Lombok does not
+    // copy @Value onto the generated parameter, so the property would not be
+    // injected. Same shape as JwtService and AdminBootstrap.
+    public AuthController(AuthService authService,
+                          AccountService accountService,
+                          @Value("${spring.security.oauth2.client.registration.google.client-id:placeholder}")
+                          String googleClientId) {
+        this.authService = authService;
+        this.accountService = accountService;
+        this.googleClientId = googleClientId;
+    }
 
     /**
      * Which social sign-in providers are actually usable. Google ships with a
@@ -46,9 +56,9 @@ public class AuthController {
      * the same graceful-enable contract as {@code /api/push/key}.
      */
     @GetMapping("/providers")
-    public java.util.Map<String, Boolean> providers() {
+    public Map<String, Boolean> providers() {
         boolean googleConfigured = !googleClientId.isBlank() && !"placeholder".equals(googleClientId);
-        return java.util.Map.of("google", googleConfigured);
+        return Map.of("google", googleConfigured);
     }
 
     @PostMapping("/register")

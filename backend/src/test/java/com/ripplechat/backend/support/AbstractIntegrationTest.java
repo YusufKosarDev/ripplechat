@@ -1,5 +1,6 @@
 package com.ripplechat.backend.support;
 
+import com.ripplechat.backend.auth.LoginLockoutService;
 import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
@@ -33,7 +34,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     private RateLimiter rateLimiter;
     @Autowired
-    private com.ripplechat.backend.auth.LoginLockoutService loginLockoutService;
+    private LoginLockoutService loginLockoutService;
 
     /**
      * Reset the shared Redis-backed rate limiter and account-lockout state before

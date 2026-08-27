@@ -1,5 +1,6 @@
 package com.ripplechat.backend.user;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -31,7 +32,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByUsernameIn(Collection<String> usernames);
 
     /** All users, newest first (admin panel user table). */
-    org.springframework.data.domain.Page<User> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<User> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     long countByAdminTrue();
 

@@ -104,6 +104,19 @@ describe('slash commands', () => {
       )
     })
 
+    // Plural forms used to miss the unit group entirely, so "2 hours standup"
+    // silently became a 2-minute reminder with "hours" left in the text.
+    it.each([
+      ['2 hours standup', '2026-01-01T14:00:00Z', 'standup'],
+      ['2 hour standup', '2026-01-01T14:00:00Z', 'standup'],
+      ['2 hrs deploy', '2026-01-01T14:00:00Z', 'deploy'],
+      ['5 minutes drink water', '2026-01-01T12:05:00Z', 'drink water'],
+      ['5 minute drink water', '2026-01-01T12:05:00Z', 'drink water'],
+      ['30 mins break', '2026-01-01T12:30:00Z', 'break'],
+    ])('handles the English plural in %j', (args, when, text) => {
+      expect(run('remind', args).scheduleMessage).toHaveBeenCalledWith(`⏰ ${text}`, new Date(when))
+    })
+
     it('rejects a reminder with no delay, no text, or a zero duration', () => {
       for (const args of ['toplantı', '10', '0 toplantı']) {
         const ctx = run('remind', args)
@@ -121,7 +134,7 @@ describe('slash commands', () => {
 
     it('falls back to a random pick when no query is given', () => {
       const ctx = run('giphy', '')
-      expect(ctx.sendMessage.mock.calls[0][0]).toContain('[gif: rastgele]')
+      expect(ctx.sendMessage.mock.calls[0][0]).toContain('[gif: random]')
     })
   })
 })

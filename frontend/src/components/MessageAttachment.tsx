@@ -126,7 +126,7 @@ export default function MessageAttachment({ msg }: { msg: Message }) {
   }
 
   return (
-    <a href={finalUrl} download={isE2EE ? attachment.name ?? 'gorsel' : undefined} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
+    <a href={finalUrl} download={isE2EE ? attachment.name ?? 'image' : undefined} target="_blank" rel="noopener noreferrer" className="mt-1 block w-fit">
       <img
         src={finalUrl}
         alt={t('attach.imageAlt')}

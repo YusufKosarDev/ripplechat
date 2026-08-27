@@ -7,7 +7,7 @@ export interface EditHistoryEntry {
   editedAt: string
 }
 
-/** The "(düzenlendi)" badge's history dialog: every superseded version. */
+/** The "(edited)" badge's history dialog: every superseded version. */
 export function useEditHistory(channelId: string | null) {
   const [history, setHistory] = useState<EditHistoryEntry[] | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)

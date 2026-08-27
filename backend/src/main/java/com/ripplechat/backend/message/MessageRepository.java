@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +33,40 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     List<UUID> searchMessageIds(@Param("channelIds") Collection<UUID> channelIds,
                                 @Param("tsquery") String tsquery,
                                 Pageable pageable);
+
+    /**
+     * {@link #searchMessageIds} plus the sender, date and blocked-author filters,
+     * so the PostgreSQL fallback matches what the Elasticsearch path applies.
+     * Blocked authors are excluded here as well as during hydration: this query
+     * ranks and pages the ids, so leaving them in lets a blocked message occupy
+     * a slot and hand back a short page.
+     *
+     * <p>Every parameter is non-null by contract — the caller passes a
+     * match-everything default instead ({@code "%"}, {@link java.time.Instant#EPOCH},
+     * a single-element sentinel list). That keeps the SQL free of null casts and
+     * avoids rendering an empty {@code in ()}, which PostgreSQL rejects at parse
+     * time even when the surrounding condition would short-circuit.
+     */
+    @Query(value = """
+            select m.id
+            from messages m
+            join users u on u.id = m.sender_id
+            where m.channel_id in (:channelIds)
+              and m.deleted = false
+              and to_tsvector('simple', m.content) @@ to_tsquery('simple', :tsquery)
+              and lower(u.username) like :senderLike
+              and m.created_at >= :since
+              and u.username not in (:blockedUsernames)
+            order by ts_rank(to_tsvector('simple', m.content), to_tsquery('simple', :tsquery)) desc,
+                     m.created_at desc,
+                     m.id desc
+            """, nativeQuery = true)
+    List<UUID> searchMessageIdsFiltered(@Param("channelIds") Collection<UUID> channelIds,
+                                        @Param("tsquery") String tsquery,
+                                        @Param("senderLike") String senderLike,
+                                        @Param("since") Instant since,
+                                        @Param("blockedUsernames") Collection<String> blockedUsernames,
+                                        Pageable pageable);
 
     /** Pinned messages of a channel, newest first (sender fetched for the view). */
     @EntityGraph(attributePaths = "sender")
@@ -100,7 +135,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     List<Message> findByParent_IdInOrderByCreatedAtAsc(Collection<UUID> parentIds);
 
     /** Disappearing messages whose expiry has passed and aren't soft-deleted yet. */
-    List<Message> findByExpiresAtLessThanEqualAndDeletedFalse(java.time.Instant cutoff);
+    List<Message> findByExpiresAtLessThanEqualAndDeletedFalse(Instant cutoff);
 
     /** A user's authored messages, for the GDPR data export. */
     List<Message> findBySender_IdOrderByCreatedAtAsc(UUID senderId);

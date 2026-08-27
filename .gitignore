@@ -36,3 +36,7 @@ yarn-error.log*
 # --- OS files ---
 .DS_Store
 Thumbs.db
+
+# Playwright run output (only if a run is started from the repo root)
+/test-results/
+/playwright-report/

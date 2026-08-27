@@ -75,7 +75,7 @@ export default function ThreadPanel() {
         <button
           onClick={() => dispatch(closeThread())}
           className={`rounded-lg text-fg-muted transition hover:text-fg ${focusRing}`}
-          title="Kapat"
+          title={t('common.close')}
         >
           ✕
         </button>
