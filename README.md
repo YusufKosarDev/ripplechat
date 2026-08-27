@@ -39,7 +39,7 @@ Five things worth a look if you are skimming:
 | **Signal protocol, from scratch** | Double Ratchet + X3DH over the Web Crypto API for 1:1 DMs — forward secrecy and break-in recovery, with prekeys published to the server and plaintexts cached only in the browser ([`crypto/`](frontend/src/crypto)) |
 | **Horizontally scalable WebSockets** | a Redis Pub/Sub bridge fans a message published on one replica out to subscribers connected to any other; rate limits are an atomic Redis token bucket rather than per-instance counters |
 | **Correct under concurrency** | `@Scheduled` sweeps are wrapped in ShedLock so exactly one replica runs each tick, and media cleanup goes through a transactional outbox instead of a best-effort delete |
-| **A JVM that starts fast** | the image unpacks the fat jar, does a CDS training run and maps the class archive back in at boot — about 35% off startup, which matters on a free-tier host |
+| **A JVM that starts fast** | the image unpacks the fat jar, does a CDS training run and maps the class archive back in at boot — a measured **28% off startup** (10.8s vs 15.1s, three runs each with and without the archive), which matters on a free-tier host |
 | **Tested where it counts** | 206 backend tests against real PostgreSQL, Redis and Elasticsearch (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 21 Playwright end-to-end scenarios |
 
 Built solo over ~5 weeks of active development, 290+ commits.
