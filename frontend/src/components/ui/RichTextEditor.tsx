@@ -2,6 +2,18 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
+
+/**
+ * The tiptap-markdown extension installs its storage during editor setup, and
+ * both call sites below used to dereference editor.storage.markdown directly.
+ * If a render reaches them before that storage exists, the TypeError propagates
+ * to the error boundary and blanks the whole chat surface — a crash far out of
+ * proportion to a draft not syncing for one frame.
+ */
+function readMarkdown(editor: { storage: unknown }): string | null {
+  const storage = editor.storage as Record<string, { getMarkdown?: () => string } | undefined>
+  return storage?.markdown?.getMarkdown?.() ?? null
+}
 import { useEffect } from 'react'
 import { useT } from '../../i18n'
 
@@ -45,27 +57,33 @@ export function RichTextEditor({ value, onChange, onEnter, placeholder, classNam
       },
     },
     onUpdate: ({ editor }) => {
-      // Get markdown output
-      const storage = (editor.storage as unknown) as Record<string, { getMarkdown: () => string }>
-      const markdown = storage.markdown.getMarkdown()
-      onChange(markdown)
+      const markdown = readMarkdown(editor)
+      if (markdown !== null) {
+        onChange(markdown)
+      }
     },
   })
 
   // Sync external value to internal state when external changes (e.g. cleared draft)
   useEffect(() => {
     if (editor) {
-      const storage = (editor.storage as unknown) as Record<string, { getMarkdown: () => string }>
-      if (value !== storage.markdown.getMarkdown()) {
+      const current = readMarkdown(editor)
+      if (current !== null && value !== current) {
         editor.commands.setContent(value)
       }
     }
   }, [value, editor])
 
   useEffect(() => {
-    if (editor && (autoFocus || focusTrigger > 0)) {
-      setTimeout(() => editor.commands.focus(), 0)
+    if (!editor || !(autoFocus || focusTrigger > 0)) {
+      return
     }
+    // Deferred a tick so focus lands after the editor has mounted its view.
+    // The timer has to be cleared: without it, switching channels destroys the
+    // editor before the callback runs and focusing the corpse throws, which the
+    // error boundary turns into a blank chat.
+    const timer = setTimeout(() => editor.commands?.focus(), 0)
+    return () => clearTimeout(timer)
   }, [editor, autoFocus, focusTrigger])
 
   if (!editor) {
