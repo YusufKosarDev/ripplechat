@@ -298,6 +298,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'info.editedAtRow': '{when} tarihinde değiştirildi',
     'info.noPrevious': 'Önceki sürüm yok.',
     'gallery.empty': 'Bu sohbette paylaşılmış görsel yok.',
+    'gallery.openImage': 'Görseli yeni sekmede aç',
     'forward.title': 'Şuraya ilet',
 
     'attach.decrypting': 'Güvenli dosya çözülüyor…',
@@ -769,6 +770,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'info.editedAtRow': 'Edited at {when}',
     'info.noPrevious': 'No previous versions.',
     'gallery.empty': 'No images shared in this chat yet.',
+    'gallery.openImage': 'Open image in a new tab',
     'forward.title': 'Forward to',
 
     'attach.decrypting': 'Decrypting secure file…',

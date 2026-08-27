@@ -61,7 +61,16 @@ export default function MediaGalleryModal({ channelId, onClose }: MediaGalleryMo
           {items.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {items.map((m) => (
-                <a key={m.messageId} href={m.url} target="_blank" rel="noopener noreferrer" className={`block ${focusRing}`}>
+                <a
+                  key={m.messageId}
+                  href={m.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  // The image is decorative (alt=""), so the link needs its own
+                  // accessible name or it is announced as an unlabelled link.
+                  aria-label={t('gallery.openImage')}
+                  className={`block ${focusRing}`}
+                >
                   <img
                     src={m.url}
                     alt=""

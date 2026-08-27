@@ -22,7 +22,7 @@
   --fg: #17171c;               /* headings, emphasis, names */
   --fg-secondary: #3d3d46;     /* body copy */
   --fg-muted: #55555f;         /* labels, secondary info */
-  --fg-faint: #8f8f9b;         /* timestamps, hints */
+  --fg-faint: #6b6b7b;         /* timestamps, hints — 4.85:1, WCAG AA at 12px */
   /* Accent + semantic — electric indigo→violet family */
   --accent: #6d28d9;           /* links / accent text (violet-700) */
   --accent-hover: #7c3aed;     /* link hover (violet-600) */
@@ -49,7 +49,7 @@
   --fg: #f2f2f6;
   --fg-secondary: #cfcfda;
   --fg-muted: #9d9dae;
-  --fg-faint: #6e6e80;
+  --fg-faint: #9292a4;         /* 5.07:1 on the lightest dark surface */
   --accent: #a78bfa;           /* violet-400 — bright on dark */
   --accent-hover: #c4b5fd;
   --danger: #f87171;
