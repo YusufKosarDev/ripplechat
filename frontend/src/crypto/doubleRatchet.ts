@@ -101,8 +101,20 @@ async function aesDecrypt(messageKey: ArrayBuffer, iv: Uint8Array, ciphertext: U
 
 // ─── Session State ───────────────────────────────────────────────────
 
-/** Maximum number of skipped message keys to store (prevents DoS). */
+/** Maximum number of message keys a single gap may skip over. */
 const MAX_SKIP = 256
+
+/**
+ * Ceiling on the whole skipped-key store, across every chain.
+ *
+ * MAX_SKIP bounds one gap; it does not bound the map, which is kept for as long
+ * as the session lives and written to IndexedDB after every message. A peer
+ * sending a gap of exactly MAX_SKIP each time added 256 entries per message with
+ * nothing to stop it, so the store grew until the browser's storage quota did
+ * the stopping. The oldest keys go first: they are the ones whose message is
+ * least likely to still be in flight.
+ */
+const MAX_SKIPPED_KEYS = 1024
 
 export interface SerializedSession {
   rootKey: string               // base64
@@ -230,6 +242,20 @@ async function trySkippedKeys(session: RatchetSession, header: MessageHeader, ci
   return aesDecrypt(mk, fromBase64(ivPart), fromBase64(ctPart))
 }
 
+/**
+ * Stores a skipped message key, evicting the oldest once the store is full.
+ *
+ * A Map iterates in insertion order, so the first key is the oldest.
+ */
+function rememberSkippedKey(session: RatchetSession, lookupKey: string, messageKey: ArrayBuffer): void {
+  session.skippedKeys.set(lookupKey, messageKey)
+  while (session.skippedKeys.size > MAX_SKIPPED_KEYS) {
+    const oldest = session.skippedKeys.keys().next()
+    if (oldest.done) break
+    session.skippedKeys.delete(oldest.value)
+  }
+}
+
 async function skipMessageKeys(session: RatchetSession, until: number): Promise<void> {
   if (!session.recvChainKey) return
   if (session.recvN + MAX_SKIP < until) {
@@ -241,7 +267,7 @@ async function skipMessageKeys(session: RatchetSession, until: number): Promise<
   while (session.recvN < until) {
     const { chainKey, messageKey } = await kdfCK(session.recvChainKey)
     session.recvChainKey = chainKey
-    session.skippedKeys.set(`${recvPubId}:${session.recvN}`, messageKey)
+    rememberSkippedKey(session, `${recvPubId}:${session.recvN}`, messageKey)
     session.recvN++
   }
 }

@@ -131,6 +131,28 @@ describe('double ratchet', () => {
     expect(fromBase64(toBase64(bytes))).toEqual(bytes)
     expect(toBase64(new Uint8Array(0))).toBe('')
   })
+
+  it('caps the skipped-key store instead of letting it grow with the session', async () => {
+    // MAX_SKIP bounds a single gap. Nothing bounded the store itself, which is
+    // kept for the life of the session and written back to IndexedDB after
+    // every message — so a peer sending a near-maximum gap each time added
+    // hundreds of keys per message until the storage quota stopped it.
+    const { alice, bob } = await makeSessionPair()
+
+    for (let round = 0; round < 8; round++) {
+      // Alice sends a burst; only the last one is delivered, so Bob has to
+      // skip over the rest and keep their keys.
+      let last = await ratchetEncrypt(alice, `round ${round} msg 0`)
+      for (let i = 1; i < 200; i++) {
+        last = await ratchetEncrypt(alice, `round ${round} msg ${i}`)
+      }
+      expect(await ratchetDecrypt(bob, last.header, last.ciphertext))
+        .toBe(`round ${round} msg 199`)
+    }
+
+    // 8 rounds × 199 skipped would be 1592 without the ceiling.
+    expect(bob.skippedKeys.size).toBeLessThanOrEqual(1024)
+  })
 })
 
 // ─── X3DH key agreement ─────────────────────────────────────────────
@@ -228,3 +250,4 @@ describe('x3dh', () => {
     await expect(x3dhSender(aliceIdentity, bundle)).rejects.toThrow(/signature verification failed/i)
   })
 })
+
