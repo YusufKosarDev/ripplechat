@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -103,10 +104,20 @@ public class RefreshTokenService {
         return user;
     }
 
-    /** Revokes a refresh token if present (logout); unknown tokens are ignored. */
+    /**
+     * Revokes a refresh token if present (logout); unknown tokens are ignored.
+     *
+     * @return the user whose session it was, so the caller can also void their
+     *         outstanding access tokens — an unknown token yields empty.
+     */
     @Transactional
-    public void revoke(String rawToken) {
-        repository.findByTokenHash(hash(rawToken)).ifPresent(repository::delete);
+    public Optional<User> revoke(String rawToken) {
+        return repository.findByTokenHash(hash(rawToken))
+                .map(token -> {
+                    User user = token.getUser();
+                    repository.delete(token);
+                    return user;
+                });
     }
 
     /** Ends every session for a user (e.g. after a password reset). */

@@ -4,6 +4,7 @@ import com.ripplechat.backend.auth.AuthTokenRepository;
 import com.ripplechat.backend.auth.RecoveryCodeRepository;
 import com.ripplechat.backend.auth.RefreshTokenRepository;
 import com.ripplechat.backend.auth.SecurityAuditLogger;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -51,6 +52,7 @@ public class AccountManagementService {
     private final SecurityAuditLogger audit;
     private final MediaStorage mediaStorage;
     private final OutboxTaskRepository outboxTaskRepository;
+    private final TokenRevocationService tokenRevocationService;
 
     @Transactional(readOnly = true)
     public AccountExport export(String username) {
@@ -132,6 +134,11 @@ public class AccountManagementService {
         user.setDeleted(true);
         user.setDeletedAt(Instant.now());
         userRepository.save(user);
+
+        // The refresh tokens are gone above, but the access token is a stateless
+        // JWT — void it too, or the erased account keeps working for the rest of
+        // its hour.
+        tokenRevocationService.revokeBefore(username);
 
         audit.accountDeleted(username);
     }

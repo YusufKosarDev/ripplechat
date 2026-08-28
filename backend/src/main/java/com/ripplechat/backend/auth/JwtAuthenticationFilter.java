@@ -14,9 +14,9 @@ import java.io.IOException;
 import java.util.Collections;
 
 /**
- * Reads a "Bearer" token from the Authorization header and, if valid, sets the
- * authentication on the security context. Invalid/missing tokens are ignored
- * here; the entry point handles rejecting protected requests.
+ * Reads a "Bearer" token from the Authorization header and, if valid and not
+ * revoked, sets the authentication on the security context. Invalid/missing
+ * tokens are ignored here; the entry point handles rejecting protected requests.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -24,9 +24,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, TokenRevocationService tokenRevocationService) {
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Override
@@ -39,7 +41,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = header.substring(PREFIX.length());
             try {
-                String username = jwtService.extractUsername(token);
+                JwtService.VerifiedToken verified = jwtService.verifyAccessToken(token);
+                // Signed and unexpired is not enough: the session may have been
+                // ended since it was issued (sign-out, ban, password change,
+                // account erasure, another device revoked).
+                if (tokenRevocationService.isRevoked(verified.username(), verified.issuedAt())) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+                String username = verified.username();
                 var authentication = new UsernamePasswordAuthenticationToken(
                         username, null, Collections.emptyList());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

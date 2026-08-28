@@ -1,6 +1,7 @@
 package com.ripplechat.backend.support;
 
 import com.ripplechat.backend.auth.LoginLockoutService;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
@@ -35,16 +36,21 @@ public abstract class AbstractIntegrationTest {
     private RateLimiter rateLimiter;
     @Autowired
     private LoginLockoutService loginLockoutService;
+    @Autowired
+    private TokenRevocationService tokenRevocationService;
 
     /**
-     * Reset the shared Redis-backed rate limiter and account-lockout state before
-     * each test. Both are singletons whose keys live in the reused Redis container,
-     * so without this their counters leak between tests and eventually trip.
+     * Reset the shared Redis-backed rate limiter, account-lockout and
+     * token-revocation state before each test. All three are singletons whose
+     * keys live in the reused Redis container, so without this their state leaks
+     * between tests: counters trip, and a revocation watermark left by one test
+     * silently invalidates the token a later test mints for the same username.
      */
     @BeforeEach
     void resetLoginGuards() {
         rateLimiter.reset();
         loginLockoutService.clearAll();
+        tokenRevocationService.clearAll();
     }
 
     /** Persists a test user with a known password ("password123"). */

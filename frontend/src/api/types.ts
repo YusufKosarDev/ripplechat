@@ -14,6 +14,8 @@ export interface User {
   dndUntil?: string | null
   emailVerified?: boolean
   admin?: boolean
+  /** False for a Google-only account: nothing to re-confirm, and no password to change yet. */
+  hasPassword?: boolean
 }
 
 export interface AuthResponse {

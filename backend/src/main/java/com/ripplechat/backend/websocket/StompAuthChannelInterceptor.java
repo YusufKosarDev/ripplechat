@@ -1,6 +1,7 @@
 package com.ripplechat.backend.websocket;
 
 import com.ripplechat.backend.auth.JwtService;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.channel.Channel;
 import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
@@ -39,13 +40,16 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static final String USER_TOPIC_PREFIX = "/topic/users/";
 
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
     private final ChannelRepository channelRepository;
     private final ChannelMembershipRepository membershipRepository;
 
     public StompAuthChannelInterceptor(JwtService jwtService,
+                                       TokenRevocationService tokenRevocationService,
                                        ChannelRepository channelRepository,
                                        ChannelMembershipRepository membershipRepository) {
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
         this.channelRepository = channelRepository;
         this.membershipRepository = membershipRepository;
     }
@@ -74,7 +78,15 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         String username;
         try {
-            username = jwtService.extractUsername(header.substring(PREFIX.length()));
+            JwtService.VerifiedToken verified = jwtService.verifyAccessToken(header.substring(PREFIX.length()));
+            // A socket must not outlive the session that opened it: the same
+            // revocation watermark the REST filter checks applies on CONNECT.
+            if (tokenRevocationService.isRevoked(verified.username(), verified.issuedAt())) {
+                throw new MessagingException("Session is no longer valid");
+            }
+            username = verified.username();
+        } catch (MessagingException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new MessagingException("Invalid token");
         }

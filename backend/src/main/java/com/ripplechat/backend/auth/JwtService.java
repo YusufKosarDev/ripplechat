@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 /**
@@ -74,14 +75,32 @@ public class JwtService {
     }
 
     /**
-     * Returns the username (subject) if the token is valid, otherwise throws.
+     * A verified access token: who it belongs to, and when it was minted.
+     *
+     * <p>The issue time is what lets {@link TokenRevocationService} decide
+     * whether the token predates a sign-out, ban or password change.
      */
-    public String extractUsername(String token) {
+    public record VerifiedToken(String username, Instant issuedAt) {
+    }
+
+    /**
+     * Verifies an access token and returns its subject and issue time, or throws.
+     */
+    public VerifiedToken verifyAccessToken(String token) {
         Claims claims = parse(token);
         if (claims.get("preAuth", Boolean.class) != null && claims.get("preAuth", Boolean.class)) {
             throw new IllegalArgumentException("Cannot use pre-auth token for normal authentication");
         }
-        return claims.getSubject();
+        Date issuedAt = claims.getIssuedAt();
+        return new VerifiedToken(claims.getSubject(),
+                issuedAt == null ? Instant.EPOCH : issuedAt.toInstant());
+    }
+
+    /**
+     * Returns the username (subject) if the token is valid, otherwise throws.
+     */
+    public String extractUsername(String token) {
+        return verifyAccessToken(token).username();
     }
 
     public String extractUsernameFromPreAuthToken(String token) {

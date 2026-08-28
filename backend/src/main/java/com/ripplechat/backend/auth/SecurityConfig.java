@@ -35,17 +35,20 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     public SecurityConfig(JwtService jwtService,
+                          TokenRevocationService tokenRevocationService,
                           CustomOAuth2UserService customOAuth2UserService,
                           OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                           OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
                           HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository) {
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
         this.customOAuth2UserService = customOAuth2UserService;
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
         this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
@@ -92,7 +95,7 @@ public class SecurityConfig {
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(unauthorizedEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService, tokenRevocationService),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -49,6 +49,7 @@ public class AuthService {
     private final RecoveryCodeService recoveryCodeService;
     private final AccountService accountService;
     private final LoginLockoutService loginLockoutService;
+    private final TokenRevocationService tokenRevocationService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -218,10 +219,16 @@ public class AuthService {
         return TokenResponse.of(accessToken, newRefreshToken);
     }
 
-    /** Revokes the refresh token so it can no longer renew a session (logout). */
+    /**
+     * Ends the session: drops the refresh token so it can no longer renew, and
+     * voids the access tokens already issued. Dropping the refresh token alone
+     * left the access token working for the rest of its hour, which is not what
+     * anyone means by signing out.
+     */
     @Transactional
     public void logout(String refreshToken) {
-        refreshTokenService.revoke(refreshToken);
+        refreshTokenService.revoke(refreshToken)
+                .ifPresent(user -> tokenRevocationService.revokeBefore(user.getUsername()));
         audit.loggedOut();
     }
 
@@ -234,10 +241,17 @@ public class AuthService {
                 .toList();
     }
 
+    /**
+     * Signs another device out. The watermark is per-user, so this also voids the
+     * caller's own access token — harmless, because their refresh token survives
+     * and the client renews transparently on the next 401. The revoked device
+     * cannot: its refresh token is gone.
+     */
     @Transactional
     public void revokeSession(String username, UUID sessionId) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         refreshTokenService.revokeSession(user, sessionId);
+        tokenRevocationService.revokeBefore(username);
     }
 }

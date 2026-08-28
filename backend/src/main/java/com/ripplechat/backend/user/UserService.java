@@ -1,5 +1,7 @@
 package com.ripplechat.backend.user;
 
+import com.ripplechat.backend.auth.RefreshTokenService;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -27,6 +29,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
+    private final TokenRevocationService tokenRevocationService;
 
     @Transactional(readOnly = true)
     public UserResponse findByUsername(String username) {
@@ -115,13 +119,28 @@ public class UserService {
         return s == null || s.isBlank() ? null : s.trim();
     }
 
+    /**
+     * Changes (or, for an OAuth-only account, first sets) the local password.
+     *
+     * <p>Changing a password is a security event, so every session ends —
+     * including the caller's. Previously nothing was revoked at all: someone who
+     * had got hold of a session kept it after the victim changed their password,
+     * which is the one thing changing it is supposed to fix. The client signs
+     * back in with the new password.
+     *
+     * <p>An account created through Google has no local password, and
+     * {@code matches(x, null)} is always false, so it could never set one. A
+     * blank current password is accepted in exactly that case.
+     */
     @Transactional
     public void changePassword(String username, ChangePasswordRequest request) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
-        if (request.currentPassword() == null
-                || !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+        boolean settingFirstPassword = user.getPassword() == null;
+        if (!settingFirstPassword
+                && (request.currentPassword() == null
+                    || !passwordEncoder.matches(request.currentPassword(), user.getPassword()))) {
             throw new BadRequestException("current password is incorrect");
         }
         if (request.newPassword() == null || request.newPassword().length() < 8) {
@@ -129,6 +148,9 @@ public class UserService {
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
+
+        refreshTokenService.revokeAll(user);
+        tokenRevocationService.revokeBefore(username);
     }
 
     @Transactional
