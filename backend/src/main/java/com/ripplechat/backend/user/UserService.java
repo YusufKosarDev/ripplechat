@@ -1,5 +1,6 @@
 package com.ripplechat.backend.user;
 
+import com.ripplechat.backend.auth.AccountService;
 import com.ripplechat.backend.auth.RefreshTokenService;
 import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.common.exception.BadRequestException;
@@ -31,6 +32,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final TokenRevocationService tokenRevocationService;
+    private final AccountService accountService;
 
     @Transactional(readOnly = true)
     public UserResponse findByUsername(String username) {
@@ -62,12 +64,18 @@ public class UserService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
+        boolean emailChanged = false;
         if (request.email() != null && !request.email().isBlank()
                 && !request.email().equalsIgnoreCase(user.getEmail())) {
             if (userRepository.existsByEmailAndIdNot(request.email(), user.getId())) {
                 throw new DuplicateResourceException("email already registered: " + request.email());
             }
             user.setEmail(request.email().trim());
+            // The verified flag belongs to the address that was confirmed, not to
+            // the account: carrying it over to a new address meant anyone could
+            // become "verified" at an address they had never proven they own.
+            user.setEmailVerified(false);
+            emailChanged = true;
         }
         if (request.displayName() != null && !request.displayName().isBlank()) {
             user.setDisplayName(request.displayName().trim());
@@ -85,7 +93,11 @@ public class UserService {
                 throw new BadRequestException("invalid avatar url");
             }
         }
-        return UserResponse.from(userRepository.saveAndFlush(user));
+        User saved = userRepository.saveAndFlush(user);
+        if (emailChanged) {
+            accountService.sendVerificationEmail(saved);
+        }
+        return UserResponse.from(saved);
     }
 
     /** Set or clear the user's custom status. Empty emoji and text clears it. */

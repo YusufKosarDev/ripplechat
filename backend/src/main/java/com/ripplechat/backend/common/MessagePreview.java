@@ -14,6 +14,13 @@ public final class MessagePreview {
     /** Shown in place of the body when a message is an attachment only. */
     public static final String ATTACHMENT = "📷 Image";
 
+    /**
+     * Shown in place of a quoted snapshot once the quoted message is removed.
+     * The snapshot is denormalised, so without this the words survive being
+     * deleted anywhere they had been quoted.
+     */
+    public static final String DELETED = "🗑 Message deleted";
+
     private MessagePreview() {
     }
 }

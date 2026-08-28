@@ -2,6 +2,7 @@ package com.ripplechat.backend.message;
 
 import com.ripplechat.backend.channel.ChannelService;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
+import com.ripplechat.backend.common.MessagePreview;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
@@ -22,6 +23,12 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
     MessageService messageService;
     @Autowired
     MessageQueryService messageQueryService;
+    @Autowired
+    MessageModerationService moderationService;
+    @Autowired
+    MessageEditHistoryRepository messageEditHistoryRepository;
+    @Autowired
+    MessageRepository messageRepository;
 
     @Test
     void editsAreRecordedNewestFirst() {
@@ -38,6 +45,41 @@ class MessageEditHistoryTests extends AbstractIntegrationTest {
         assertThat(messageQueryService.editHistory(channel.id(), msg.id(), "owner"))
                 .extracting(MessageEditHistoryEntry::content)
                 .containsExactly("v2", "v1");
+    }
+
+    @Test
+    void deletingAMessageTakesItsEarlierVersionsWithIt() {
+        createUser("owner");
+        var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
+        MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("secret v1", null), "owner");
+        messageService.editMessage(channel.id(), msg.id(), "owner", "harmless v2");
+
+        moderationService.deleteMessage(channel.id(), msg.id(), "owner");
+
+        // The original text used to stay readable through the history endpoint
+        // after the message itself was gone — including for messages removed by
+        // the disappearing-message timer.
+        assertThat(messageQueryService.editHistory(channel.id(), msg.id(), "owner")).isEmpty();
+        assertThat(messageEditHistoryRepository.findByMessage_IdOrderByEditedAtDesc(msg.id())).isEmpty();
+    }
+
+    @Test
+    void deletingAMessageScrubsTheQuotesThatCopiedIt() {
+        createUser("owner");
+        var channel = channelService.create(new CreateChannelRequest("c", null, false), "owner");
+        MessageResponse quoted = messageService.send(
+                channel.id(), new CreateMessageRequest("the secret", null), "owner");
+        MessageResponse reply = messageService.send(
+                channel.id(), new CreateMessageRequest("re", null, null, quoted.id()), "owner");
+        assertThat(messageRepository.findById(reply.id()).orElseThrow().getQuotedContent())
+                .isEqualTo("the secret");
+
+        moderationService.deleteMessage(channel.id(), quoted.id(), "owner");
+
+        // The quote preview is a denormalised copy, so deleting the original was
+        // leaving its words on display wherever it had been quoted.
+        assertThat(messageRepository.findById(reply.id()).orElseThrow().getQuotedContent())
+                .isEqualTo(MessagePreview.DELETED);
     }
 
     @Test

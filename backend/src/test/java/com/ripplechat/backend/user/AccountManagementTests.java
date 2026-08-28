@@ -13,6 +13,7 @@ import com.ripplechat.backend.message.dto.CreateMessageRequest;
 import com.ripplechat.backend.message.dto.MessageResponse;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
 import com.ripplechat.backend.user.dto.AccountExport;
+import com.ripplechat.backend.user.dto.UpdateMeRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -33,6 +34,23 @@ class AccountManagementTests extends AbstractIntegrationTest {
     MessageRepository messageRepository;
     @Autowired
     AuthService authService;
+    @Autowired
+    UserService userService;
+
+    @Test
+    void changingTheEmailRevokesTheVerifiedBadge() {
+        User user = createUser("verified_user");
+        user.setEmailVerified(true);
+        userRepository.saveAndFlush(user);
+
+        userService.updateMe("verified_user", new UpdateMeRequest(null, "elsewhere@test.io", null, null));
+
+        // The badge belongs to the address that was confirmed, not to the
+        // account, so moving to an unproven address must clear it.
+        User after = userRepository.findByUsername("verified_user").orElseThrow();
+        assertThat(after.getEmail()).isEqualTo("elsewhere@test.io");
+        assertThat(after.isEmailVerified()).isFalse();
+    }
 
     @Test
     void exportReturnsProfileMembershipsAndAuthoredMessages() {

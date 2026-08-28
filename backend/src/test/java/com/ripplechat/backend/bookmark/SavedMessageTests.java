@@ -51,6 +51,23 @@ class SavedMessageTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void leavingAChannelHidesItsBookmarksAgain() {
+        createUser("author");
+        createUser("saver");
+        ChannelResponse channel = channelService.create(new CreateChannelRequest("gen", null, false), "author");
+        membershipService.join(channel.id(), "saver");
+        MessageResponse msg = messageService.send(channel.id(), new CreateMessageRequest("kept", null), "author");
+        savedMessageService.save("saver", msg.id());
+        assertThat(savedMessageService.list("saver")).hasSize(1);
+
+        membershipService.leave(channel.id(), "saver");
+
+        // Membership was checked when saving and never again, so a bookmark
+        // outlived access to the channel it came from.
+        assertThat(savedMessageService.list("saver")).isEmpty();
+    }
+
+    @Test
     void cannotBookmarkAMessageInAChannelYouAreNotIn() {
         createUser("author");
         createUser("outsider");

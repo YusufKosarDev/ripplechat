@@ -4,6 +4,7 @@ import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipGuard;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
+import com.ripplechat.backend.common.MessagePreview;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.search.SearchService;
@@ -33,6 +34,7 @@ public class MessageModerationService {
 
     private final MessageRepository messageRepository;
     private final MessageHideRepository messageHideRepository;
+    private final MessageEditHistoryRepository messageEditHistoryRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final ChannelMembershipGuard membershipGuard;
     private final UserRepository userRepository;
@@ -99,12 +101,20 @@ public class MessageModerationService {
 
     /**
      * The one soft-delete path. Clears the content and attachment, queues the
-     * media for removal, drops reactions, un-indexes it and tells open clients.
+     * media for removal, drops reactions and edit history, scrubs the quotes
+     * that copied it, un-indexes it and tells open clients.
      *
      * <p>This used to be written out separately in {@code deleteMessage} and
      * {@code purgeExpired}, and the two had already diverged: the expiry sweep
      * omitted {@code searchService.deleteMessage}, so an expired message stayed
      * findable in search after its content was gone.
+     *
+     * <p>Clearing the row was never enough on its own, because the words lived
+     * in two other places. Every prior version sat in {@code message_edit_history},
+     * readable through the history endpoint by any member — so deleting an
+     * edited message left its original text on display, and a disappearing
+     * message that had been edited never really disappeared. And each reply that
+     * quoted it holds a denormalised snapshot of the text. Both go here.
      */
     private void softDelete(Message message) {
         mediaCleanup.enqueueDelete(message.getAttachmentUrl());
@@ -114,9 +124,26 @@ public class MessageModerationService {
         message.setAttachmentName(null);
         message.setAttachmentType(null);
         messageRepository.saveAndFlush(message);
+        messageEditHistoryRepository.deleteByMessage_Id(message.getId());
+        scrubQuotesOf(message.getId());
         searchService.deleteMessage(message.getId());
         messageReactionService.deleteAllForMessage(message.getId());
         broadcastService.broadcastUpdate(message);
+    }
+
+    /**
+     * Replaces the copied text in every reply quoting this message, and tells
+     * open clients so the snapshot does not linger on screen either.
+     */
+    private void scrubQuotesOf(UUID messageId) {
+        for (Message quoting : messageRepository.findByQuotedMessageId(messageId)) {
+            if (MessagePreview.DELETED.equals(quoting.getQuotedContent())) {
+                continue;
+            }
+            quoting.setQuotedContent(MessagePreview.DELETED);
+            messageRepository.saveAndFlush(quoting);
+            broadcastService.broadcastUpdate(quoting);
+        }
     }
 
     private void setPinned(UUID channelId, UUID messageId, String username, boolean pinned) {

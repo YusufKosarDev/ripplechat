@@ -82,10 +82,19 @@ public class MessageQueryService {
                 .toList();
     }
 
-    /** Prior versions of a message, newest first — what the "(edited)" badge opens. */
+    /**
+     * Prior versions of a message, newest first — what the "(edited)" badge opens.
+     *
+     * <p>A removed message has no history to show. Deletion clears the rows, so
+     * this is belt and braces: nothing should be able to reach an earlier
+     * version of a message whose current version is gone.
+     */
     @Transactional(readOnly = true)
     public List<MessageEditHistoryEntry> editHistory(UUID channelId, UUID messageId, String username) {
-        requireMessageInChannel(channelId, messageId, username);
+        Message message = requireMessageInChannel(channelId, messageId, username);
+        if (message.isDeleted()) {
+            return List.of();
+        }
         return messageEditHistoryRepository.findByMessage_IdOrderByEditedAtDesc(messageId).stream()
                 .map(MessageEditHistoryEntry::from)
                 .toList();
