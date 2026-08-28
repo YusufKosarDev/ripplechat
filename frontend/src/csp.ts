@@ -10,6 +10,12 @@
  * `csp.test.ts` asserts `vercel.json` still matches. A CSP that drifts fails
  * only in production, and only for the request that trips it, so the check is
  * worth more than it looks.
+ *
+ * The backend origin in `connect-src` is spelled out rather than derived: a
+ * static JSON file cannot read an env var. `csp.test.ts` therefore also checks
+ * it against `VITE_API_URL`/`VITE_WS_URL` in `.env.production`, so pointing the
+ * app at a different backend fails the build instead of silently blocking every
+ * API call in the browser. If you fork this, change all three together.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
