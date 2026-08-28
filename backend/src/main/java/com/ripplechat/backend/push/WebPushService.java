@@ -162,7 +162,34 @@ public class WebPushService {
         send(recipients, new PushPayload(title, body, "/chat", isEncrypted, channel.getId(), senderId));
     }
 
+    /**
+     * Delivers one notification and reports the push service's status code.
+     *
+     * <p>A seam, not an abstraction: it exists so the delivery *outcome* can be
+     * exercised. Push is inert without VAPID keys — {@link #pushService} stays
+     * null and {@link #notifyChannelMessage} returns immediately — so the
+     * subscription pruning below could not otherwise be reached by any test.
+     */
+    @FunctionalInterface
+    interface PushTransport {
+        int deliver(PushSubscription sub, byte[] payload) throws Exception;
+    }
+
+    /** Production delivery: the real web-push client over VAPID. */
+    private PushTransport realTransport() {
+        return (sub, payload) -> pushService
+                .send(new Notification(sub.getEndpoint(), sub.getP256dh(), sub.getAuth(), payload))
+                .getStatusLine()
+                .getStatusCode();
+    }
+
     private void send(Set<UUID> userIds, PushPayload payload) {
+        send(userIds, payload, realTransport());
+    }
+
+    /** Package-private so a test can supply the delivery outcome directly. */
+    @Transactional
+    void send(Set<UUID> userIds, PushPayload payload, PushTransport transport) {
         String json;
         try {
             json = objectMapper.writeValueAsString(payload);
@@ -171,9 +198,7 @@ public class WebPushService {
         }
         for (PushSubscription sub : subscriptionRepository.findByUserIdIn(userIds)) {
             try {
-                var response = pushService.send(new Notification(sub.getEndpoint(), sub.getP256dh(), sub.getAuth(),
-                        json.getBytes(StandardCharsets.UTF_8)));
-                int status = response.getStatusLine().getStatusCode();
+                int status = transport.deliver(sub, json.getBytes(StandardCharsets.UTF_8));
                 if (status == 404 || status == 410) {
                     // The push service says this endpoint is gone for good. Nothing
                     // pruned them before, so dead registrations accumulated for
