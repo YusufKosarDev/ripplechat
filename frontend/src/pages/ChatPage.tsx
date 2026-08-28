@@ -79,11 +79,27 @@ export default function ChatPage() {
 
   const connectionStatus = useAppSelector((state) => state.connection.status)
 
+  // Replay the offline queue on both signals, because neither covers the other.
+  //
+  // A long outage drops the socket, and the reconnect is what says the queue can
+  // go out — that is this effect. A short one does not: SockJS only notices a
+  // dead connection at its heartbeat, so a blip that outlasts a user typing a
+  // message but not the heartbeat produces no status change at all, and the
+  // queued message would sit there until the next genuine reconnect. The
+  // 'online' event catches exactly that case, and is safe to fire early because
+  // syncPendingMessages does nothing unless the socket is actually connected and
+  // only clears a message once it has been published.
   useEffect(() => {
     if (connectionStatus === 'connected') {
       void syncPendingMessages()
     }
   }, [connectionStatus])
+
+  useEffect(() => {
+    const onOnline = () => void syncPendingMessages()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [])
 
   useEffect(() => {
     connectChat({
