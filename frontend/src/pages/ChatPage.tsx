@@ -120,10 +120,15 @@ export default function ChatPage() {
     dispatch(fetchBookmarkIds())
   }, [currentUsername, dispatch])
 
-  // Subscribe to every channel's message topic so unread counts stay accurate
-  // even for channels the user isn't currently viewing.
+  // Subscribe to the message topic of every channel the user is *not* looking
+  // at, so unread counts stay accurate in the background.
+  //
+  // The open channel is deliberately excluded: useChannelSocket already
+  // subscribes to it for the live feed, and subscribing twice delivered every
+  // message to the reducer (and to IndexedDB) twice over. Unread counting never
+  // applied to the open channel anyway — the handler below skips it.
   useEffect(() => {
-    const ids = channelIds ? channelIds.split(',') : []
+    const ids = (channelIds ? channelIds.split(',') : []).filter((id) => id !== selectedId)
     watchAllChannels(ids, (msg) => {
       if (blockedRef.current.includes(msg.sender.id)) return
       dispatch(messageReceived(msg))
@@ -139,7 +144,7 @@ export default function ChatPage() {
         }
       }
     })
-  }, [channelIds, dispatch])
+  }, [channelIds, selectedId, dispatch])
 
   // Automatically generate and upload asymmetric E2EE key pair if missing
   useEffect(() => {

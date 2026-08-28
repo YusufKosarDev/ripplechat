@@ -50,6 +50,8 @@ client.interceptors.request.use((request) => {
 // so the WebSocket layer can renew the token on a STOMP auth error too.
 let refreshPromise: Promise<string | null> | null = null
 
+const REFRESH_LOCK = 'ripplechat-token-refresh'
+
 export function refreshSession(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = doRefresh().finally(() => {
@@ -59,9 +61,34 @@ export function refreshSession(): Promise<string | null> {
   return refreshPromise
 }
 
+/**
+ * Refresh tokens rotate and are single-use: the server treats a second
+ * presentation of the same token as a replay and revokes *every* session. The
+ * in-tab promise above cannot prevent that across tabs — two tabs hitting a 401
+ * at the same time both read the same stored token and both spend it, and the
+ * user gets signed out everywhere.
+ *
+ * The Web Locks API serialises them origin-wide. The tab that loses the race
+ * finds the stored refresh token already rotated and simply uses the access
+ * token the winner persisted, without spending anything.
+ */
 async function doRefresh(): Promise<string | null> {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken) return null
+  const observed = getRefreshToken()
+  if (!observed) return null
+
+  if (typeof navigator === 'undefined' || !('locks' in navigator)) {
+    return rotate(observed) // older browser: previous behaviour
+  }
+
+  return navigator.locks.request(REFRESH_LOCK, async () => {
+    const current = getRefreshToken()
+    if (!current) return null // another tab refreshed and failed; session is over
+    if (current !== observed) return getToken() // another tab already rotated for us
+    return rotate(current)
+  })
+}
+
+async function rotate(refreshToken: string): Promise<string | null> {
   try {
     // Bare axios (not `client`) so the response interceptor can't recurse.
     const { data } = await axios.post<TokenResponse>(`${config.apiUrl}/api/auth/refresh`, { refreshToken })

@@ -257,7 +257,10 @@ export function useMessageComposition({
       addPendingMessage({
         ...optimisticMsg,
         tempId: optId,
-        timestamp: performance.now(),
+        // Wall clock, not performance.now(): the queue is replayed in timestamp
+        // order and can outlive the page, and performance.now() restarts at 0 on
+        // every load — so a message queued in a later session sorted first.
+        timestamp: Date.now(),
       }).catch(console.error)
     } else {
       sendChatMessage(

@@ -40,14 +40,19 @@ const PREFIX = 'enc:v1:'
 const PREFIX_V2 = 'enc:v2:'
 const keyCache = new Map<string, Promise<CryptoKey>>()
 
-async function deriveKey(channelId: string, passphrase: string): Promise<CryptoKey> {
+/** OWASP's current floor for PBKDF2-HMAC-SHA256. */
+const PBKDF2_ITERATIONS = 600_000
+/** What the passphrase mode originally shipped with; still needed to read old messages. */
+const LEGACY_PBKDF2_ITERATIONS = 100_000
+
+async function deriveKey(channelId: string, passphrase: string, iterations: number): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   // A per-channel, deterministic salt so both participants derive the same key
   // from the same passphrase without exchanging a salt.
   const salt = await crypto.subtle.digest('SHA-256', encoder.encode(`ripplechat:${channelId}`))
   const baseKey = await crypto.subtle.importKey('raw', encoder.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -55,14 +60,37 @@ async function deriveKey(channelId: string, passphrase: string): Promise<CryptoK
   )
 }
 
-function getKey(channelId: string, passphrase: string): Promise<CryptoKey> {
-  const cacheKey = `${channelId}\0${passphrase}`
+function getKey(channelId: string, passphrase: string, iterations = PBKDF2_ITERATIONS): Promise<CryptoKey> {
+  const cacheKey = `${channelId}\0${iterations}\0${passphrase}`
   let promise = keyCache.get(cacheKey)
   if (!promise) {
-    promise = deriveKey(channelId, passphrase)
+    promise = deriveKey(channelId, passphrase, iterations)
     keyCache.set(cacheKey, promise)
   }
   return promise
+}
+
+/**
+ * Decrypts a passphrase-derived payload.
+ *
+ * The iteration count is not carried in the envelope, so a message written
+ * before the KDF was strengthened can only be recognised by trying the old
+ * count. Encryption always uses the strong one; this fallback exists purely so
+ * raising it did not make existing conversations unreadable.
+ */
+async function decryptWithPassphrase(
+  channelId: string,
+  passphrase: string,
+  iv: BufferSource,
+  ciphertext: BufferSource,
+): Promise<ArrayBuffer> {
+  try {
+    const key = await getKey(channelId, passphrase)
+    return await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+  } catch {
+    const legacy = await getKey(channelId, passphrase, LEGACY_PBKDF2_ITERATIONS)
+    return await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, legacy, ciphertext)
+  }
 }
 
 const PREFIX_GROUP = 'enc:group:'
@@ -107,15 +135,28 @@ export async function encryptText(
   members: { user: { id: string } }[]
 ): Promise<string> {
   const senderKeyB64 = await getOrGenerateLocalSenderKey(channelId)
-  
-  const uploadFlagKey = `group_sender_key_uploaded:${channelId}`
+
+  // Which recipients this device has already published its sender key to.
+  //
+  // This used to be a one-shot "uploaded" flag, which meant anyone who joined
+  // the channel afterwards never received the key and could never read this
+  // sender's messages. Tracking the recipient set instead re-publishes whenever
+  // the membership changes. The server replaces the whole set per sender, so
+  // the full list goes up every time.
+  const uploadedRecipientsKey = `group_sender_key_recipients:${channelId}`
   const db = await getDB()
-  let alreadyUploaded = false
+  const recipientIds = members
+    .map((m) => m.user.id)
+    .filter((id) => id !== senderId)
+    .sort()
+  const fingerprint = recipientIds.join(',')
+  let uploadedFingerprint: string | null = null
   if (db) {
-    alreadyUploaded = !!(await db.get('crypto_keys', uploadFlagKey))
+    const stored = await db.get('crypto_keys', uploadedRecipientsKey)
+    uploadedFingerprint = typeof stored === 'string' ? stored : null
   }
 
-  if (!alreadyUploaded) {
+  if (recipientIds.length > 0 && uploadedFingerprint !== fingerprint) {
     const stretchedKey = await getKey(channelId, passphrase)
     const iv = crypto.getRandomValues(new Uint8Array(12))
     const encryptedSenderKey = await crypto.subtle.encrypt(
@@ -125,19 +166,17 @@ export async function encryptText(
     )
     const encryptedKeyPayload = `enc:groupkey:${toBase64(iv)}.${toBase64(new Uint8Array(encryptedSenderKey))}`
 
-    const uploadPayload = members
-      .filter((m) => m.user.id !== senderId)
-      .map((m) => ({
-        recipientId: m.user.id,
-        encryptedKey: encryptedKeyPayload
-      }))
+    const uploadPayload = recipientIds.map((recipientId) => ({
+      recipientId,
+      encryptedKey: encryptedKeyPayload,
+    }))
 
-    if (uploadPayload.length > 0) {
-      await client.post(`/api/e2ee/group-keys/${channelId}`, uploadPayload)
-    }
+    await client.post(`/api/e2ee/group-keys/${channelId}`, uploadPayload)
 
+    // Recorded only after the upload succeeds, so a failed request is retried
+    // on the next send rather than being remembered as done.
     if (db) {
-      await db.put('crypto_keys', 'true', uploadFlagKey)
+      await db.put('crypto_keys', fingerprint, uploadedRecipientsKey)
     }
   }
 
@@ -164,10 +203,10 @@ export async function decryptText(
   if (payload.startsWith(PREFIX)) {
     const [ivPart, ctPart] = payload.slice(PREFIX.length).split('.')
     if (!ivPart || !ctPart) throw new Error('malformed ciphertext')
-    const key = await getKey(channelId, passphrase)
-    const plaintext = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: fromBase64(ivPart) as BufferSource },
-      key,
+    const plaintext = await decryptWithPassphrase(
+      channelId,
+      passphrase,
+      fromBase64(ivPart) as BufferSource,
       fromBase64(ctPart) as BufferSource,
     )
     return new TextDecoder().decode(plaintext)
@@ -210,15 +249,15 @@ export async function decryptText(
 
       if (!senderKeyB64) {
         const response = await client.get<{ senderId: string; encryptedKey: string }[]>(`/api/e2ee/group-keys/${channelId}`)
-        const stretchedKey = await getKey(channelId, passphrase)
 
         for (const entry of response.data) {
           try {
             const [kIvPart, kCtPart] = entry.encryptedKey.slice('enc:groupkey:'.length).split('.')
-            const decryptedKeyBytes = await crypto.subtle.decrypt(
-              { name: 'AES-GCM', iv: fromBase64(kIvPart) as BufferSource },
-              stretchedKey,
-              fromBase64(kCtPart) as BufferSource
+            const decryptedKeyBytes = await decryptWithPassphrase(
+              channelId,
+              passphrase,
+              fromBase64(kIvPart) as BufferSource,
+              fromBase64(kCtPart) as BufferSource,
             )
             const decKeyB64 = new TextDecoder().decode(decryptedKeyBytes)
 
@@ -300,22 +339,51 @@ export async function decryptTextAsymmetric(sharedKey: CryptoKey, payload: strin
 
 // ─── E2EE V2 (Double Ratchet & X3DH) ──────────────────────────────────
 
+const PREKEY_COUNTER_KEY = 'prekey_id_counter'
+
+/**
+ * Reserves a contiguous block of pre-key ids from a locally persisted counter.
+ *
+ * These used to be `Math.random() * 1e6`. A pre-key id is the handle the private
+ * half is filed under in IndexedDB, so a collision silently overwrote a private
+ * key and made every session opened against the older one undecryptable —
+ * and at 20 ids per replenishment, collisions are not a remote possibility.
+ */
+async function reservePreKeyIds(count: number): Promise<number[]> {
+  const db = await getDB()
+  let next = 1
+  if (db) {
+    const stored = await db.get('crypto_keys', PREKEY_COUNTER_KEY)
+    const parsed = typeof stored === 'string' ? Number.parseInt(stored, 10) : NaN
+    if (Number.isSafeInteger(parsed) && parsed > 0) {
+      next = parsed
+    }
+  }
+  const ids = Array.from({ length: count }, (_, i) => next + i)
+  if (db) {
+    await db.put('crypto_keys', String(next + count), PREKEY_COUNTER_KEY)
+  }
+  return ids
+}
+
 export async function replenishPreKeys() {
   const identityKeyPair = await getAsymmetricKeyPair()
   if (!identityKeyPair) throw new Error('Identity key pair not found')
 
+  const ONE_TIME_PRE_KEY_COUNT = 20
+  // One block for the signed pre-key plus the one-time batch.
+  const [signedPreKeyId, ...oneTimePreKeyIds] = await reservePreKeyIds(ONE_TIME_PRE_KEY_COUNT + 1)
+
   // Generate new Signed Pre-Key
   const signedPreKeyPair = await generateDHKeyPair()
   const signedPreKeyJwk = await crypto.subtle.exportKey('jwk', signedPreKeyPair.publicKey)
-  const signedPreKeyId = Math.floor(Math.random() * 1000000)
 
-  // Generate 20 One-Time Pre-Keys
+  // Generate the One-Time Pre-Keys
   const oneTimePreKeyDtos = []
-  for (let i = 0; i < 20; i++) {
+  for (const keyId of oneTimePreKeyIds) {
     const keyPair = await generateDHKeyPair()
     const jwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey)
-    const keyId = Math.floor(Math.random() * 1000000)
-    
+
     // Save locally
     await saveOneTimePreKeyPair(keyId, keyPair)
     

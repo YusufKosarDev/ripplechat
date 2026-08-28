@@ -285,15 +285,24 @@ export function watchChannel(channelId: string, channelHandlers: ChannelHandlers
   resolveChannelSubs()
 }
 
-function safePublish(params: { destination: string; body: string }) {
+/**
+ * Publishes a frame, reporting whether it actually went out.
+ *
+ * The return value matters for the offline replay path: a dropped frame that
+ * looked like a success let syncManager delete a queued message it had never
+ * sent. Fire-and-forget callers (typing, reactions) may ignore it.
+ */
+function safePublish(params: { destination: string; body: string }): boolean {
   try {
     if (client && client.connected) {
       client.publish(params)
-    } else {
-      console.warn('STOMP client is not connected. Cannot publish to:', params.destination)
+      return true
     }
+    console.warn('STOMP client is not connected. Cannot publish to:', params.destination)
+    return false
   } catch (err) {
     console.error('Failed to publish STOMP message:', err)
+    return false
   }
 }
 
@@ -301,6 +310,7 @@ export function isStompConnected() {
   return client?.connected ?? false
 }
 
+/** Sends a message; returns false if the socket was not connected to take it. */
 export function sendChatMessage(
   channelId: string,
   content: string,
@@ -309,8 +319,8 @@ export function sendChatMessage(
   quotedMessageId?: string,
   attachmentName?: string,
   attachmentType?: string,
-) {
-  safePublish({
+): boolean {
+  return safePublish({
     destination: `/app/channels/${channelId}/send`,
     body: JSON.stringify({ content, parentMessageId, attachmentUrl, quotedMessageId, attachmentName, attachmentType }),
   })
