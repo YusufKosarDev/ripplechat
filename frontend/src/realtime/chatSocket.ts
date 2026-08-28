@@ -79,6 +79,8 @@ let hasConnectedBefore = false
 
 // The user's personal activity-notification topic (only they may subscribe).
 let notificationSub: StompSubscription | null = null
+// Peer-addressed WebRTC signals: same personal topic, same lifecycle.
+let userCallSignalSub: StompSubscription | null = null
 let desiredNotifications: { username: string; handler: (n: NotificationItem) => void } | null = null
 
 function resolveChannelSubs() {
@@ -194,6 +196,14 @@ function resolveNotifications() {
   notificationSub = client.subscribe(`/topic/users/${username}/notifications`, (frame) => {
     handler(JSON.parse(frame.body) as NotificationItem)
   })
+  // WebRTC signals addressed to one peer — offers, answers, ICE candidates —
+  // arrive on the personal topic rather than the channel's, so the session
+  // description for a call between two people is not delivered to everyone else
+  // in the room. They still belong to the open channel's call, so they go to the
+  // same handler.
+  userCallSignalSub = client.subscribe(`/topic/users/${username}/calls`, (frame) => {
+    desired?.onCallSignal(JSON.parse(frame.body) as CallSignal)
+  })
 }
 
 export function connectChat(chatHandlers: ChatHandlers = {}) {
@@ -227,6 +237,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       callSignalSub = null
       threadSub = null
       notificationSub = null
+      userCallSignalSub = null
       allChannelSubs = new Map()
       resolvePresence()
       resolveNotifications()
@@ -274,6 +285,8 @@ export function setNotificationHandler(username: string, handler: (n: Notificati
   if (notificationSub && desiredNotifications?.username !== username) {
     notificationSub.unsubscribe()
     notificationSub = null
+    userCallSignalSub?.unsubscribe()
+    userCallSignalSub = null
   }
   desiredNotifications = { username, handler }
   resolveNotifications()
@@ -419,6 +432,7 @@ export function disconnectChat() {
   threadSub?.unsubscribe()
   callSignalSub?.unsubscribe()
   notificationSub?.unsubscribe()
+  userCallSignalSub?.unsubscribe()
   allChannelSubs.forEach((s) => s.unsubscribe())
   messageSub = null
   typingSub = null
@@ -433,6 +447,7 @@ export function disconnectChat() {
   threadSub = null
   callSignalSub = null
   notificationSub = null
+  userCallSignalSub = null
   allChannelSubs = new Map()
   desired = null
   desiredThread = null

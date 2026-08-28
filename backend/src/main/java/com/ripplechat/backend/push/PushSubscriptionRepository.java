@@ -5,11 +5,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PushSubscriptionRepository extends JpaRepository<PushSubscription, UUID> {
 
-    boolean existsByEndpoint(String endpoint);
+    Optional<PushSubscription> findByEndpoint(String endpoint);
 
     List<PushSubscription> findByUserIdIn(Collection<UUID> userIds);
 
