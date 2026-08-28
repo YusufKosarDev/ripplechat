@@ -8,6 +8,9 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 
+import java.util.Map;
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -27,9 +30,9 @@ class OAuth2CookieTest {
                 .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth")
                 .clientId("client-id")
                 .redirectUri("http://localhost:8081/login/oauth2/code/google")
-                .scopes(java.util.Set.of("openid", "profile"))
+                .scopes(Set.of("openid", "profile"))
                 .state("the-state-value")
-                .attributes(java.util.Map.of(
+                .attributes(Map.of(
                         AuthorizationGrantType.AUTHORIZATION_CODE.getValue(), "google"))
                 .build();
     }
