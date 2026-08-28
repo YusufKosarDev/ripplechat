@@ -230,6 +230,12 @@ export type CallSignalType = 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE' | 'HANG_UP' | 
 
 export interface CallSignal {
   type: CallSignalType
+  /**
+   * The channel the call belongs to. Set by the server: a signal addressed to
+   * one peer arrives on their personal topic, which carries no channel, so this
+   * is the only way the receiver can tell which conversation is ringing.
+   */
+  channelId: string
   senderId: string
   receiverId: string | null
   payload: unknown

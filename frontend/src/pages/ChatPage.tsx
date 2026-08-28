@@ -17,6 +17,7 @@ import ThreadPanel from '../components/ThreadPanel'
 import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
 import { client } from '../api/client'
 import { replenishPreKeys } from '../crypto/e2ee'
+import { provisionIdentity } from '../crypto/identityProvisioning'
 import { syncPendingMessages } from '../sync/syncManager'
 import ConnectionBanner from '../components/ui/ConnectionBanner'
 import { useT } from '../i18n'
@@ -168,37 +169,35 @@ export default function ChatPage() {
 
     const initKeys = async () => {
       try {
-        let keys = await getAsymmetricKeyPair()
-        if (!keys) {
-          const keyPair = await window.crypto.subtle.generateKey(
-            { name: 'ECDH', namedCurve: 'P-256' },
-            true,
-            ['deriveKey', 'deriveBits']
-          )
-          keys = {
-            publicKey: keyPair.publicKey,
-            privateKey: keyPair.privateKey
-          }
-          await saveAsymmetricKeyPair(keys)
-        }
-
-        if (!user.publicKey) {
-          const publicJwk = await window.crypto.subtle.exportKey('jwk', keys.publicKey)
-          const publicJwkString = JSON.stringify(publicJwk)
-          await client.post('/api/users/me/public-key', publicJwkString, {
-            headers: { 'Content-Type': 'text/plain' }
-          })
+        // The rules live in provisionIdentity so they can be tested; what a
+        // mistake here costs is an account advertising a public key nobody holds
+        // the private half of, which fails silently and cannot be undone.
+        const { uploaded } = await provisionIdentity(!!user.publicKey, {
+          loadKeyPair: getAsymmetricKeyPair,
+          generateKeyPair: async () => {
+            const keyPair = await window.crypto.subtle.generateKey(
+              { name: 'ECDH', namedCurve: 'P-256' },
+              true,
+              ['deriveKey', 'deriveBits']
+            )
+            return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }
+          },
+          saveKeyPair: saveAsymmetricKeyPair,
+          exportPublicJwk: async (keys) =>
+            JSON.stringify(await window.crypto.subtle.exportKey('jwk', keys.publicKey)),
+          uploadPublicKey: async (publicJwk) => {
+            await client.post('/api/users/me/public-key', publicJwk, {
+              headers: { 'Content-Type': 'text/plain' }
+            })
+          },
+          oneTimePreKeyCount: async () => {
+            const { data } = await client.get<{ oneTimePreKeyCount: number }>('/api/e2ee/keys/count')
+            return data.oneTimePreKeyCount
+          },
+          replenishPreKeys,
+        })
+        if (uploaded) {
           dispatch(fetchCurrentUser())
-        }
-
-        // Check and replenish pre-keys if low
-        try {
-          const countRes = await client.get<{ oneTimePreKeyCount: number }>('/api/e2ee/keys/count')
-          if (countRes.data.oneTimePreKeyCount < 5) {
-            await replenishPreKeys()
-          }
-        } catch (err) {
-          console.error('Failed to check or replenish pre-keys:', err)
         }
       } catch (err) {
         console.error('Failed to initialize or upload asymmetric key pair:', err)

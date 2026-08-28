@@ -202,7 +202,14 @@ function resolveNotifications() {
   // in the room. They still belong to the open channel's call, so they go to the
   // same handler.
   userCallSignalSub = client.subscribe(`/topic/users/${username}/calls`, (frame) => {
-    desired?.onCallSignal(JSON.parse(frame.body) as CallSignal)
+    const signal = JSON.parse(frame.body) as CallSignal
+    // The handler belongs to the channel that is open, so a signal from a call
+    // in some other conversation would be attributed to this one. Dropping it
+    // keeps the old behaviour for the UI while the frame itself stays off the
+    // room topic.
+    if (desired && signal.channelId === desired.channelId) {
+      desired.onCallSignal(signal)
+    }
   })
 }
 
@@ -411,7 +418,8 @@ export function sendMessageReaction(channelId: string, messageId: string, emoji:
   })
 }
 
-export function sendCallSignal(channelId: string, signal: CallSignal) {
+/** The server fills in channelId and senderId from the frame's destination and principal. */
+export function sendCallSignal(channelId: string, signal: Omit<CallSignal, 'channelId'>) {
   safePublish({
     destination: `/app/channels/${channelId}/call`,
     body: JSON.stringify(signal),

@@ -6,6 +6,8 @@ export interface ScheduledMessage {
   channelName: string
   content: string
   scheduledAt: string
+  /** Why the last delivery attempt failed; null while the message is just waiting. */
+  failureReason: string | null
 }
 
 export async function scheduleMessage(

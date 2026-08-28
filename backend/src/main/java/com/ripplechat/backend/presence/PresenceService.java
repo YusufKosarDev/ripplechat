@@ -1,8 +1,10 @@
 package com.ripplechat.backend.presence;
 
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -84,22 +86,32 @@ public class PresenceService {
      * <p>Members whose session set has expired are dropped as they are found.
      * Redis has no per-member TTL, so the roster cannot expire an entry on its
      * own — this is what stops a user stranded by a crashed replica from showing
-     * as online for ever. The cost is one existence check per online user, on a
-     * call made when a client opens the app or reconnects.
+     * as online for ever. The existence checks go out in one pipeline rather than
+     * one round-trip each: this runs whenever a client opens the app or
+     * reconnects, and a busy workspace would otherwise pay a round-trip per
+     * online user every time.
      */
     public Set<String> onlineUsernames() {
         Set<String> members = redisTemplate.opsForSet().members(ONLINE_USERS_KEY);
         if (members == null || members.isEmpty()) {
             return Collections.emptySet();
         }
+
+        List<String> candidates = new ArrayList<>(members);
+        List<Object> present = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (String username : candidates) {
+                connection.keyCommands().exists((PRESENCE_PREFIX + username).getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        });
+
         Set<String> live = new LinkedHashSet<>();
         List<String> stale = new ArrayList<>();
-        for (String username : members) {
-            if (Boolean.TRUE.equals(redisTemplate.hasKey(PRESENCE_PREFIX + username))) {
-                live.add(username);
-            } else {
-                stale.add(username);
-            }
+        for (int i = 0; i < candidates.size(); i++) {
+            // A short pipeline result would mean a Redis-side problem; treat the
+            // unknown ones as live rather than declaring everyone offline.
+            boolean exists = i >= present.size() || Boolean.TRUE.equals(present.get(i));
+            (exists ? live : stale).add(candidates.get(i));
         }
         if (!stale.isEmpty()) {
             redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, stale.toArray());

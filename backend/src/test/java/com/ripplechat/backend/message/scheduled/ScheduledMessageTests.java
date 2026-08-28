@@ -14,6 +14,8 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.as;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 class ScheduledMessageTests extends AbstractIntegrationTest {
 
@@ -62,8 +64,15 @@ class ScheduledMessageTests extends AbstractIntegrationTest {
         ScheduledMessage after = repository.findById(scheduled.id()).orElseThrow();
         assertThat(after.getAttempts()).isEqualTo(5);
         assertThat(after.getLastError()).contains("not a member");
-        assertThat(after.isSent()).isTrue(); // retired: out of the due query
-        assertThat(service.listMine("leaver")).isEmpty();
+        // Out of the dispatcher's queue, but not marked sent — it was not. The
+        // author keeps seeing it, now with a reason, rather than watching it
+        // vanish from the list as though it had gone out.
+        assertThat(after.isSent()).isFalse();
+        assertThat(service.findDueIds()).doesNotContain(scheduled.id());
+        assertThat(service.listMine("leaver"))
+                .singleElement()
+                .extracting(ScheduledMessageResponse::failureReason, as(STRING))
+                .contains("not a member");
     }
 
     @Test

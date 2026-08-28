@@ -98,7 +98,10 @@ public class ScheduledMessageService {
     /** Ids of rows due for delivery (read-only; the dispatcher delivers each separately). */
     @Transactional(readOnly = true)
     public List<UUID> findDueIds() {
-        return repository.findBySentFalseAndScheduledAtLessThanEqual(Instant.now()).stream()
+        return repository
+                .findBySentFalseAndAttemptsLessThanAndScheduledAtLessThanEqual(
+                        MAX_DELIVERY_ATTEMPTS, Instant.now())
+                .stream()
                 .map(ScheduledMessage::getId)
                 .toList();
     }
@@ -125,9 +128,10 @@ public class ScheduledMessageService {
      *
      * <p>A message that can never be delivered — its author left the channel
      * after scheduling it, the channel was archived — came back due every 30
-     * seconds for ever, throwing and logging each time and never leaving the
-     * queue. Retiring it sets {@code sent}, which is what the due query filters
-     * on, and keeps the reason on the row.
+     * seconds for ever, throwing and logging each time. The attempt count is what
+     * the due query stops at, so the row simply stops being retried; {@code sent}
+     * is deliberately left alone, because it was not. The author keeps seeing it
+     * in their pending list, now carrying the reason, and can cancel it.
      *
      * <p>Separate from {@link #deliver} and called by the dispatcher rather than
      * from inside it: {@code deliver}'s transaction is already marked
@@ -142,9 +146,6 @@ public class ScheduledMessageService {
             }
             sm.setAttempts(sm.getAttempts() + 1);
             sm.setLastError(error);
-            if (sm.getAttempts() >= MAX_DELIVERY_ATTEMPTS) {
-                sm.setSent(true);
-            }
         });
     }
 }

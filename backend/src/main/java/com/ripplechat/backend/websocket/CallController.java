@@ -49,10 +49,17 @@ public class CallController {
             throw new MessagingException("not authorized to call in this channel: " + channelId);
         }
 
-        // Ensure the senderId is authenticated as the current user
+        // The sender is the authenticated principal, never whoever the body
+        // claims. It is sent as the user id because that is what the client
+        // compares against: its own id, and the ids on its block list. A
+        // username here silently disabled both.
+        String senderId = userRepository.findByUsername(principal.getName())
+                .map(user -> user.getId().toString())
+                .orElseThrow(() -> new MessagingException("unknown caller"));
         CallSignal signalToBroadcast = new CallSignal(
                 payload.type(),
-                principal.getName(),
+                channelId.toString(),
+                senderId,
                 payload.receiverId(),
                 payload.payload()
         );

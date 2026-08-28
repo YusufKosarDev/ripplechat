@@ -418,6 +418,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'sched.whenAria': 'Gönderim zamanı',
     'sched.schedule': 'Zamanla',
     'sched.empty': 'Bekleyen zamanlanmış mesaj yok.',
+    'sched.failed': 'Gönderilemedi — bu mesaj teslim edilemedi.',
 
     'members.title': 'Üyeler',
     'members.member': 'üye',
@@ -901,6 +902,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'sched.whenAria': 'Send time',
     'sched.schedule': 'Schedule',
     'sched.empty': 'No pending scheduled messages.',
+    'sched.failed': 'Not sent — this message could not be delivered.',
 
     'members.title': 'Members',
     'members.member': 'member',

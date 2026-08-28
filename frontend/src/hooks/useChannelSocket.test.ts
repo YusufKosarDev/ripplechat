@@ -205,11 +205,11 @@ describe('useChannelSocket', () => {
 
     it('raises an incoming call on OFFER and clears it on HANG_UP', () => {
       mount()
-      act(() => handlers().onCallSignal({ type: 'OFFER', senderId: 'u-other', receiverId: null, payload: {} }))
+      act(() => handlers().onCallSignal({ type: 'OFFER', channelId: 'c1', senderId: 'u-other', receiverId: null, payload: {} }))
       expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'call/setIncomingCall' }))
 
       dispatch.mockClear()
-      act(() => handlers().onCallSignal({ type: 'HANG_UP', senderId: 'u-other', receiverId: null, payload: {} }))
+      act(() => handlers().onCallSignal({ type: 'HANG_UP', channelId: 'c1', senderId: 'u-other', receiverId: null, payload: {} }))
       expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'call/clearCall' }))
     })
   })
