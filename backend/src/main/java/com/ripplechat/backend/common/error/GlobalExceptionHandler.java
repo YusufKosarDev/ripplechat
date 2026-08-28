@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -69,6 +70,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, ex.getMessage(), request, null);
+    }
+
+    /**
+     * Spring Security's own "forbidden".
+     *
+     * <p>Thrown inside a controller it never reaches ExceptionTranslationFilter,
+     * because this advice runs first — and the catch-all below would have turned
+     * a 403 into a 500. The application's own {@link ForbiddenException} covers
+     * most cases, but method security and anything Spring raises directly land
+     * here.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, "Access denied", request, null);
     }
 
     /**

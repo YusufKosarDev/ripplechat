@@ -7,6 +7,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -18,10 +19,21 @@ public class OutboxTaskProcessor {
     private final OutboxTaskRepository outboxTaskRepository;
     private final MediaStorage mediaStorage;
 
+    /** Attempts before a task is abandoned. */
+    private static final int MAX_ATTEMPTS = 5;
+
+    /** How long a task may sit in PROCESSING before it is treated as abandoned. */
+    private static final Duration STUCK_AFTER = Duration.ofMinutes(5);
+
+    /** Ceiling on the exponential backoff, which would otherwise run away. */
+    private static final long MAX_BACKOFF_SECONDS = 3600;
+
     @Scheduled(fixedDelayString = "${ripplechat.outbox.sweep-ms:5000}")
     @SchedulerLock(name = "outboxTaskSweep", lockAtMostFor = "PT2M", lockAtLeastFor = "PT0S")
     public void processTasks() {
-        List<OutboxTask> pendingTasks = outboxTaskRepository.findPendingTasks(5, Instant.now());
+        Instant now = Instant.now();
+        List<OutboxTask> pendingTasks =
+                outboxTaskRepository.findPendingTasks(MAX_ATTEMPTS, now, now.minus(STUCK_AFTER));
         if (pendingTasks.isEmpty()) {
             return;
         }
@@ -43,10 +55,18 @@ public class OutboxTaskProcessor {
                 outboxTaskRepository.saveAndFlush(task);
             } catch (Exception e) {
                 log.error("Failed to execute outbox task: {}", task.getId(), e);
-                task.setStatus(OutboxTask.Status.FAILED);
                 task.setErrorMessage(e.getMessage());
-                long backoffSeconds = (long) Math.pow(2, task.getAttempts() - 1) * 10;
-                task.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
+                if (task.getAttempts() >= MAX_ATTEMPTS) {
+                    // Out of attempts. DEAD rather than FAILED so it is visibly
+                    // abandoned instead of looking like one still awaiting retry.
+                    task.setStatus(OutboxTask.Status.DEAD);
+                    task.setNextAttemptAt(null);
+                } else {
+                    task.setStatus(OutboxTask.Status.FAILED);
+                    long backoffSeconds = Math.min(
+                            (long) Math.pow(2, task.getAttempts() - 1) * 10, MAX_BACKOFF_SECONDS);
+                    task.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
+                }
                 outboxTaskRepository.saveAndFlush(task);
             }
         }

@@ -34,6 +34,27 @@ class MessageForwardTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void forwardCarriesTheAttachmentMetadataAndTheTargetsTimer() {
+        createUser("owner");
+        var a = channelService.create(new CreateChannelRequest("a", null, false), "owner");
+        var b = channelService.create(new CreateChannelRequest("b", null, false), "owner");
+        channelService.setDisappearing(b.id(), "owner", 3600);
+
+        MessageResponse src = messageService.send(a.id(), new CreateMessageRequest(
+                "", null, "https://res.cloudinary.com/demo/raw/upload/notes.pdf", null, "notes.pdf", "file"), "owner");
+
+        MessageResponse fwd = messageService.forward(b.id(), src.id(), "owner");
+
+        // Only the URL used to come across: the copy arrived with no filename and
+        // a null type, which renders as an image and downloads without a name.
+        assertThat(fwd.attachmentName()).isEqualTo("notes.pdf");
+        assertThat(fwd.attachmentType()).isEqualTo("file");
+        // And it ignored the target channel's disappearing-message timer, which
+        // made forwarding a way to make a message permanent there.
+        assertThat(fwd.expiresAt()).isNotNull();
+    }
+
+    @Test
     void cannotForwardAMessageFromAChannelYouAreNotIn() {
         createUser("owner");
         createUser("outsider");

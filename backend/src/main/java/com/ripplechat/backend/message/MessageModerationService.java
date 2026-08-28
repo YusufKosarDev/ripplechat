@@ -11,6 +11,7 @@ import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class MessageModerationService {
+
+    /** Rows the disappearing-message sweep will retire in one pass. */
+    private static final int EXPIRY_SWEEP_BATCH = 500;
 
     private final MessageRepository messageRepository;
     private final MessageHideRepository messageHideRepository;
@@ -94,7 +98,12 @@ public class MessageModerationService {
      */
     @Transactional
     public void purgeExpired() {
-        for (Message message : messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(Instant.now())) {
+        // Bounded per call: an unbounded fetch would load every message that came
+        // due at once, and a channel with a short timer and a busy hour can make
+        // that a lot of rows in one transaction. The scheduler runs every 30s, so
+        // a backlog drains over the next few ticks.
+        for (Message message : messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(
+                Instant.now(), PageRequest.of(0, EXPIRY_SWEEP_BATCH))) {
             softDelete(message);
         }
     }
@@ -146,8 +155,25 @@ public class MessageModerationService {
         }
     }
 
+    /**
+     * Pins or unpins a message.
+     *
+     * <p>Pinning is a channel-wide act — it changes what everyone sees at the top
+     * of the channel — so it takes the same authority as deleting someone else's
+     * message: your own message, or a moderator's say-so. Any member could do it
+     * to any message, which the class doc already described as not being the
+     * case.
+     */
     private void setPinned(UUID channelId, UUID messageId, String username, boolean pinned) {
         Message message = requireMessageInChannel(channelId, messageId, username);
+        if (!message.getSender().getUsername().equals(username)) {
+            MembershipRole role = membershipRepository.findByChannelIdAndUser_Username(channelId, username)
+                    .map(ChannelMembership::getRole)
+                    .orElse(null);
+            if (role == null || !role.canModerate()) {
+                throw new ForbiddenException("you can only pin your own messages");
+            }
+        }
         if (message.isPinned() == pinned) {
             return;
         }
