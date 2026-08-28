@@ -23,6 +23,8 @@ class ChannelAuthorizationTests extends AbstractIntegrationTest {
     ChannelMembershipService membershipService;
     @Autowired
     ChannelMembershipRepository membershipRepository;
+    @Autowired
+    DirectMessageService directMessageService;
 
     @Test
     void channelCreatorBecomesOwner() {
@@ -58,6 +60,73 @@ class ChannelAuthorizationTests extends AbstractIntegrationTest {
                 .isInstanceOf(ForbiddenException.class);
         assertThat(channelService.update(channel.id(), "owner", new UpdateChannelRequest("renamed", null)).name())
                 .isEqualTo("renamed");
+    }
+
+    @Test
+    void outsiderCannotJoinPrivateChannelByKnowingItsId() {
+        createUser("owner");
+        createUser("outsider");
+        var channel = channelService.create(new CreateChannelRequest("secret", null, true), "owner");
+
+        // Knowing the id used to be enough: join() admitted anyone, and every
+        // other read is gated on membership, so it handed over the whole channel.
+        assertThatThrownBy(() -> membershipService.join(channel.id(), "outsider"))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(membershipService.isMember(channel.id(), "outsider")).isFalse();
+    }
+
+    @Test
+    void outsiderCannotJoinADirectMessage() {
+        User alice = createUser("alice");
+        createUser("bob");
+        createUser("snoop");
+        var dm = directMessageService.openOrCreate("bob", alice.getId());
+
+        assertThatThrownBy(() -> membershipService.join(dm.id(), "snoop"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void anyoneCanStillJoinAPublicChannel() {
+        createUser("owner");
+        createUser("joiner");
+        var channel = channelService.create(new CreateChannelRequest("general", null, false), "owner");
+
+        assertThat(membershipService.join(channel.id(), "joiner").role()).isEqualTo(MembershipRole.MEMBER);
+        // Idempotent: joining twice is not an error.
+        assertThat(membershipService.join(channel.id(), "joiner").role()).isEqualTo(MembershipRole.MEMBER);
+    }
+
+    @Test
+    void ownerAddsMembersToAPrivateChannel() {
+        createUser("owner");
+        User invited = createUser("invited");
+        createUser("bystander");
+        var channel = channelService.create(new CreateChannelRequest("secret", null, true), "owner");
+
+        assertThat(membershipService.addMember(channel.id(), "owner", invited.getId()).role())
+                .isEqualTo(MembershipRole.MEMBER);
+        assertThat(membershipService.isMember(channel.id(), "invited")).isTrue();
+
+        // A plain member may not widen the channel.
+        assertThatThrownBy(() ->
+                membershipService.addMember(channel.id(), "invited", userRepository
+                        .findByUsername("bystander").orElseThrow().getId()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void privateChannelMemberListIsNotReadableByOutsiders() {
+        createUser("owner");
+        createUser("outsider");
+        var privateChannel = channelService.create(new CreateChannelRequest("secret", null, true), "owner");
+        var publicChannel = channelService.create(new CreateChannelRequest("general", null, false), "owner");
+
+        assertThatThrownBy(() -> membershipService.listMembers(privateChannel.id(), "outsider"))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(membershipService.listMembers(privateChannel.id(), "owner")).hasSize(1);
+        // A public channel's roster stays visible — the join screen shows it.
+        assertThat(membershipService.listMembers(publicChannel.id(), "outsider")).hasSize(1);
     }
 
     @Test

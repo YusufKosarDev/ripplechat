@@ -46,6 +46,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   const [newName, setNewName] = useState('')
   const [joinId, setJoinId] = useState('')
+  const [joinError, setJoinError] = useState<string | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [showSaved, setShowSaved] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -65,11 +66,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     dispatch(createChannel({ name }))
     setNewName('')
   }
-  const onJoin = (e: FormEvent) => {
+  const onJoin = async (e: FormEvent) => {
     e.preventDefault()
     const id = joinId.trim()
     if (!id) return
-    dispatch(joinChannel(id))
+    setJoinError(null)
+    // Joining by id only works for public channels now — a private channel (and
+    // every DM) is joined by being added. Say so rather than failing silently.
+    const result = await dispatch(joinChannel(id))
+    if (joinChannel.rejected.match(result)) {
+      setJoinError(t('sidebar.joinFailed'))
+      return
+    }
     setJoinId('')
   }
   const onLogout = () => {
@@ -327,13 +335,21 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               inputSize="sm"
               className="min-w-0 flex-1"
               value={joinId}
-              onChange={(e) => setJoinId(e.target.value)}
+              onChange={(e) => {
+                setJoinId(e.target.value)
+                setJoinError(null)
+              }}
               placeholder={t('sidebar.joinById')}
             />
             <Button type="submit" variant="secondary" size="sm">
               {t('sidebar.join')}
             </Button>
           </form>
+          {joinError && (
+            <p role="alert" className="-mt-1 text-xs text-danger">
+              {joinError}
+            </p>
+          )}
           <Button
             type="button"
             variant="secondary"

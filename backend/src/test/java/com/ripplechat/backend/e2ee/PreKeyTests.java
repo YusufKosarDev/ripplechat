@@ -1,6 +1,10 @@
 package com.ripplechat.backend.e2ee;
 
 import tools.jackson.databind.ObjectMapper;
+import com.ripplechat.backend.channel.ChannelService;
+import com.ripplechat.backend.channel.dto.CreateChannelRequest;
+import com.ripplechat.backend.common.exception.BadRequestException;
+import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
 import com.ripplechat.backend.user.User;
 import org.junit.jupiter.api.Test;
@@ -9,7 +13,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,6 +32,12 @@ class PreKeyTests extends AbstractIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private GroupCryptoService groupCryptoService;
+
+    @Autowired
+    private ChannelService channelService;
 
     @Test
     void testUploadAndRetrievePreKeys() throws Exception {
@@ -112,5 +125,31 @@ class PreKeyTests extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.oneTimePreKeyId").value(nullValue()))
                 .andExpect(jsonPath("$.oneTimePreKeyPublic").value(nullValue()));
+    }
+
+    @Test
+    void groupKeysAreScopedToChannelMembers() {
+        User member = createUser("gk_member");
+        createUser("gk_outsider");
+        var channel = channelService.create(new CreateChannelRequest("crypto", null, true), "gk_member");
+
+        // An outsider could previously write sender-key rows into any channel id,
+        // and read the ones addressed to them, without belonging to it.
+        assertThatThrownBy(() -> groupCryptoService.uploadGroupKeys(
+                "gk_outsider", channel.id(),
+                List.of(Map.of("recipientId", member.getId().toString(), "encryptedKey", "enc:groupkey:x.y"))))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThatThrownBy(() -> groupCryptoService.getGroupKeysForChannel("gk_outsider", channel.id()))
+                .isInstanceOf(ForbiddenException.class);
+
+        // A member may still publish, and a malformed id is a 400, not a 500.
+        groupCryptoService.uploadGroupKeys("gk_member", channel.id(),
+                List.of(Map.of("recipientId", member.getId().toString(), "encryptedKey", "enc:groupkey:x.y")));
+        assertThat(groupCryptoService.getGroupKeysForChannel("gk_member", channel.id())).hasSize(1);
+
+        assertThatThrownBy(() -> groupCryptoService.uploadGroupKeys("gk_member", channel.id(),
+                List.of(Map.of("recipientId", "not-a-uuid", "encryptedKey", "enc:groupkey:x.y"))))
+                .isInstanceOf(BadRequestException.class);
     }
 }

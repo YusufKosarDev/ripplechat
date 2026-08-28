@@ -2,6 +2,7 @@ package com.ripplechat.backend.channel.membership;
 
 import com.ripplechat.backend.channel.Channel;
 import com.ripplechat.backend.channel.ChannelRepository;
+import com.ripplechat.backend.channel.ChannelType;
 import com.ripplechat.backend.channel.membership.dto.MemberResponse;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -21,6 +22,7 @@ public class ChannelMembershipService {
     private final ChannelMembershipRepository membershipRepository;
     private final ChannelRepository channelRepository;
     private final UserRepository userRepository;
+    private final ChannelMembershipGuard membershipGuard;
 
     /**
      * Adds the channel creator as OWNER. Called when a channel is created.
@@ -34,16 +36,65 @@ public class ChannelMembershipService {
         membershipRepository.save(membership);
     }
 
+    /**
+     * Self-service join, for public channels only.
+     *
+     * <p>This used to admit anyone who knew a channel id, whatever the channel
+     * was. That made the id the only thing standing between an outsider and a
+     * private channel — or a direct message, which is a private channel too — and
+     * membership is what every other read is gated on, so joining handed over the
+     * whole conversation: history, live feed, search, and the ability to post.
+     * A private channel is joined by being added ({@link #addMember}), never by
+     * knowing where it is.
+     */
     @Transactional
     public MemberResponse join(UUID channelId, String username) {
         return membershipRepository.findByChannelIdAndUser_Username(channelId, username)
                 .map(MemberResponse::from) // already a member -> idempotent
                 .orElseGet(() -> {
-                    Channel channel = getChannel(channelId);
+                    Channel channel = getActiveChannel(channelId);
+                    if (channel.isPrivate() || channel.getType() != ChannelType.CHANNEL) {
+                        throw new ForbiddenException("this channel is invite-only: " + channelId);
+                    }
                     User user = getUser(username);
                     ChannelMembership membership = new ChannelMembership();
                     membership.setChannel(channel);
                     membership.setUser(user);
+                    membership.setRole(MembershipRole.MEMBER);
+                    return MemberResponse.from(membershipRepository.saveAndFlush(membership));
+                });
+    }
+
+    /**
+     * Adds someone else to a channel — the counterpart to {@link #join} now that
+     * joining is public-only. Without this a private channel could only ever hold
+     * the person who created it.
+     *
+     * <p>Restricted to owners and moderators, and to regular channels: a DM or
+     * group DM has a membership its participants understand to be closed, and
+     * widening it from here would do so silently.
+     */
+    @Transactional
+    public MemberResponse addMember(UUID channelId, String actorUsername, UUID targetUserId) {
+        Channel channel = getActiveChannel(channelId);
+        if (channel.getType() != ChannelType.CHANNEL) {
+            throw new ForbiddenException("direct messages cannot take new members");
+        }
+        requireModerator(channelId, actorUsername);
+
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + targetUserId));
+        if (target.isDeleted()) {
+            // An erased account is indistinguishable from one that never existed.
+            throw new ResourceNotFoundException("user not found: " + targetUserId);
+        }
+
+        return membershipRepository.findByChannelIdAndUser_Id(channelId, targetUserId)
+                .map(MemberResponse::from) // already a member -> idempotent
+                .orElseGet(() -> {
+                    ChannelMembership membership = new ChannelMembership();
+                    membership.setChannel(channel);
+                    membership.setUser(target);
                     membership.setRole(MembershipRole.MEMBER);
                     return MemberResponse.from(membershipRepository.saveAndFlush(membership));
                 });
@@ -61,9 +112,21 @@ public class ChannelMembershipService {
         membershipRepository.delete(membership);
     }
 
+    /**
+     * The channel's roster.
+     *
+     * <p>A public channel's members are part of browsing it — the join screen
+     * shows who is already there before you commit — so no membership is
+     * required. A private channel's roster is not public information, and
+     * neither is a DM's: this endpoint had no check at all, so anyone holding a
+     * channel id could enumerate the participants of a private conversation.
+     */
     @Transactional(readOnly = true)
-    public List<MemberResponse> listMembers(UUID channelId) {
-        requireChannelExists(channelId);
+    public List<MemberResponse> listMembers(UUID channelId, String username) {
+        Channel channel = getChannel(channelId);
+        if (channel.isPrivate()) {
+            membershipGuard.requireMember(channelId, username);
+        }
         return membershipRepository.findByChannelId(channelId).stream()
                 .map(MemberResponse::from)
                 .toList();
@@ -124,15 +187,24 @@ public class ChannelMembershipService {
         }
     }
 
-    private void requireChannelExists(UUID channelId) {
-        if (!channelRepository.existsById(channelId)) {
-            throw new ResourceNotFoundException("channel not found: " + channelId);
+    private void requireModerator(UUID channelId, String username) {
+        if (!canModerate(channelId, username)) {
+            throw new ForbiddenException("only channel owners/moderators can add members");
         }
     }
 
     private Channel getChannel(UUID channelId) {
         return channelRepository.findById(channelId)
                 .orElseThrow(() -> new ResourceNotFoundException("channel not found: " + channelId));
+    }
+
+    /** A soft-deleted channel is gone as far as membership changes are concerned. */
+    private Channel getActiveChannel(UUID channelId) {
+        Channel channel = getChannel(channelId);
+        if (channel.isDeleted()) {
+            throw new ResourceNotFoundException("channel not found: " + channelId);
+        }
+        return channel;
     }
 
     private User getUser(String username) {
