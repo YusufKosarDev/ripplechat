@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import com.ripplechat.backend.notification.NotificationService;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -47,6 +49,27 @@ class BlockTests extends AbstractIntegrationTest {
                 .isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> directMessageService.openOrCreate("bob", aliceUser.getId()))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void aGroupIsNotAWayAroundABlock() {
+        createUser("alice");
+        User bob = createUser("bob");
+        User carol = createUser("carol");
+        User aliceUser = userRepository.findByUsername("alice").orElseThrow();
+        blockService.block("alice", bob.getId());
+
+        // openOrCreate already refused a one-to-one DM; the group endpoint put
+        // the two of them in the same conversation regardless, in both directions.
+        assertThatThrownBy(() -> directMessageService.createGroup(
+                "alice", List.of(bob.getId(), carol.getId()), "grup"))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> directMessageService.createGroup(
+                "bob", List.of(aliceUser.getId(), carol.getId()), "grup"))
+                .isInstanceOf(ForbiddenException.class);
+
+        // Unaffected parties can still be grouped.
+        assertThat(directMessageService.createGroup("alice", List.of(carol.getId()), "ok")).isNotNull();
     }
 
     @Test

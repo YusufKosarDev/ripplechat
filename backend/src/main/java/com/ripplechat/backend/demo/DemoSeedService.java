@@ -18,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 
 /**
@@ -33,6 +35,10 @@ public class DemoSeedService {
 
     public static final String DEMO_USERNAME = "demo";
     private static final String DEMO_PASSWORD = "demo1234";
+
+    /** Non-demo seed accounts are never signed into; they get a throwaway secret. */
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private static final String GENERAL_CHANNEL = "general";
     private static final String DEV_CHANNEL = "engineering";
     private static final String DESIGN_CHANNEL = "design";
@@ -188,14 +194,31 @@ public class DemoSeedService {
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Creates a seed user.
+     *
+     * <p>Only the {@code demo} account gets the published password; the others
+     * exist to populate the conversation and are never signed into, so they get
+     * a random one. They previously all shared {@code demo1234}, which meant a
+     * public deployment shipped three accounts whose credentials were in the
+     * source rather than one.
+     */
     private User user(String username, String email, String displayName, String avatarColor) {
         User u = new User();
         u.setUsername(username);
         u.setEmail(email);
         u.setDisplayName(displayName);
         u.setAvatarColor(avatarColor);
-        u.setPassword(passwordEncoder.encode(DEMO_PASSWORD));
+        u.setPassword(passwordEncoder.encode(
+                DEMO_USERNAME.equals(username) ? DEMO_PASSWORD : randomPassword()));
         return userRepository.save(u);
+    }
+
+    private static String randomPassword() {
+        byte[] bytes = new byte[24];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private Channel channel(String name, String description, User owner, List<User> members) {

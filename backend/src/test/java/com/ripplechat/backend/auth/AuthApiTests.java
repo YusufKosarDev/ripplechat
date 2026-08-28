@@ -41,6 +41,18 @@ class AuthApiTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void registerRejectsAUsernameShapedLikeAnEmailAddress() throws Exception {
+        // Sign-in accepts a username or an email, so a username that looks like
+        // someone else's address made their email sign-in ambiguous — the lookup
+        // matched two rows and failed outright.
+        mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON)
+                        .content("{\"username\":\"victim@test.io\",\"email\":\"attacker@test.io\","
+                                + "\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("username"));
+    }
+
+    @Test
     void registerRejectsInvalidPayloadWith400() throws Exception {
         mvc.perform(post("/api/auth/register").contentType(APPLICATION_JSON)
                         .content("{\"username\":\"\",\"email\":\"not-an-email\",\"password\":\"short\"}"))

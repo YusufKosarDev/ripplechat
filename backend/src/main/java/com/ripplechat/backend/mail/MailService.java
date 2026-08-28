@@ -26,13 +26,20 @@ public class MailService {
     private final JavaMailSender mailSender;
     private final boolean enabled;
     private final String from;
+    private final boolean logLinks;
 
     public MailService(ObjectProvider<JavaMailSender> mailSenderProvider,
                        @Value("${app.mail.enabled:false}") boolean enabled,
-                       @Value("${app.mail.from:no-reply@ripplechat.app}") String from) {
+                       @Value("${app.mail.from:no-reply@ripplechat.app}") String from,
+                       @Value("${app.mail.log-links:true}") boolean logLinks) {
         this.mailSender = mailSenderProvider.getIfAvailable();
         this.enabled = enabled;
         this.from = from;
+        this.logLinks = logLinks;
+        if (!enabled || mailSenderProvider.getIfAvailable() == null) {
+            log.warn("Email is not configured — password-reset and verification links will not be sent."
+                    + (logLinks ? " They are written to this log instead." : ""));
+        }
     }
 
     /** True when email will actually be delivered (vs. logged). */
@@ -42,9 +49,16 @@ public class MailService {
 
     public void send(String to, String subject, String body) {
         if (!isEnabled()) {
-            // Logged at INFO so a developer can copy the action link from the
-            // console. Never log this in a real deployment with mail disabled.
-            log.info("[mail disabled] to={} subject=\"{}\"\n{}", to, subject, body);
+            // The body carries the password-reset link, so writing it to the log
+            // hands account access to anyone who can read the log. That is a fine
+            // trade in development, where it is the only way to complete the flow
+            // without an SMTP server — and not one to make in production, where
+            // app.mail.log-links is off.
+            if (logLinks) {
+                log.info("[mail disabled] to={} subject=\"{}\"\n{}", to, subject, body);
+            } else {
+                log.warn("event=mail_dropped reason=not_configured to={} subject=\"{}\"", to, subject);
+            }
             return;
         }
         SimpleMailMessage message = new SimpleMailMessage();

@@ -42,10 +42,12 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
             return;
         }
 
-        addCookie(response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME, serialize(authorizationRequest), cookieExpireSeconds);
+        boolean secure = request.isSecure();
+        addCookie(response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME,
+                serialize(authorizationRequest), cookieExpireSeconds, secure);
         String redirectUriAfterLogin = request.getParameter(REDIRECT_URI_PARAM_COOKIE_NAME);
         if (redirectUriAfterLogin != null && !redirectUriAfterLogin.isBlank()) {
-            addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, cookieExpireSeconds);
+            addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, cookieExpireSeconds, secure);
         }
     }
 
@@ -57,10 +59,22 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
         return authorizationRequest;
     }
 
-    private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
+    /**
+     * These cookies carry the in-flight authorization request, including the
+     * state value that binds the provider's callback to the browser that started
+     * it.
+     *
+     * <p>{@code Secure} over HTTPS keeps them off a plaintext connection;
+     * {@code SameSite=Lax} is the tightest setting that still works, because the
+     * callback arrives as a top-level GET redirect from the provider. Neither
+     * was set, so they travelled on any scheme and on any cross-site request.
+     */
+    private void addCookie(HttpServletResponse response, String name, String value, int maxAge, boolean secure) {
         Cookie cookie = new Cookie(name, value);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
+        cookie.setSecure(secure);
+        cookie.setAttribute("SameSite", "Lax");
         cookie.setMaxAge(maxAge);
         response.addCookie(cookie);
     }

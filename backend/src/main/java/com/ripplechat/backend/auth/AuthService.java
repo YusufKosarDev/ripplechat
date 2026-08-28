@@ -29,6 +29,11 @@ public class AuthService {
     private static final double LOGIN_BURST = 5;
     private static final double LOGIN_REFILL_PER_SEC = 0.1;
 
+    // The shared public demo account: generous enough that real visitors are
+    // never turned away, small enough that it is still metered.
+    private static final double DEMO_LOGIN_BURST = 60;
+    private static final double DEMO_LOGIN_REFILL_PER_SEC = 1;
+
     // 2FA code throttle: ~5 attempts burst, then ~1 every 10s per user. Stops a
     // 6-digit TOTP from being brute-forced once the password step has been passed.
     private static final double TWO_FACTOR_BURST = 5;
@@ -91,18 +96,32 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
-        // Brute-force throttle, keyed by the attempted login identifier. The
-        // public "demo" account is exempt — its password is intentionally known,
-        // so throttling it would only block the one-click demo for real visitors.
+        // Brute-force throttle, keyed by the attempted login identifier.
+        //
+        // The public "demo" account gets a much larger budget rather than none at
+        // all: its password is intentionally known, so the normal throttle would
+        // block genuine visitors arriving through the one-click demo — but no
+        // limit whatsoever made it the one unmetered authentication endpoint in
+        // the application.
         String login = request.login();
         boolean isDemo = "demo".equalsIgnoreCase(login.trim());
-        if (!isDemo && !rateLimiter.tryAcquire("login:" + login.toLowerCase(), LOGIN_BURST, LOGIN_REFILL_PER_SEC)) {
+        double burst = isDemo ? DEMO_LOGIN_BURST : LOGIN_BURST;
+        double refill = isDemo ? DEMO_LOGIN_REFILL_PER_SEC : LOGIN_REFILL_PER_SEC;
+        if (!rateLimiter.tryAcquire("login:" + login.toLowerCase(), burst, refill)) {
             audit.loginThrottled(login);
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "too many login attempts, please wait a moment and try again");
         }
 
-        User user = userRepository.findByUsernameOrEmail(login, login).orElse(null);
+        // Username first, then email — deterministically, one row at a time.
+        // findByUsernameOrEmail(login, login) returns an Optional, so if a
+        // username ever collided with someone else's email address the query
+        // matched two rows and threw, making that person's email sign-in fail
+        // outright. The username charset now rules the collision out; resolving
+        // in a defined order means existing data cannot trip over it either.
+        User user = userRepository.findByUsername(login)
+                .or(() -> userRepository.findByEmail(login))
+                .orElse(null);
         if (user == null || user.isDeleted()) {
             // A deleted account is treated exactly like an unknown one (its
             // credentials are scrubbed anyway) — no signal that it ever existed.
