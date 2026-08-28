@@ -1,5 +1,8 @@
 package com.ripplechat.backend.user;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.ripplechat.backend.auth.AccountService;
 import com.ripplechat.backend.auth.RefreshTokenService;
 import com.ripplechat.backend.auth.TokenRevocationService;
@@ -27,6 +30,10 @@ public class UserService {
 
     // Avatar URLs must be ones we issued (Cloudinary), never arbitrary client input.
     private static final String AVATAR_URL_PREFIX = "https://res.cloudinary.com/";
+
+    /** A P-256 public JWK is a couple of hundred bytes; leave room and no more. */
+    private static final int MAX_PUBLIC_KEY_LENGTH = 2048;
+    private static final ObjectMapper PUBLIC_KEY_MAPPER = new ObjectMapper();
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -165,11 +172,40 @@ public class UserService {
         tokenRevocationService.revokeBefore(username);
     }
 
+    /**
+     * Records the caller's E2EE identity public key (a JWK document).
+     *
+     * <p>The body went straight into the column unchecked, so anything at all
+     * could be stored there and then handed to every peer as an identity key.
+     * It is validated as a JWK of the curve the client actually uses, and
+     * bounded — a real P-256 JWK is a couple of hundred bytes.
+     */
     @Transactional
     public void registerPublicKey(String username, String publicKey) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-        user.setPublicKey(publicKey);
+        user.setPublicKey(validPublicKey(publicKey));
         userRepository.save(user);
+    }
+
+    private static String validPublicKey(String publicKey) {
+        String key = publicKey == null ? "" : publicKey.trim();
+        if (key.isEmpty() || key.length() > MAX_PUBLIC_KEY_LENGTH) {
+            throw new BadRequestException("public key must be 1–" + MAX_PUBLIC_KEY_LENGTH + " characters");
+        }
+        try {
+            JsonNode jwk = PUBLIC_KEY_MAPPER.readTree(key);
+            // An EC public key on P-256: the shape x3dh.ts imports on the far side.
+            if (!jwk.isObject()
+                    || !"EC".equals(jwk.path("kty").asText(null))
+                    || !"P-256".equals(jwk.path("crv").asText(null))
+                    || jwk.path("x").asText(null) == null
+                    || jwk.path("y").asText(null) == null) {
+                throw new BadRequestException("public key must be a P-256 EC JWK");
+            }
+        } catch (JacksonException e) {
+            throw new BadRequestException("public key must be valid JSON");
+        }
+        return key;
     }
 }

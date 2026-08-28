@@ -7,6 +7,7 @@ import com.ripplechat.backend.message.dto.MessageReactionUpdate;
 import com.ripplechat.backend.message.dto.ReactionSummary;
 import com.ripplechat.backend.notification.Notification;
 import com.ripplechat.backend.notification.NotificationService;
+import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,17 +29,26 @@ public class MessageReactionService {
 
     private static final int MAX_EMOJI_LENGTH = 16;
 
+    // Each toggle is a write plus a fan-out. The transient "flying emoji" relay
+    // has always been throttled; the persisted ones were not.
+    private static final double REACT_BURST = 20;
+    private static final double REACT_REFILL_PER_SEC = 5;
+
     private final MessageReactionRepository reactionRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ChannelMembershipService membershipService;
     private final RedisBroadcastService redisBroadcastService;
     private final NotificationService notificationService;
+    private final RateLimiter rateLimiter;
 
     @Transactional
     public void toggle(UUID channelId, UUID messageId, String username, String emoji) {
         if (emoji == null || emoji.isBlank() || emoji.length() > MAX_EMOJI_LENGTH) {
             return;
+        }
+        if (!rateLimiter.tryAcquire("msgreact:" + username, REACT_BURST, REACT_REFILL_PER_SEC)) {
+            return; // transient UI action; drop the excess rather than erroring the frame
         }
         if (!membershipService.isMember(channelId, username)) {
             throw new ForbiddenException("not a member of channel: " + channelId);
@@ -47,6 +57,11 @@ public class MessageReactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("message not found: " + messageId));
         if (!message.getChannel().getId().equals(channelId)) {
             throw new ResourceNotFoundException("message not found in channel: " + messageId);
+        }
+        if (message.isDeleted()) {
+            // Deleting drops the reactions; adding one afterwards would resurrect
+            // an interaction with a message that no longer exists.
+            return;
         }
 
         reactionRepository.findByMessage_IdAndUser_UsernameAndEmoji(messageId, username, emoji)

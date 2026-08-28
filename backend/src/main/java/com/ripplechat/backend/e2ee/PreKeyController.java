@@ -1,5 +1,6 @@
 package com.ripplechat.backend.e2ee;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,15 +26,16 @@ public class PreKeyController {
     /** Upload (replace) signed pre-key and append one-time pre-keys. */
     @PostMapping("/keys")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void uploadPreKeys(@RequestBody PreKeyUploadRequest request,
+    public void uploadPreKeys(@Valid @RequestBody PreKeyUploadRequest request,
                               @AuthenticationPrincipal String username) {
         preKeyService.uploadPreKeys(username, request);
     }
 
     /** Fetch a user's pre-key bundle for X3DH. Consumes one OTP key atomically. */
     @GetMapping("/keys/{userId}")
-    public PreKeyBundleResponse getPreKeyBundle(@PathVariable UUID userId) {
-        return preKeyService.getPreKeyBundle(userId);
+    public PreKeyBundleResponse getPreKeyBundle(@PathVariable UUID userId,
+                                                @AuthenticationPrincipal String username) {
+        return preKeyService.getPreKeyBundle(username, userId);
     }
 
     /** Check how many one-time pre-keys remain (client replenishes when low). */

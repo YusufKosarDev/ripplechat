@@ -75,11 +75,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         String accessToken = jwtService.generateToken(username);
 
+        // As resolved by the container: the prod profile puts Tomcat's
+        // RemoteIpValve in front, which reads X-Forwarded-For correctly. Parsing
+        // it here took the first entry, which is the forgeable one.
         String ipAddress = request.getRemoteAddr();
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            ipAddress = xForwardedFor.split(",")[0].trim();
-        }
         String userAgent = request.getHeader("User-Agent");
         String rawRefreshToken = refreshTokenService.issue(user, ipAddress, userAgent);
 
