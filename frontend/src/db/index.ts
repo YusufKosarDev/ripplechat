@@ -129,6 +129,18 @@ export async function clearLocalUserData(): Promise<void> {
     // as above
   }
 
+  // The service worker's runtime cache is excluded from API responses, so it
+  // should hold nothing personal — but it is keyed by URL alone and outlives a
+  // sign-out, so clear it rather than rely on that.
+  try {
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys()
+      await Promise.all(names.filter((n) => n.startsWith('ripplechat-')).map((n) => caches.delete(n)))
+    }
+  } catch {
+    // Cache Storage is unavailable in some contexts; nothing to clean up then.
+  }
+
   if (typeof indexedDB === 'undefined') return
   try {
     const db = await getDB()

@@ -4,10 +4,16 @@ on:
   push:
     paths:
       - 'frontend/**'
+      # The integration job runs the frontend against a real backend, so a
+      # backend change can break it too.
+      - 'backend/**'
+      - 'docker-compose.yml'
       - '.github/workflows/e2e-tests.yml'
   pull_request:
     paths:
       - 'frontend/**'
+      - 'backend/**'
+      - 'docker-compose.yml'
 
 jobs:
   e2e:
@@ -33,3 +39,81 @@ jobs:
       - name: Run e2e tests
         working-directory: frontend
         run: npm run test:e2e
+
+  # The suite above stubs every request, which is what makes it fast — and why it
+  # cannot catch a disagreement between what the client expects and what the
+  # server sends, or exercise anything the server decides. This job runs a
+  # smaller suite against the real stack. See frontend/e2e-integration/README.md.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Same compose file the README tells a contributor to use, so CI and a
+      # local run cannot drift apart.
+      - name: Write .env for docker compose and the backend
+        run: |
+          cat > .env <<EOF
+          POSTGRES_DB=ripplechat
+          POSTGRES_USER=ripplechat
+          POSTGRES_PASSWORD=ci-$(openssl rand -hex 12)
+          POSTGRES_HOST_PORT=5434
+          REDIS_HOST_PORT=6380
+          REDIS_HOST=localhost
+          REDIS_PORT=6380
+          SERVER_PORT=8081
+          JWT_SECRET=$(openssl rand -hex 48)
+          APP_ALLOWED_ORIGINS=http://localhost:4173
+          # The suite creates a dozen accounts from one address; the default
+          # IP-keyed registration budget is sized for the open internet.
+          REGISTER_BURST=500
+          REGISTER_REFILL_PER_SEC=100
+          EOF
+
+      - name: Start PostgreSQL and Redis
+        run: docker compose up -d --wait
+
+      - name: Build the backend
+        working-directory: backend
+        run: chmod +x mvnw && ./mvnw -B -q package -DskipTests
+
+      - name: Start the backend
+        run: |
+          java -jar backend/target/backend-*.jar > backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8081/actuator/health > /dev/null; then
+              echo "backend is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "backend did not start"; tail -50 backend.log; exit 1
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run integration e2e tests
+        working-directory: frontend
+        run: npm run test:e2e:integration
+
+      - name: Backend log on failure
+        if: failure()
+        run: tail -100 backend.log

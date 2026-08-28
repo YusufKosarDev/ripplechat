@@ -76,5 +76,14 @@ export default defineConfig({
     headers: {
       'Content-Security-Policy': CONTENT_SECURITY_POLICY,
     },
+    // Same proxy as the dev server, for the integration e2e suite: it runs the
+    // production build against a real backend, and without this the app would
+    // call localhost:8081 cross-origin — which the policy above blocks, since
+    // its connect-src names only 'self' and the deployed backend. Proxying keeps
+    // the app same-origin, so the real policy applies unmodified.
+    proxy: {
+      '/api': 'http://localhost:8081',
+      '/ws': { target: 'http://localhost:8081', ws: true },
+    },
   },
 })

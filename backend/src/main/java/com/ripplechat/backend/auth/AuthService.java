@@ -12,7 +12,7 @@ import com.ripplechat.backend.common.exception.InvalidCredentialsException;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import com.ripplechat.backend.user.dto.UserResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     // Login throttle: ~5 attempts burst, then ~1 every 10s per login identifier.
@@ -39,10 +38,18 @@ public class AuthService {
     private static final double TWO_FACTOR_BURST = 5;
     private static final double TWO_FACTOR_REFILL_PER_SEC = 0.1;
 
-    // Registration throttle, keyed by client IP: ~5 burst, then ~1 every 30s.
-    // Limits automated account-creation spam from a single source.
-    private static final double REGISTER_BURST = 5;
-    private static final double REGISTER_REFILL_PER_SEC = 0.033;
+    /**
+     * Registration throttle, keyed by client IP. Default ~5 burst, then ~1 every
+     * 30s, which limits automated account-creation spam from one source.
+     *
+     * <p>Configurable because an IP is not a person: everyone behind one office,
+     * school or mobile-carrier NAT shares this budget, so a handful of colleagues
+     * signing up together would turn each other away. A deployment that knows its
+     * users arrive that way should raise it — and the integration test suite,
+     * which creates a dozen accounts from one address, does.
+     */
+    private final double registerBurst;
+    private final double registerRefillPerSec;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -56,6 +63,34 @@ public class AuthService {
     private final LoginLockoutService loginLockoutService;
     private final TokenRevocationService tokenRevocationService;
 
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService,
+                       RefreshTokenService refreshTokenService,
+                       RateLimiter rateLimiter,
+                       SecurityAuditLogger audit,
+                       TwoFactorService twoFactorService,
+                       RecoveryCodeService recoveryCodeService,
+                       AccountService accountService,
+                       LoginLockoutService loginLockoutService,
+                       TokenRevocationService tokenRevocationService,
+                       @Value("${app.security.register.burst:5}") double registerBurst,
+                       @Value("${app.security.register.refill-per-second:0.033}") double registerRefillPerSec) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
+        this.rateLimiter = rateLimiter;
+        this.audit = audit;
+        this.twoFactorService = twoFactorService;
+        this.recoveryCodeService = recoveryCodeService;
+        this.accountService = accountService;
+        this.loginLockoutService = loginLockoutService;
+        this.tokenRevocationService = tokenRevocationService;
+        this.registerBurst = registerBurst;
+        this.registerRefillPerSec = registerRefillPerSec;
+    }
+
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         return register(request, null, null);
@@ -64,7 +99,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
         if (ipAddress != null
-                && !rateLimiter.tryAcquire("register:" + ipAddress, REGISTER_BURST, REGISTER_REFILL_PER_SEC)) {
+                && !rateLimiter.tryAcquire("register:" + ipAddress, registerBurst, registerRefillPerSec)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "too many registration attempts, please wait a moment and try again");
         }

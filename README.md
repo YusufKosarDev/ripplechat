@@ -513,6 +513,7 @@ and by end-to-end scenarios everywhere else.
 | **Architecture** (ArchUnit) | naming, one-directional layer dependencies, an independent `common` package, constructor injection | enforced on every build |
 | **Mutation** (PITest) | the security-critical classes: rate limiter, JWT service, SSRF guard, upload validation, request-id filter, poll tallying | **70% killed · 86% test strength** (`./mvnw -Ppitest test org.pitest:pitest-maven:mutationCoverage`) |
 | **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips, the STOMP client, the channel hook, the send path, reducers, slash commands | **214 tests · 34% line coverage** (v8) |
+| **Integration e2e** (Playwright + real stack) | the production build against a real PostgreSQL + Redis + backend, nothing stubbed: the frontend↔backend contract, private-channel authorisation, sign-out revoking the access token, delete clearing edit history, the offline queue surviving a network blip | **9 scenarios** (`npm run test:e2e:integration`) |
 | **End-to-end** (Playwright) | the real production build against a stubbed backend: landing, login, 2FA, chat, search, scheduled messages, blocking, pinning, theme and language toggles | **21 scenarios** (+9 screenshot and demo-reel generators) |
 | **Accessibility** (axe) | the landing, login and register pages plus the chat workspace itself, failing on critical/serious violations | part of the e2e run |
 | **Load** (k6) | the read-heavy API path — see [Performance](#-performance) | `k6 run loadtest/messaging.js` |
