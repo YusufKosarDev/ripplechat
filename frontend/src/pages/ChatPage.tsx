@@ -10,7 +10,7 @@ import { addMention, incrementUnread } from '../features/unread/unreadSlice'
 import { fetchBlocks } from '../features/blocks/blocksSlice'
 import { fetchNotifications, notificationReceived } from '../features/notifications/notificationsSlice'
 import { fetchBookmarkIds } from '../features/bookmarks/bookmarksSlice'
-import { connectChat, disconnectChat, setNotificationHandler, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
+import { connectChat, disconnectChat, forceReconnectChat, setNotificationHandler, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
@@ -96,8 +96,15 @@ export default function ChatPage() {
     }
   }, [connectionStatus])
 
+  // The network coming back is not the same as the socket working again. STOMP
+  // caches `connected`, and a socket killed while the machine was offline keeps
+  // claiming to be open until a heartbeat notices — up to ten seconds later.
+  // Replaying in that window "succeeds" as far as the client is concerned while
+  // the frame goes nowhere, and the queue deletes the message on the strength of
+  // it. Rebuilding the socket instead means the replay above runs on a
+  // connection that has just completed a CONNECT.
   useEffect(() => {
-    const onOnline = () => void syncPendingMessages()
+    const onOnline = () => forceReconnectChat()
     window.addEventListener('online', onOnline)
     return () => window.removeEventListener('online', onOnline)
   }, [])
