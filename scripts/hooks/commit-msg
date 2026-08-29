@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+#
+# commit-msg — keeps automatically added attribution lines out of the history.
+#
+# The rules themselves live in scripts/check-commit-messages.sh, which CI runs
+# over pushed commits as well. This hook is only the local entry point, so the
+# two checks cannot drift apart.
+#
+# Enable once per clone:  git config core.hooksPath scripts/hooks
+# Bypass one commit:      git commit --no-verify
+# Make notices blocking:  COMMIT_MSG_STRICT=1 git commit ...
+
+set -u
+
+MSG_FILE="${1:-}"
+[ -n "$MSG_FILE" ] && [ -f "$MSG_FILE" ] || exit 0
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+CHECK="$ROOT/scripts/check-commit-messages.sh"
+
+if [ ! -f "$CHECK" ]; then
+  # Do not block work when the checkout predates the script — CI still runs the
+  # same check on push, so nothing gets through unnoticed.
+  printf 'commit-msg: %s not found; skipping the local check.\n' \
+    "scripts/check-commit-messages.sh" >&2
+  exit 0
+fi
+
+# Invoked through `bash` rather than executed directly, so a checkout that lost
+# the executable bit still works.
+exec bash "$CHECK" --message-file "$MSG_FILE"

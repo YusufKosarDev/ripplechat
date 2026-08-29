@@ -72,6 +72,16 @@ docs(readme): add performance benchmarks section
 test(e2e): add accessibility checks for the admin page
 ```
 
+A `commit-msg` hook checks the message before it is written. Enable it once per
+clone — `.git/hooks/` is not cloned, so the hooks are versioned under
+`scripts/hooks/` and reached through a config setting:
+
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+See [`scripts/hooks/README.md`](scripts/hooks/README.md) for what it checks.
+
 ## Code Style
 
 ### Backend (Java / Spring Boot)
