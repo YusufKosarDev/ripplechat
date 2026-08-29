@@ -1,6 +1,7 @@
 package com.ripplechat.backend.outbox;
 
 import com.ripplechat.backend.media.MediaStorage;
+import com.ripplechat.backend.search.SearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -18,6 +20,7 @@ public class OutboxTaskProcessor {
 
     private final OutboxTaskRepository outboxTaskRepository;
     private final MediaStorage mediaStorage;
+    private final SearchService searchService;
 
     /** Attempts before a task is abandoned. */
     private static final int MAX_ATTEMPTS = 5;
@@ -73,10 +76,12 @@ public class OutboxTaskProcessor {
     }
 
     private void executeTask(OutboxTask task) throws Exception {
-        if ("DELETE_MEDIA".equals(task.getTaskType())) {
-            mediaStorage.delete(task.getPayload());
-        } else {
-            throw new IllegalArgumentException("Unknown task type: " + task.getTaskType());
+        switch (task.getTaskType()) {
+            case OutboxTaskTypes.DELETE_MEDIA -> mediaStorage.delete(task.getPayload());
+            case OutboxTaskTypes.INDEX_MESSAGE -> searchService.applyIndex(UUID.fromString(task.getPayload()));
+            case OutboxTaskTypes.REMOVE_FROM_SEARCH_INDEX ->
+                    searchService.applyDelete(UUID.fromString(task.getPayload()));
+            default -> throw new IllegalArgumentException("Unknown task type: " + task.getTaskType());
         }
     }
 }

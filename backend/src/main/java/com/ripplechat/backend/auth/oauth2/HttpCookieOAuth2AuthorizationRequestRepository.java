@@ -55,8 +55,32 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request, HttpServletResponse response) {
         OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
         removeCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
-        // We do not remove the redirect uri cookie here because we need it in the success handler
+        // The redirect-uri cookie deliberately survives this: it is read by the
+        // success handler, which runs after Spring has removed the request above,
+        // and cleared there.
         return authorizationRequest;
+    }
+
+    /**
+     * The redirect the client asked for when it started the flow.
+     *
+     * <p>It has to travel in a cookie: the provider's callback is a fresh request
+     * that carries only {@code code} and {@code state}, so the parameter the
+     * client sent to {@code /oauth2/authorization/...} is long gone by then. It
+     * was being saved and never read, which meant a client's requested redirect
+     * was silently ignored and everyone landed on the configured default —
+     * fine for a single-origin deployment, wrong for any other, and invisible
+     * either way. The caller still validates it against the allow-list.
+     */
+    public static Optional<String> savedRedirectUri(HttpServletRequest request) {
+        return getCookie(request, REDIRECT_URI_PARAM_COOKIE_NAME)
+                .map(Cookie::getValue)
+                .filter(value -> !value.isBlank());
+    }
+
+    /** Clears the redirect-uri cookie once the flow it belongs to is finished. */
+    public void removeRedirectUriCookie(HttpServletRequest request, HttpServletResponse response) {
+        removeCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
     }
 
     /**
@@ -93,7 +117,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
         }
     }
 
-    private Optional<Cookie> getCookie(HttpServletRequest request, String name) {
+    private static Optional<Cookie> getCookie(HttpServletRequest request, String name) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {

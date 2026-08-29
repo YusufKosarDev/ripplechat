@@ -108,4 +108,56 @@ class OAuth2CookieTest {
         assertThat(restored.getState()).isEqualTo("the-state-value");
         assertThat(restored.getClientId()).isEqualTo("client-id");
     }
+
+    @Test
+    void theRequestedRedirectSurvivesToTheCallback() {
+        // The provider's callback carries only code and state, so the redirect
+        // the client asked for has to come back out of the cookie. It was being
+        // written and never read, which silently sent every deployment to the
+        // configured default.
+        MockHttpServletRequest start = new MockHttpServletRequest();
+        start.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), start, response);
+
+        MockHttpServletRequest callback = new MockHttpServletRequest();
+        callback.setCookies(response.getCookies());
+
+        assertThat(HttpCookieOAuth2AuthorizationRequestRepository.savedRedirectUri(callback))
+                .contains("https://app.example.com/oauth2/redirect");
+    }
+
+    @Test
+    void removingTheAuthorizationRequestKeepsTheRedirectForTheSuccessHandler() {
+        MockHttpServletRequest start = new MockHttpServletRequest();
+        start.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse saved = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), start, saved);
+
+        // Spring clears the authorization request before the success handler runs.
+        MockHttpServletRequest callback = new MockHttpServletRequest();
+        callback.setCookies(saved.getCookies());
+        MockHttpServletResponse afterRemove = new MockHttpServletResponse();
+        repository.removeAuthorizationRequest(callback, afterRemove);
+
+        assertThat(HttpCookieOAuth2AuthorizationRequestRepository.savedRedirectUri(callback))
+                .contains("https://app.example.com/oauth2/redirect");
+
+        // And the handler clears it once it has used it.
+        MockHttpServletResponse cleared = new MockHttpServletResponse();
+        repository.removeRedirectUriCookie(callback, cleared);
+        assertThat(cleared.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME)
+                .getMaxAge()).isZero();
+    }
+
+    @Test
+    void noCookieMeansNoRequestedRedirect() {
+        assertThat(HttpCookieOAuth2AuthorizationRequestRepository
+                .savedRedirectUri(new MockHttpServletRequest())).isEmpty();
+    }
 }

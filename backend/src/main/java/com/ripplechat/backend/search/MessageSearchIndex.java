@@ -32,9 +32,24 @@ public interface MessageSearchIndex {
      */
     List<UUID> searchIds(List<String> channelIds, String query, String from, Instant since, List<String> blockedUsernames, int page, int size);
 
-    /** Adds/updates a message in the index. Best-effort: must never break the send flow. */
+    /**
+     * Whether this backend needs to be told about changes at all.
+     *
+     * <p>False for PostgreSQL, where the rows are the index: queuing an outbox
+     * task per message for a no-op would be pure churn on the default
+     * deployment, which is the one that runs without Elasticsearch.
+     */
+    boolean requiresIndexing();
+
+    /**
+     * Adds or updates a message in the index.
+     *
+     * <p>Called by the outbox processor, so a failure must be <em>thrown</em>:
+     * that is what schedules the retry. Swallowing it meant a message the
+     * cluster happened to reject was silently never searchable.
+     */
     void index(Message message);
 
-    /** Removes a message from the index. Best-effort. */
+    /** Removes a message from the index. Throws on failure, so it is retried. */
     void delete(UUID messageId);
 }

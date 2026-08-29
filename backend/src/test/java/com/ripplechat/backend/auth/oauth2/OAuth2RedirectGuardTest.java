@@ -25,7 +25,7 @@ class OAuth2RedirectGuardTest {
         // Constructor injection, so the config goes in directly rather than
         // being poked into private fields after the fact.
         handler = new OAuth2AuthenticationSuccessHandler(
-                null, null, null,
+                null, null, null, null,
                 "https://ripplechat-app.vercel.app/oauth2/redirect",
                 "https://chat.example.com,http://localhost:5173");
     }

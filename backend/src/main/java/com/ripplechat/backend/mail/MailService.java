@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,17 @@ public class MailService {
         return enabled && mailSender != null;
     }
 
+    /**
+     * Sends a message, best-effort.
+     *
+     * <p>A delivery failure is logged, not thrown. Every caller sends from
+     * inside a transaction that has just done the thing the message is *about* —
+     * created the account, issued the reset token, changed the address — and an
+     * exception here rolled all of that back. A blip at the SMTP provider meant
+     * nobody could register, and the account the user thought they had made did
+     * not exist. The token is already persisted, so the useful recovery is to
+     * ask for the message again, which needs the row to have survived.
+     */
     public void send(String to, String subject, String body) {
         if (!isEnabled()) {
             // The body carries the password-reset link, so writing it to the log
@@ -66,7 +78,12 @@ public class MailService {
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error("event=mail_failed to={} subject=\"{}\" reason={}", to, subject, e.getMessage(), e);
+            return;
+        }
         log.info("event=mail_sent to={} subject=\"{}\"", to, subject);
     }
 }

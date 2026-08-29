@@ -14,6 +14,7 @@ import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.notification.NotificationRepository;
 import com.ripplechat.backend.outbox.OutboxTask;
 import com.ripplechat.backend.outbox.OutboxTaskRepository;
+import com.ripplechat.backend.outbox.OutboxTaskTypes;
 import com.ripplechat.backend.push.PushSubscriptionRepository;
 import com.ripplechat.backend.user.dto.AccountExport;
 import lombok.RequiredArgsConstructor;
@@ -149,7 +150,7 @@ public class AccountManagementService {
         }
         OutboxTask task = new OutboxTask();
         task.setId(UUID.randomUUID());
-        task.setTaskType("DELETE_MEDIA");
+        task.setTaskType(OutboxTaskTypes.DELETE_MEDIA);
         task.setPayload(url);
         task.setStatus(OutboxTask.Status.PENDING);
         task.setCreatedAt(Instant.now());

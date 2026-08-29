@@ -3,6 +3,9 @@ package com.ripplechat.backend.search;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.message.Message;
 import com.ripplechat.backend.message.MessageRepository;
+import com.ripplechat.backend.outbox.OutboxTask;
+import com.ripplechat.backend.outbox.OutboxTaskRepository;
+import com.ripplechat.backend.outbox.OutboxTaskTypes;
 import com.ripplechat.backend.search.dto.SearchPageResponse;
 import com.ripplechat.backend.search.dto.SearchResultResponse;
 import com.ripplechat.backend.user.User;
@@ -35,6 +38,7 @@ public class SearchService {
     private final MessageSearchIndex searchIndex;
     private final UserRepository userRepository;
     private final UserBlockRepository blockRepository;
+    private final OutboxTaskRepository outboxTaskRepository;
 
     @Transactional(readOnly = true)
     public List<SearchResultResponse> searchMessages(String username, String query) {
@@ -96,11 +100,76 @@ public class SearchService {
         return new SearchPageResponse(results, hasMore);
     }
 
+    /**
+     * Indexes a message, and makes sure it happens even if this attempt does not.
+     *
+     * <p>The attempt is inline because search has to be fresh: a message you just
+     * sent should be findable now, not on the next sweep. What was missing is
+     * what happens when the attempt fails — the Elasticsearch adapter caught its
+     * own exceptions and logged them, so a few seconds of the cluster being
+     * unreachable meant a message was silently never searchable, with nothing
+     * anywhere that would try again. A failure now goes on the transactional
+     * outbox, which retries with backoff and gives up visibly.
+     *
+     * <p>Skipped entirely on the PostgreSQL backend, where the rows are the index.
+     */
     public void indexMessage(Message message) {
-        searchIndex.index(message);
+        if (!searchIndex.requiresIndexing()) {
+            return;
+        }
+        try {
+            searchIndex.index(message);
+        } catch (RuntimeException e) {
+            log.warn("Could not index message {} — queued for retry", message.getId(), e);
+            enqueue(OutboxTaskTypes.INDEX_MESSAGE, message.getId());
+        }
     }
 
+    /**
+     * Removes a message from the index, with the same retry.
+     *
+     * <p>This is the direction that matters most: a failed index means a message
+     * cannot be found, while a failed delete means deleted content stays
+     * findable — which is the thing deleting it was for.
+     */
     public void deleteMessage(UUID messageId) {
+        if (!searchIndex.requiresIndexing()) {
+            return;
+        }
+        try {
+            searchIndex.delete(messageId);
+        } catch (RuntimeException e) {
+            log.warn("Could not remove message {} from the index — queued for retry", messageId, e);
+            enqueue(OutboxTaskTypes.REMOVE_FROM_SEARCH_INDEX, messageId);
+        }
+    }
+
+    private void enqueue(String taskType, UUID messageId) {
+        OutboxTask task = new OutboxTask();
+        task.setId(UUID.randomUUID());
+        task.setTaskType(taskType);
+        task.setPayload(messageId.toString());
+        task.setStatus(OutboxTask.Status.PENDING);
+        task.setCreatedAt(Instant.now());
+        outboxTaskRepository.save(task);
+    }
+
+    /**
+     * Retries a queued index, called by the outbox processor.
+     *
+     * <p>A message that has since been deleted, or removed outright, is taken out
+     * of the index instead of being written into it: by the time a retry runs,
+     * the message it names may not be the message it was queued for.
+     */
+    @Transactional(readOnly = true)
+    public void applyIndex(UUID messageId) {
+        messageRepository.findById(messageId)
+                .filter(message -> !message.isDeleted())
+                .ifPresentOrElse(searchIndex::index, () -> searchIndex.delete(messageId));
+    }
+
+    /** Retries a queued removal, called by the outbox processor. */
+    public void applyDelete(UUID messageId) {
         searchIndex.delete(messageId);
     }
 }

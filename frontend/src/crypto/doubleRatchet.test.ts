@@ -153,6 +153,42 @@ describe('double ratchet', () => {
     // 8 rounds × 199 skipped would be 1592 without the ceiling.
     expect(bob.skippedKeys.size).toBeLessThanOrEqual(1024)
   })
+
+  it('binds the header into the tag, so a rewritten one is rejected', async () => {
+    // The header travels in the clear and was authenticated by nothing at all.
+    // Anyone able to modify a message in flight could rewrite which ratchet key
+    // and which chain position it claimed; the message would then fail to
+    // decrypt, but only after the receiver had already ratcheted against the
+    // attacker's key.
+    const { alice, bob } = await makeSessionPair()
+    const m = await ratchetEncrypt(alice, 'do not tamper')
+
+    const rewritten = { ...m.header, messageNumber: m.header.messageNumber + 3 }
+    await expect(ratchetDecrypt(bob, rewritten, m.ciphertext)).rejects.toThrow()
+  })
+
+  it('rejects a header pointing at a different ratchet key', async () => {
+    const { alice, bob } = await makeSessionPair()
+    const m = await ratchetEncrypt(alice, 'still do not tamper')
+    const other = await generateDHKeyPair()
+
+    const rewritten = {
+      ...m.header,
+      ratchetPublicKey: await crypto.subtle.exportKey('jwk', other.publicKey),
+    }
+    await expect(ratchetDecrypt(bob, rewritten, m.ciphertext)).rejects.toThrow()
+  })
+
+  it('marks the payload so a message written before the binding still reads', async () => {
+    // Stored ciphertext cannot be rewritten, so the format has to say which one
+    // it is rather than rely on a version agreed elsewhere. Three parts means
+    // the header is bound; the two-part form predates it and is decrypted
+    // without associated data.
+    const { alice } = await makeSessionPair()
+    const m = await ratchetEncrypt(alice, 'hello')
+
+    expect(m.ciphertext.split('.')).toHaveLength(3)
+  })
 })
 
 // ─── X3DH key agreement ─────────────────────────────────────────────

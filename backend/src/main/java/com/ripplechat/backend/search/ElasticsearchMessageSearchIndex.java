@@ -56,28 +56,35 @@ public class ElasticsearchMessageSearchIndex implements MessageSearchIndex {
                 .toList();
     }
 
+    /** The cluster holds its own copy of every message, so yes. */
+    @Override
+    public boolean requiresIndexing() {
+        return true;
+    }
+
+    /**
+     * Writes the message to the cluster.
+     *
+     * <p>Failures used to be caught and logged here, which made every one of
+     * them permanent: a message the cluster was briefly unable to accept was
+     * never searchable, and a deleted one stayed findable for good. The call now
+     * arrives from the outbox processor, whose whole job is to try again, so the
+     * exception is what it needs to see.
+     */
     @Override
     public void index(Message message) {
-        try {
-            MessageDocument doc = MessageDocument.builder()
-                    .id(message.getId().toString())
-                    .channelId(message.getChannel().getId().toString())
-                    .content(message.getContent() == null ? "" : message.getContent())
-                    .senderUsername(message.getSender().getUsername())
-                    .createdAt(message.getCreatedAt())
-                    .build();
-            searchRepository.save(doc);
-        } catch (Exception e) {
-            log.error("Failed to index message to Elasticsearch", e);
-        }
+        MessageDocument doc = MessageDocument.builder()
+                .id(message.getId().toString())
+                .channelId(message.getChannel().getId().toString())
+                .content(message.getContent() == null ? "" : message.getContent())
+                .senderUsername(message.getSender().getUsername())
+                .createdAt(message.getCreatedAt())
+                .build();
+        searchRepository.save(doc);
     }
 
     @Override
     public void delete(UUID messageId) {
-        try {
-            searchRepository.deleteById(messageId.toString());
-        } catch (Exception e) {
-            log.error("Failed to delete message from Elasticsearch", e);
-        }
+        searchRepository.deleteById(messageId.toString());
     }
 }
