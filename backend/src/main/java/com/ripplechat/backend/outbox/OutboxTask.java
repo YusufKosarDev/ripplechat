@@ -17,7 +17,14 @@ public class OutboxTask {
         PENDING,
         PROCESSING,
         COMPLETED,
-        FAILED
+        FAILED,
+        /**
+         * Given up on. Without it a task that kept failing simply stopped being
+         * picked up once it passed the attempt limit, and sat in FAILED for ever
+         * looking like something still due — indistinguishable from one waiting
+         * for its next backoff window.
+         */
+        DEAD
     }
 
     @Id

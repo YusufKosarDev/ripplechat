@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["e2e"]
+  "include": ["e2e", "e2e-integration", "playwright.config.ts", "playwright.integration.config.ts"]
 }

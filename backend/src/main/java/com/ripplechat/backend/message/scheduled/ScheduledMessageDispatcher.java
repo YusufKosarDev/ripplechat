@@ -31,7 +31,12 @@ public class ScheduledMessageDispatcher {
             try {
                 scheduledMessageService.deliver(id);
             } catch (Exception e) {
-                log.error("Failed to deliver scheduled message {}", id, e);
+                // Recorded through the service so it lands in its own transaction:
+                // deliver()'s is rollback-only by now. Without the attempt count a
+                // message that can never be delivered came back due every 30
+                // seconds for ever, logging a stack trace each time.
+                log.warn("Scheduled message {} could not be delivered: {}", id, e.getMessage());
+                scheduledMessageService.recordFailedDelivery(id, e.getMessage());
             }
         }
     }

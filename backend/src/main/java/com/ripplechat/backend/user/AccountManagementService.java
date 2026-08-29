@@ -4,6 +4,7 @@ import com.ripplechat.backend.auth.AuthTokenRepository;
 import com.ripplechat.backend.auth.RecoveryCodeRepository;
 import com.ripplechat.backend.auth.RefreshTokenRepository;
 import com.ripplechat.backend.auth.SecurityAuditLogger;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -13,6 +14,7 @@ import com.ripplechat.backend.message.MessageRepository;
 import com.ripplechat.backend.notification.NotificationRepository;
 import com.ripplechat.backend.outbox.OutboxTask;
 import com.ripplechat.backend.outbox.OutboxTaskRepository;
+import com.ripplechat.backend.outbox.OutboxTaskTypes;
 import com.ripplechat.backend.push.PushSubscriptionRepository;
 import com.ripplechat.backend.user.dto.AccountExport;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,7 @@ public class AccountManagementService {
     private final SecurityAuditLogger audit;
     private final MediaStorage mediaStorage;
     private final OutboxTaskRepository outboxTaskRepository;
+    private final TokenRevocationService tokenRevocationService;
 
     @Transactional(readOnly = true)
     public AccountExport export(String username) {
@@ -133,6 +136,11 @@ public class AccountManagementService {
         user.setDeletedAt(Instant.now());
         userRepository.save(user);
 
+        // The refresh tokens are gone above, but the access token is a stateless
+        // JWT — void it too, or the erased account keeps working for the rest of
+        // its hour.
+        tokenRevocationService.revokeBefore(username);
+
         audit.accountDeleted(username);
     }
 
@@ -142,7 +150,7 @@ public class AccountManagementService {
         }
         OutboxTask task = new OutboxTask();
         task.setId(UUID.randomUUID());
-        task.setTaskType("DELETE_MEDIA");
+        task.setTaskType(OutboxTaskTypes.DELETE_MEDIA);
         task.setPayload(url);
         task.setStatus(OutboxTask.Status.PENDING);
         task.setCreatedAt(Instant.now());

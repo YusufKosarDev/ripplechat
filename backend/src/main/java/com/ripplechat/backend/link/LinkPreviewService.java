@@ -170,8 +170,7 @@ public class LinkPreviewService {
         }
         try {
             for (InetAddress addr : InetAddress.getAllByName(host)) {
-                if (addr.isLoopbackAddress() || addr.isAnyLocalAddress() || addr.isLinkLocalAddress()
-                        || addr.isSiteLocalAddress() || addr.isMulticastAddress() || isUniqueLocalIpv6(addr)) {
+                if (isForbiddenAddress(addr)) {
                     return false;
                 }
             }
@@ -181,9 +180,34 @@ public class LinkPreviewService {
         return true;
     }
 
-    private boolean isUniqueLocalIpv6(InetAddress addr) {
+    /**
+     * Whether an address belongs to a range the server must never be talked into
+     * reaching. {@code InetAddress} covers loopback, wildcard, link-local (which
+     * is what 169.254.169.254 is), site-local and multicast; the rest are ranges
+     * it has no predicate for but that are just as much "somewhere inside the
+     * network" from an SSRF point of view.
+     */
+    private boolean isForbiddenAddress(InetAddress addr) {
+        if (addr.isLoopbackAddress() || addr.isAnyLocalAddress() || addr.isLinkLocalAddress()
+                || addr.isSiteLocalAddress() || addr.isMulticastAddress()) {
+            return true;
+        }
         byte[] bytes = addr.getAddress();
-        return bytes.length == 16 && (bytes[0] & 0xfe) == 0xfc; // fc00::/7
+        if (bytes.length == 16) {
+            return (bytes[0] & 0xfe) == 0xfc; // fc00::/7 — unique local
+        }
+        int first = bytes[0] & 0xff;
+        int second = bytes[1] & 0xff;
+        // 100.64.0.0/10 is carrier-grade NAT: shared address space that is not
+        // site-local, so nothing above rejects it, and on a cloud host it can
+        // reach the provider's own infrastructure.
+        if (first == 100 && second >= 64 && second <= 127) {
+            return true;
+        }
+        // 0.0.0.0/8 ("this network"): 0.0.0.0 itself is caught as the wildcard,
+        // but the rest of the block is routed to localhost by some stacks.
+        // 240.0.0.0/4 is reserved, and 255.255.255.255 broadcast.
+        return first == 0 || first >= 240;
     }
 
     String firstNonBlank(String a, String b) {

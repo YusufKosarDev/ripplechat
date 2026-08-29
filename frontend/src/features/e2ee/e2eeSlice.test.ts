@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import reducer, { clearPassphrase, setPassphrase } from './e2eeSlice'
+import reducer, { clearAllPassphrases, clearPassphrase, setPassphrase } from './e2eeSlice'
 
 const KEY = 'ripplechat_e2ee'
 const emptyState = { passphrases: {} }
 
 describe('e2eeSlice', () => {
   beforeEach(() => {
-    localStorage.removeItem(KEY)
+    sessionStorage.removeItem(KEY)
   })
 
   it('stores a channel passphrase', () => {
@@ -27,8 +27,18 @@ describe('e2eeSlice', () => {
     expect(state.passphrases).toEqual({ 'dm-2': 'iki' })
   })
 
-  it('keeps the passphrases local — persisted only to this browser', () => {
+  it('keeps the passphrases in sessionStorage, so they die with the session', () => {
     reducer(emptyState, setPassphrase({ channelId: 'c1', passphrase: 'gizli' }))
-    expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual({ c1: 'gizli' })
+    expect(JSON.parse(sessionStorage.getItem(KEY)!)).toEqual({ c1: 'gizli' })
+    // Never localStorage: a passphrase must not outlive the browsing session.
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('drops every passphrase from state and storage on sign-out', () => {
+    let state = reducer(emptyState, setPassphrase({ channelId: 'c1', passphrase: 'bir' }))
+    state = reducer(state, setPassphrase({ channelId: 'dm-2', passphrase: 'iki' }))
+    state = reducer(state, clearAllPassphrases())
+    expect(state.passphrases).toEqual({})
+    expect(JSON.parse(sessionStorage.getItem(KEY)!)).toEqual({})
   })
 })

@@ -6,6 +6,7 @@ import com.ripplechat.backend.admin.dto.AuditLogEntry;
 import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.auth.RefreshTokenService;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.message.MessageRepository;
@@ -32,6 +33,7 @@ public class AdminService {
     private final AuditLogRepository auditLogRepository;
     private final AuditService auditService;
     private final RefreshTokenService refreshTokenService;
+    private final TokenRevocationService tokenRevocationService;
 
     /** Throws unless the caller is a global admin. Returns the admin user. */
     @Transactional(readOnly = true)
@@ -97,8 +99,14 @@ public class AdminService {
         // Banning must end the account's live sessions immediately — otherwise the
         // rotating refresh token would let a disabled user renew access indefinitely
         // (login() blocks new sign-ins, but not an already-issued session).
+        //
+        // Dropping the refresh tokens was only half of it: the access token is a
+        // stateless JWT, so a banned user kept full access — reading, posting,
+        // everything — until it expired, up to an hour later. The watermark
+        // closes that window.
         if (value) {
             refreshTokenService.revokeAll(target);
+            tokenRevocationService.revokeBefore(target.getUsername());
         }
         auditService.record(actor, value ? "user_disabled" : "user_enabled", target.getUsername(), null);
         return AdminUserView.from(target);

@@ -3,6 +3,7 @@ package com.ripplechat.backend.message.scheduled;
 import com.ripplechat.backend.channel.ChannelRepository;
 import com.ripplechat.backend.channel.ChannelService;
 import com.ripplechat.backend.channel.dto.CreateChannelRequest;
+import com.ripplechat.backend.channel.membership.ChannelMembershipService;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
@@ -13,6 +14,8 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.as;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 class ScheduledMessageTests extends AbstractIntegrationTest {
 
@@ -24,6 +27,8 @@ class ScheduledMessageTests extends AbstractIntegrationTest {
     ChannelService channelService;
     @Autowired
     ChannelRepository channelRepository;
+    @Autowired
+    ChannelMembershipService membershipService;
 
     @Test
     void schedulesListsAndCancels() {
@@ -37,6 +42,37 @@ class ScheduledMessageTests extends AbstractIntegrationTest {
 
         service.cancel(scheduled.id(), "owner");
         assertThat(service.listMine("owner")).isEmpty();
+    }
+
+    @Test
+    void anUndeliverableMessageIsAbandonedInsteadOfRetriedForever() {
+        createUser("owner");
+        createUser("leaver");
+        var channel = channelService.create(new CreateChannelRequest("genel", null, false), "owner");
+        membershipService.join(channel.id(), "leaver");
+        var scheduled = service.schedule(channel.id(), "leaver",
+                new ScheduleMessageRequest("hoşça kal", Instant.now().plusSeconds(3600)));
+
+        // Once the author leaves, the send can never succeed: it used to throw on
+        // every 30-second sweep and come back due, for ever.
+        membershipService.leave(channel.id(), "leaver");
+        assertThat(service.listMine("leaver")).hasSize(1);
+        for (int attempt = 0; attempt < 5; attempt++) {
+            service.recordFailedDelivery(scheduled.id(), "not a member of channel");
+        }
+
+        ScheduledMessage after = repository.findById(scheduled.id()).orElseThrow();
+        assertThat(after.getAttempts()).isEqualTo(5);
+        assertThat(after.getLastError()).contains("not a member");
+        // Out of the dispatcher's queue, but not marked sent — it was not. The
+        // author keeps seeing it, now with a reason, rather than watching it
+        // vanish from the list as though it had gone out.
+        assertThat(after.isSent()).isFalse();
+        assertThat(service.findDueIds()).doesNotContain(scheduled.id());
+        assertThat(service.listMine("leaver"))
+                .singleElement()
+                .extracting(ScheduledMessageResponse::failureReason, as(STRING))
+                .contains("not a member");
     }
 
     @Test

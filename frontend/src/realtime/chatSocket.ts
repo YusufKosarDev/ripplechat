@@ -79,6 +79,8 @@ let hasConnectedBefore = false
 
 // The user's personal activity-notification topic (only they may subscribe).
 let notificationSub: StompSubscription | null = null
+// Peer-addressed WebRTC signals: same personal topic, same lifecycle.
+let userCallSignalSub: StompSubscription | null = null
 let desiredNotifications: { username: string; handler: (n: NotificationItem) => void } | null = null
 
 function resolveChannelSubs() {
@@ -194,6 +196,21 @@ function resolveNotifications() {
   notificationSub = client.subscribe(`/topic/users/${username}/notifications`, (frame) => {
     handler(JSON.parse(frame.body) as NotificationItem)
   })
+  // WebRTC signals addressed to one peer — offers, answers, ICE candidates —
+  // arrive on the personal topic rather than the channel's, so the session
+  // description for a call between two people is not delivered to everyone else
+  // in the room. They still belong to the open channel's call, so they go to the
+  // same handler.
+  userCallSignalSub = client.subscribe(`/topic/users/${username}/calls`, (frame) => {
+    const signal = JSON.parse(frame.body) as CallSignal
+    // The handler belongs to the channel that is open, so a signal from a call
+    // in some other conversation would be attributed to this one. Dropping it
+    // keeps the old behaviour for the UI while the frame itself stays off the
+    // room topic.
+    if (desired && signal.channelId === desired.channelId) {
+      desired.onCallSignal(signal)
+    }
+  })
 }
 
 export function connectChat(chatHandlers: ChatHandlers = {}) {
@@ -227,6 +244,7 @@ export function connectChat(chatHandlers: ChatHandlers = {}) {
       callSignalSub = null
       threadSub = null
       notificationSub = null
+      userCallSignalSub = null
       allChannelSubs = new Map()
       resolvePresence()
       resolveNotifications()
@@ -274,6 +292,8 @@ export function setNotificationHandler(username: string, handler: (n: Notificati
   if (notificationSub && desiredNotifications?.username !== username) {
     notificationSub.unsubscribe()
     notificationSub = null
+    userCallSignalSub?.unsubscribe()
+    userCallSignalSub = null
   }
   desiredNotifications = { username, handler }
   resolveNotifications()
@@ -285,15 +305,24 @@ export function watchChannel(channelId: string, channelHandlers: ChannelHandlers
   resolveChannelSubs()
 }
 
-function safePublish(params: { destination: string; body: string }) {
+/**
+ * Publishes a frame, reporting whether it actually went out.
+ *
+ * The return value matters for the offline replay path: a dropped frame that
+ * looked like a success let syncManager delete a queued message it had never
+ * sent. Fire-and-forget callers (typing, reactions) may ignore it.
+ */
+function safePublish(params: { destination: string; body: string }): boolean {
   try {
     if (client && client.connected) {
       client.publish(params)
-    } else {
-      console.warn('STOMP client is not connected. Cannot publish to:', params.destination)
+      return true
     }
+    console.warn('STOMP client is not connected. Cannot publish to:', params.destination)
+    return false
   } catch (err) {
     console.error('Failed to publish STOMP message:', err)
+    return false
   }
 }
 
@@ -301,6 +330,7 @@ export function isStompConnected() {
   return client?.connected ?? false
 }
 
+/** Sends a message; returns false if the socket was not connected to take it. */
 export function sendChatMessage(
   channelId: string,
   content: string,
@@ -309,8 +339,8 @@ export function sendChatMessage(
   quotedMessageId?: string,
   attachmentName?: string,
   attachmentType?: string,
-) {
-  safePublish({
+): boolean {
+  return safePublish({
     destination: `/app/channels/${channelId}/send`,
     body: JSON.stringify({ content, parentMessageId, attachmentUrl, quotedMessageId, attachmentName, attachmentType }),
   })
@@ -388,7 +418,8 @@ export function sendMessageReaction(channelId: string, messageId: string, emoji:
   })
 }
 
-export function sendCallSignal(channelId: string, signal: CallSignal) {
+/** The server fills in channelId and senderId from the frame's destination and principal. */
+export function sendCallSignal(channelId: string, signal: Omit<CallSignal, 'channelId'>) {
   safePublish({
     destination: `/app/channels/${channelId}/call`,
     body: JSON.stringify(signal),
@@ -409,6 +440,7 @@ export function disconnectChat() {
   threadSub?.unsubscribe()
   callSignalSub?.unsubscribe()
   notificationSub?.unsubscribe()
+  userCallSignalSub?.unsubscribe()
   allChannelSubs.forEach((s) => s.unsubscribe())
   messageSub = null
   typingSub = null
@@ -423,6 +455,7 @@ export function disconnectChat() {
   threadSub = null
   callSignalSub = null
   notificationSub = null
+  userCallSignalSub = null
   allChannelSubs = new Map()
   desired = null
   desiredThread = null

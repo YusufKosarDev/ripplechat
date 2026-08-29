@@ -1,0 +1,185 @@
+package com.ripplechat.backend.auth.oauth2;
+
+import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+
+import java.util.Map;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * The OAuth2 authorization-request cookies carry the state value that binds the
+ * provider's callback to the browser that started the flow.
+ *
+ * <p>Pure unit tests: the flow itself needs a Google client id, so the cookie
+ * attributes were previously not covered by anything.
+ */
+class OAuth2CookieTest {
+
+    private final HttpCookieOAuth2AuthorizationRequestRepository repository =
+            new HttpCookieOAuth2AuthorizationRequestRepository(new ObjectMapper());
+
+    private static OAuth2AuthorizationRequest anAuthorizationRequest() {
+        return OAuth2AuthorizationRequest.authorizationCode()
+                .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth")
+                .clientId("client-id")
+                .redirectUri("http://localhost:8081/login/oauth2/code/google")
+                .scopes(Set.of("openid", "profile"))
+                .state("the-state-value")
+                .attributes(Map.of(
+                        AuthorizationGrantType.AUTHORIZATION_CODE.getValue(), "google"))
+                .build();
+    }
+
+    @Test
+    void theCookieIsHttpOnlyAndSameSiteLax() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), request, response);
+
+        Cookie cookie = response.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.isHttpOnly()).isTrue();
+        // Lax is the tightest setting that still works: the provider's callback
+        // arrives as a top-level GET redirect, which Lax allows and Strict does not.
+        assertThat(cookie.getAttribute("SameSite")).isEqualTo("Lax");
+        assertThat(cookie.getPath()).isEqualTo("/");
+    }
+
+    @Test
+    void secureFollowsTheSchemeOfTheRequest() {
+        MockHttpServletRequest plain = new MockHttpServletRequest();
+        MockHttpServletResponse plainResponse = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), plain, plainResponse);
+        assertThat(plainResponse.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME)
+                .getSecure()).isFalse();
+
+        MockHttpServletRequest secure = new MockHttpServletRequest();
+        secure.setSecure(true);
+        MockHttpServletResponse secureResponse = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), secure, secureResponse);
+        // Over HTTPS the cookie must not be allowed onto a plaintext connection.
+        assertThat(secureResponse.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME)
+                .getSecure()).isTrue();
+    }
+
+    @Test
+    void theRedirectUriCookieCarriesTheSameProtections() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setSecure(true);
+        request.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), request, response);
+
+        Cookie cookie = response.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME);
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.isHttpOnly()).isTrue();
+        assertThat(cookie.getSecure()).isTrue();
+        assertThat(cookie.getAttribute("SameSite")).isEqualTo("Lax");
+    }
+
+    @Test
+    void theSavedRequestRoundTrips() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), request, response);
+
+        MockHttpServletRequest callback = new MockHttpServletRequest();
+        callback.setCookies(response.getCookies());
+
+        OAuth2AuthorizationRequest restored = repository.loadAuthorizationRequest(callback);
+        assertThat(restored).isNotNull();
+        // The state is the whole point of the cookie: it binds the callback to
+        // the browser that began the flow.
+        assertThat(restored.getState()).isEqualTo("the-state-value");
+        assertThat(restored.getClientId()).isEqualTo("client-id");
+    }
+
+    @Test
+    void theRequestedRedirectSurvivesToTheCallback() {
+        // The provider's callback carries only code and state, so the redirect
+        // the client asked for has to come back out of the cookie. It was being
+        // written and never read, which silently sent every deployment to the
+        // configured default.
+        MockHttpServletRequest start = new MockHttpServletRequest();
+        start.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), start, response);
+
+        MockHttpServletRequest callback = new MockHttpServletRequest();
+        callback.setCookies(response.getCookies());
+
+        assertThat(HttpCookieOAuth2AuthorizationRequestRepository.savedRedirectUri(callback))
+                .contains("https://app.example.com/oauth2/redirect");
+    }
+
+    @Test
+    void removingTheAuthorizationRequestKeepsTheRedirectForTheSuccessHandler() {
+        MockHttpServletRequest start = new MockHttpServletRequest();
+        start.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse saved = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), start, saved);
+
+        // Spring clears the authorization request before the success handler runs.
+        MockHttpServletRequest callback = new MockHttpServletRequest();
+        callback.setCookies(saved.getCookies());
+        MockHttpServletResponse afterRemove = new MockHttpServletResponse();
+        repository.removeAuthorizationRequest(callback, afterRemove);
+
+        assertThat(HttpCookieOAuth2AuthorizationRequestRepository.savedRedirectUri(callback))
+                .contains("https://app.example.com/oauth2/redirect");
+
+        // And the handler clears it once it has used it.
+        MockHttpServletResponse cleared = new MockHttpServletResponse();
+        repository.removeRedirectUriCookie(callback, cleared);
+        assertThat(cleared.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME)
+                .getMaxAge()).isZero();
+    }
+
+    @Test
+    void noCookieMeansNoRequestedRedirect() {
+        assertThat(HttpCookieOAuth2AuthorizationRequestRepository
+                .savedRedirectUri(new MockHttpServletRequest())).isEmpty();
+    }
+
+    @Test
+    void aFlowThatAsksForNoRedirectDoesNotInheritTheLastOne() {
+        // Sign in once asking for a particular redirect...
+        MockHttpServletRequest first = new MockHttpServletRequest();
+        first.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), first, firstResponse);
+
+        // ...then start a plain one in the same browser. The cookie from the
+        // first flow must not decide where this one lands.
+        MockHttpServletRequest second = new MockHttpServletRequest();
+        second.setCookies(firstResponse.getCookies());
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), second, secondResponse);
+
+        assertThat(secondResponse.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME)
+                .getMaxAge()).isZero();
+    }
+}

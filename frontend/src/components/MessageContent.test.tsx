@@ -1,0 +1,69 @@
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import MessageContent from './MessageContent'
+import { isSafeUrl } from './safeUrl'
+
+/**
+ * Message bodies are markdown written by other users, so the two things that
+ * matter here are that raw HTML never becomes markup and that a link can never
+ * become a script.
+ */
+describe('MessageContent', () => {
+  it('escapes raw HTML instead of rendering it', () => {
+    const { container } = render(<MessageContent content={'<img src=x onerror="boom">'} />)
+
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toContain('<img src=x onerror="boom">')
+  })
+
+  it('renders an ordinary link', () => {
+    render(<MessageContent content="[docs](https://example.com/docs)" />)
+
+    expect(screen.getByRole('link', { name: 'docs' })).toHaveAttribute(
+      'href',
+      'https://example.com/docs',
+    )
+  })
+
+  it('leaves a dangerous destination without an href', () => {
+    render(<MessageContent content="[click](javascript:boom)" />)
+
+    expect(screen.getByText('click').closest('a')).not.toHaveAttribute('href')
+  })
+})
+
+describe('isSafeUrl', () => {
+  it.each([
+    'https://example.com',
+    'http://example.com/a?b=c#d',
+    'mailto:someone@example.com',
+    '/relative/path',
+    '#anchor',
+  ])('allows %s', (url) => {
+    expect(isSafeUrl(url)).toBe(true)
+  })
+
+  it.each([
+    ['plain', 'javascript:boom'],
+    ['mixed case', 'JaVaScRiPt:boom'],
+    ['leading whitespace', '   javascript:boom'],
+    // A browser strips tabs, newlines and carriage returns from anywhere in a
+    // URL before it decides what the scheme is, so every one of these is the
+    // same javascript: URL to it. The check compared the merely *trimmed*
+    // string, so only the cases above were caught.
+    ['tab inside the scheme', 'java\tscript:boom'],
+    ['newline inside the scheme', 'java\nscript:boom'],
+    ['carriage return inside the scheme', 'java\rscript:boom'],
+    ['space inside the scheme', 'java script:boom'],
+    ['data', 'data:text/html;base64,PHNjcmlwdD4='],
+    ['data with a newline', 'da\nta:text/html,x'],
+    ['vbscript', 'vbscript:boom'],
+  ])('rejects a %s URL', (_name, url) => {
+    expect(isSafeUrl(url)).toBe(false)
+  })
+
+  it('rejects an absent URL', () => {
+    expect(isSafeUrl(undefined)).toBe(false)
+    expect(isSafeUrl('')).toBe(false)
+  })
+})

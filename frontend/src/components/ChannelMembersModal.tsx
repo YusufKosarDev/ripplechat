@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { deleteChannel, kickMember, setMemberRole, updateChannel } from '../features/channels/channelsSlice'
+import { addMember, deleteChannel, kickMember, setMemberRole, updateChannel } from '../features/channels/channelsSlice'
 import { blockUser, unblockUser } from '../features/blocks/blocksSlice'
-import type { MemberResponse, MembershipRole } from '../api/types'
+import { client } from '../api/client'
+import type { MemberResponse, MembershipRole, UserSummary } from '../api/types'
 import Avatar from './Avatar'
 import Button from './ui/Button'
 import { Input } from './ui/Field'
@@ -41,10 +42,54 @@ export default function ChannelMembersModal({
   const channel = useAppSelector((state) => state.channels.items.find((c) => c.id === channelId))
   const blockedIds = useAppSelector((state) => state.blocks.ids)
   const isOwner = myRole === 'OWNER'
+  const canModerate = myRole === 'OWNER' || myRole === 'MODERATOR'
 
   const [name, setName] = useState(channel?.name ?? '')
   const [description, setDescription] = useState(channel?.description ?? '')
+  const [search, setSearch] = useState('')
+  const [results, setResults] = useState<UserSummary[]>([])
+  const [searching, setSearching] = useState(false)
   const panelRef = useDialog<HTMLDivElement>(onClose)
+
+  // Debounced people search for the add-member picker. Derived state is settled
+  // during render and only the fetch lives in the effect — same shape as
+  // NewDmModal, which is also what keeps set-state-in-effect quiet.
+  const trimmedSearch = search.trim()
+  if (trimmedSearch.length < 2 && results.length > 0) {
+    setResults([])
+  }
+  if (trimmedSearch.length < 2 && searching) {
+    setSearching(false)
+  }
+  if (trimmedSearch.length >= 2 && !searching) {
+    setSearching(true)
+  }
+
+  useEffect(() => {
+    const term = search.trim()
+    if (term.length < 2) return
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await client.get<UserSummary[]>('/api/users/search', { params: { q: term } })
+        setResults(data)
+      } catch {
+        setResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Someone already in the channel is not a candidate.
+  const memberIds = new Set(members.map((m) => m.user.id))
+  const candidates = results.filter((u) => !memberIds.has(u.id))
+
+  const onAddMember = (userId: string) => {
+    dispatch(addMember({ channelId, userId }))
+    setSearch('')
+    setResults([])
+  }
 
   const onSaveChannel = () => {
     const trimmedName = name.trim()
@@ -153,6 +198,36 @@ export default function ChannelMembersModal({
             )
           })}
         </ul>
+
+        {canModerate && (
+          <div className="mt-4 border-t border-border pt-4">
+            <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('members.addMember')}</h4>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('members.addMemberPlaceholder')}
+              aria-label={t('members.addMember')}
+            />
+            {candidates.length > 0 && (
+              <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                {candidates.map((u) => (
+                  <li key={u.id}>
+                    <button
+                      onClick={() => onAddMember(u.id)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left transition hover:bg-surface-muted ${focusRing}`}
+                    >
+                      <Avatar name={u.displayName ?? u.username} color={u.avatarColor} imageUrl={u.avatarUrl} size="sm" />
+                      <span className="truncate text-sm text-fg">{u.displayName ?? u.username}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {search.trim().length >= 2 && !searching && candidates.length === 0 && (
+              <p className="mt-2 text-xs text-fg-muted">{t('members.noCandidates')}</p>
+            )}
+          </div>
+        )}
 
         {isOwner && (
           <div className="mt-6 border-t border-border pt-4">

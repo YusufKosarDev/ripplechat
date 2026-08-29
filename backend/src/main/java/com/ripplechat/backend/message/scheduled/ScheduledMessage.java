@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -54,4 +55,17 @@ public class ScheduledMessage {
 
     @Column(nullable = false)
     private boolean sent = false;
+
+    /**
+     * Delivery attempts made so far. A message whose delivery cannot succeed —
+     * the author has left the channel since scheduling it, say — would otherwise
+     * be retried on every sweep for ever.
+     */
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private int attempts = 0;
+
+    /** Why the last attempt failed, kept so an abandoned row explains itself. */
+    @Column(name = "last_error", columnDefinition = "text")
+    private String lastError;
 }

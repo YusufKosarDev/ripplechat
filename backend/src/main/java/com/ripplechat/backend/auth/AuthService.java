@@ -12,7 +12,7 @@ import com.ripplechat.backend.common.exception.InvalidCredentialsException;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import com.ripplechat.backend.user.dto.UserResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,22 +22,34 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     // Login throttle: ~5 attempts burst, then ~1 every 10s per login identifier.
     private static final double LOGIN_BURST = 5;
     private static final double LOGIN_REFILL_PER_SEC = 0.1;
 
+    // The shared public demo account: generous enough that real visitors are
+    // never turned away, small enough that it is still metered.
+    private static final double DEMO_LOGIN_BURST = 60;
+    private static final double DEMO_LOGIN_REFILL_PER_SEC = 1;
+
     // 2FA code throttle: ~5 attempts burst, then ~1 every 10s per user. Stops a
     // 6-digit TOTP from being brute-forced once the password step has been passed.
     private static final double TWO_FACTOR_BURST = 5;
     private static final double TWO_FACTOR_REFILL_PER_SEC = 0.1;
 
-    // Registration throttle, keyed by client IP: ~5 burst, then ~1 every 30s.
-    // Limits automated account-creation spam from a single source.
-    private static final double REGISTER_BURST = 5;
-    private static final double REGISTER_REFILL_PER_SEC = 0.033;
+    /**
+     * Registration throttle, keyed by client IP. Default ~5 burst, then ~1 every
+     * 30s, which limits automated account-creation spam from one source.
+     *
+     * <p>Configurable because an IP is not a person: everyone behind one office,
+     * school or mobile-carrier NAT shares this budget, so a handful of colleagues
+     * signing up together would turn each other away. A deployment that knows its
+     * users arrive that way should raise it — and the integration test suite,
+     * which creates a dozen accounts from one address, does.
+     */
+    private final double registerBurst;
+    private final double registerRefillPerSec;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -49,6 +61,35 @@ public class AuthService {
     private final RecoveryCodeService recoveryCodeService;
     private final AccountService accountService;
     private final LoginLockoutService loginLockoutService;
+    private final TokenRevocationService tokenRevocationService;
+
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService,
+                       RefreshTokenService refreshTokenService,
+                       RateLimiter rateLimiter,
+                       SecurityAuditLogger audit,
+                       TwoFactorService twoFactorService,
+                       RecoveryCodeService recoveryCodeService,
+                       AccountService accountService,
+                       LoginLockoutService loginLockoutService,
+                       TokenRevocationService tokenRevocationService,
+                       @Value("${app.security.register.burst:5}") double registerBurst,
+                       @Value("${app.security.register.refill-per-second:0.033}") double registerRefillPerSec) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
+        this.rateLimiter = rateLimiter;
+        this.audit = audit;
+        this.twoFactorService = twoFactorService;
+        this.recoveryCodeService = recoveryCodeService;
+        this.accountService = accountService;
+        this.loginLockoutService = loginLockoutService;
+        this.tokenRevocationService = tokenRevocationService;
+        this.registerBurst = registerBurst;
+        this.registerRefillPerSec = registerRefillPerSec;
+    }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -58,7 +99,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
         if (ipAddress != null
-                && !rateLimiter.tryAcquire("register:" + ipAddress, REGISTER_BURST, REGISTER_REFILL_PER_SEC)) {
+                && !rateLimiter.tryAcquire("register:" + ipAddress, registerBurst, registerRefillPerSec)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "too many registration attempts, please wait a moment and try again");
         }
@@ -90,18 +131,32 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
-        // Brute-force throttle, keyed by the attempted login identifier. The
-        // public "demo" account is exempt — its password is intentionally known,
-        // so throttling it would only block the one-click demo for real visitors.
+        // Brute-force throttle, keyed by the attempted login identifier.
+        //
+        // The public "demo" account gets a much larger budget rather than none at
+        // all: its password is intentionally known, so the normal throttle would
+        // block genuine visitors arriving through the one-click demo — but no
+        // limit whatsoever made it the one unmetered authentication endpoint in
+        // the application.
         String login = request.login();
         boolean isDemo = "demo".equalsIgnoreCase(login.trim());
-        if (!isDemo && !rateLimiter.tryAcquire("login:" + login.toLowerCase(), LOGIN_BURST, LOGIN_REFILL_PER_SEC)) {
+        double burst = isDemo ? DEMO_LOGIN_BURST : LOGIN_BURST;
+        double refill = isDemo ? DEMO_LOGIN_REFILL_PER_SEC : LOGIN_REFILL_PER_SEC;
+        if (!rateLimiter.tryAcquire("login:" + login.toLowerCase(), burst, refill)) {
             audit.loginThrottled(login);
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "too many login attempts, please wait a moment and try again");
         }
 
-        User user = userRepository.findByUsernameOrEmail(login, login).orElse(null);
+        // Username first, then email — deterministically, one row at a time.
+        // findByUsernameOrEmail(login, login) returns an Optional, so if a
+        // username ever collided with someone else's email address the query
+        // matched two rows and threw, making that person's email sign-in fail
+        // outright. The username charset now rules the collision out; resolving
+        // in a defined order means existing data cannot trip over it either.
+        User user = userRepository.findByUsername(login)
+                .or(() -> userRepository.findByEmail(login))
+                .orElse(null);
         if (user == null || user.isDeleted()) {
             // A deleted account is treated exactly like an unknown one (its
             // credentials are scrubbed anyway) — no signal that it ever existed.
@@ -218,10 +273,16 @@ public class AuthService {
         return TokenResponse.of(accessToken, newRefreshToken);
     }
 
-    /** Revokes the refresh token so it can no longer renew a session (logout). */
+    /**
+     * Ends the session: drops the refresh token so it can no longer renew, and
+     * voids the access tokens already issued. Dropping the refresh token alone
+     * left the access token working for the rest of its hour, which is not what
+     * anyone means by signing out.
+     */
     @Transactional
     public void logout(String refreshToken) {
-        refreshTokenService.revoke(refreshToken);
+        refreshTokenService.revoke(refreshToken)
+                .ifPresent(user -> tokenRevocationService.revokeBefore(user.getUsername()));
         audit.loggedOut();
     }
 
@@ -234,10 +295,17 @@ public class AuthService {
                 .toList();
     }
 
+    /**
+     * Signs another device out. The watermark is per-user, so this also voids the
+     * caller's own access token — harmless, because their refresh token survives
+     * and the client renews transparently on the next 401. The revoked device
+     * cannot: its refresh token is gone.
+     */
     @Transactional
     public void revokeSession(String username, UUID sessionId) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         refreshTokenService.revokeSession(user, sessionId);
+        tokenRevocationService.revokeBefore(username);
     }
 }

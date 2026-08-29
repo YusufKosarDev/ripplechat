@@ -10,13 +10,14 @@ import { addMention, incrementUnread } from '../features/unread/unreadSlice'
 import { fetchBlocks } from '../features/blocks/blocksSlice'
 import { fetchNotifications, notificationReceived } from '../features/notifications/notificationsSlice'
 import { fetchBookmarkIds } from '../features/bookmarks/bookmarksSlice'
-import { connectChat, disconnectChat, setNotificationHandler, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
+import { connectChat, disconnectChat, forceReconnectChat, setNotificationHandler, setPresenceHandler, watchAllChannels } from '../realtime/chatSocket'
 import Sidebar from '../components/Sidebar'
 import ChannelPanel from '../components/ChannelPanel'
 import ThreadPanel from '../components/ThreadPanel'
 import { getAsymmetricKeyPair, saveAsymmetricKeyPair } from '../db'
 import { client } from '../api/client'
 import { replenishPreKeys } from '../crypto/e2ee'
+import { provisionIdentity } from '../crypto/identityProvisioning'
 import { syncPendingMessages } from '../sync/syncManager'
 import ConnectionBanner from '../components/ui/ConnectionBanner'
 import { useT } from '../i18n'
@@ -79,11 +80,34 @@ export default function ChatPage() {
 
   const connectionStatus = useAppSelector((state) => state.connection.status)
 
+  // Replay the offline queue on both signals, because neither covers the other.
+  //
+  // A long outage drops the socket, and the reconnect is what says the queue can
+  // go out — that is this effect. A short one does not: SockJS only notices a
+  // dead connection at its heartbeat, so a blip that outlasts a user typing a
+  // message but not the heartbeat produces no status change at all, and the
+  // queued message would sit there until the next genuine reconnect. The
+  // 'online' event catches exactly that case, and is safe to fire early because
+  // syncPendingMessages does nothing unless the socket is actually connected and
+  // only clears a message once it has been published.
   useEffect(() => {
     if (connectionStatus === 'connected') {
       void syncPendingMessages()
     }
   }, [connectionStatus])
+
+  // The network coming back is not the same as the socket working again. STOMP
+  // caches `connected`, and a socket killed while the machine was offline keeps
+  // claiming to be open until a heartbeat notices — up to ten seconds later.
+  // Replaying in that window "succeeds" as far as the client is concerned while
+  // the frame goes nowhere, and the queue deletes the message on the strength of
+  // it. Rebuilding the socket instead means the replay above runs on a
+  // connection that has just completed a CONNECT.
+  useEffect(() => {
+    const onOnline = () => forceReconnectChat()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [])
 
   useEffect(() => {
     connectChat({
@@ -120,10 +144,15 @@ export default function ChatPage() {
     dispatch(fetchBookmarkIds())
   }, [currentUsername, dispatch])
 
-  // Subscribe to every channel's message topic so unread counts stay accurate
-  // even for channels the user isn't currently viewing.
+  // Subscribe to the message topic of every channel the user is *not* looking
+  // at, so unread counts stay accurate in the background.
+  //
+  // The open channel is deliberately excluded: useChannelSocket already
+  // subscribes to it for the live feed, and subscribing twice delivered every
+  // message to the reducer (and to IndexedDB) twice over. Unread counting never
+  // applied to the open channel anyway — the handler below skips it.
   useEffect(() => {
-    const ids = channelIds ? channelIds.split(',') : []
+    const ids = (channelIds ? channelIds.split(',') : []).filter((id) => id !== selectedId)
     watchAllChannels(ids, (msg) => {
       if (blockedRef.current.includes(msg.sender.id)) return
       dispatch(messageReceived(msg))
@@ -139,7 +168,7 @@ export default function ChatPage() {
         }
       }
     })
-  }, [channelIds, dispatch])
+  }, [channelIds, selectedId, dispatch])
 
   // Automatically generate and upload asymmetric E2EE key pair if missing
   useEffect(() => {
@@ -147,37 +176,35 @@ export default function ChatPage() {
 
     const initKeys = async () => {
       try {
-        let keys = await getAsymmetricKeyPair()
-        if (!keys) {
-          const keyPair = await window.crypto.subtle.generateKey(
-            { name: 'ECDH', namedCurve: 'P-256' },
-            true,
-            ['deriveKey', 'deriveBits']
-          )
-          keys = {
-            publicKey: keyPair.publicKey,
-            privateKey: keyPair.privateKey
-          }
-          await saveAsymmetricKeyPair(keys)
-        }
-
-        if (!user.publicKey) {
-          const publicJwk = await window.crypto.subtle.exportKey('jwk', keys.publicKey)
-          const publicJwkString = JSON.stringify(publicJwk)
-          await client.post('/api/users/me/public-key', publicJwkString, {
-            headers: { 'Content-Type': 'text/plain' }
-          })
+        // The rules live in provisionIdentity so they can be tested; what a
+        // mistake here costs is an account advertising a public key nobody holds
+        // the private half of, which fails silently and cannot be undone.
+        const { uploaded } = await provisionIdentity(!!user.publicKey, {
+          loadKeyPair: getAsymmetricKeyPair,
+          generateKeyPair: async () => {
+            const keyPair = await window.crypto.subtle.generateKey(
+              { name: 'ECDH', namedCurve: 'P-256' },
+              true,
+              ['deriveKey', 'deriveBits']
+            )
+            return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }
+          },
+          saveKeyPair: saveAsymmetricKeyPair,
+          exportPublicJwk: async (keys) =>
+            JSON.stringify(await window.crypto.subtle.exportKey('jwk', keys.publicKey)),
+          uploadPublicKey: async (publicJwk) => {
+            await client.post('/api/users/me/public-key', publicJwk, {
+              headers: { 'Content-Type': 'text/plain' }
+            })
+          },
+          oneTimePreKeyCount: async () => {
+            const { data } = await client.get<{ oneTimePreKeyCount: number }>('/api/e2ee/keys/count')
+            return data.oneTimePreKeyCount
+          },
+          replenishPreKeys,
+        })
+        if (uploaded) {
           dispatch(fetchCurrentUser())
-        }
-
-        // Check and replenish pre-keys if low
-        try {
-          const countRes = await client.get<{ oneTimePreKeyCount: number }>('/api/e2ee/keys/count')
-          if (countRes.data.oneTimePreKeyCount < 5) {
-            await replenishPreKeys()
-          }
-        } catch (err) {
-          console.error('Failed to check or replenish pre-keys:', err)
         }
       } catch (err) {
         console.error('Failed to initialize or upload asymmetric key pair:', err)

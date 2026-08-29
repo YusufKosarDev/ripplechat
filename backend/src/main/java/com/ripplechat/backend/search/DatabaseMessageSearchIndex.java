@@ -67,6 +67,12 @@ public class DatabaseMessageSearchIndex implements MessageSearchIndex {
         }
     }
 
+    /** The messages table is the search source, so there is nothing to keep in step. */
+    @Override
+    public boolean requiresIndexing() {
+        return false;
+    }
+
     @Override
     public void index(Message message) {
         // No-op: with Elasticsearch disabled, the messages table is the search source.

@@ -129,6 +129,9 @@ export default function ScheduledMessagesModal({ channelId, initialDraft, onClos
                     <span>{formatWhen(m.scheduledAt, locale)}</span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-fg-secondary">{m.content}</p>
+                  {m.failureReason && (
+                    <p className="mt-1 text-xs text-danger">{t('sched.failed')}</p>
+                  )}
                 </div>
                 <button
                   onClick={() => onCancel(m.id)}

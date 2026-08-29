@@ -5,6 +5,7 @@ import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.poll.dto.CreatePollRequest;
 import com.ripplechat.backend.poll.dto.PollResponse;
+import com.ripplechat.backend.redis.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import com.ripplechat.backend.redis.RedisBroadcastService;
 import org.springframework.stereotype.Service;
@@ -21,12 +22,21 @@ public class PollService {
     private static final int MAX_QUESTION_LENGTH = 300;
     private static final int MAX_OPTION_LENGTH = 100;
 
+    // Creating a poll and voting both write and fan out, over an unthrottled
+    // WebSocket frame: ~10 burst, then one every two seconds per user.
+    private static final double POLL_BURST = 10;
+    private static final double POLL_REFILL_PER_SEC = 0.5;
+
     private final PollRepository pollRepository;
     private final ChannelMembershipService membershipService;
     private final RedisBroadcastService redisBroadcastService;
+    private final RateLimiter rateLimiter;
 
     @Transactional
     public void createPoll(UUID channelId, String username, CreatePollRequest request) {
+        if (!throttle(username)) {
+            return;
+        }
         requireMember(channelId, username);
 
         String question = request.question() == null ? "" : request.question().trim();
@@ -56,6 +66,9 @@ public class PollService {
 
     @Transactional
     public void vote(UUID channelId, UUID pollId, String username, String optionId) {
+        if (!throttle(username)) {
+            return;
+        }
         requireMember(channelId, username);
         Poll poll = pollRepository.findById(pollId).orElse(null);
         if (poll == null || !poll.getChannelId().equals(channelId)) {
@@ -81,5 +94,14 @@ public class PollService {
         if (!membershipService.isMember(channelId, username)) {
             throw new ForbiddenException("not a member of channel: " + channelId);
         }
+    }
+
+    /**
+     * False when the caller has run out of budget. Both entry points arrive over
+     * STOMP, where the frame has nowhere to report an error, so excess is
+     * dropped the same way a malformed poll is.
+     */
+    private boolean throttle(String username) {
+        return rateLimiter.tryAcquire("poll:" + username, POLL_BURST, POLL_REFILL_PER_SEC);
     }
 }

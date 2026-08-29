@@ -81,6 +81,80 @@ export function getDB() {
   return dbPromise
 }
 
+/** Every store that holds data belonging to the signed-in account. */
+const USER_DATA_STORES = [
+  'messages',
+  'channels',
+  'pending_messages',
+  'crypto_keys',
+  'ratchet_sessions',
+  'signed_pre_keys',
+  'decrypted_cache',
+] as const
+
+/**
+ * localStorage entries scoped to the signed-in account. Deliberately excludes
+ * the device preferences (theme, language), which are not personal data and
+ * should survive a sign-out.
+ */
+const USER_DATA_LOCAL_KEYS = [
+  'ripplechat_unread',
+  'ripplechat_muted',
+  'ripplechat_channel_org',
+]
+
+/**
+ * Wipes everything this browser holds about the account that is signing out:
+ * the cached message history, the offline send queue, and — most importantly —
+ * the E2EE key material (identity keys, pre-keys, ratchet sessions and the
+ * decrypted-plaintext cache).
+ *
+ * Without this, signing out left the previous user's conversations readable to
+ * whoever signed in next on the same machine. Called from the logout thunk.
+ */
+export async function clearLocalUserData(): Promise<void> {
+  // In-memory first, so a failure below still drops the cache key.
+  cacheEncryptionKey = null
+
+  for (const key of USER_DATA_LOCAL_KEYS) {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // Storage can be unavailable (private mode); nothing to clean up then.
+    }
+  }
+  try {
+    sessionStorage.removeItem('ripplechat_e2ee')
+  } catch {
+    // as above
+  }
+
+  // The service worker's runtime cache is excluded from API responses, so it
+  // should hold nothing personal — but it is keyed by URL alone and outlives a
+  // sign-out, so clear it rather than rely on that.
+  try {
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys()
+      await Promise.all(names.filter((n) => n.startsWith('ripplechat-')).map((n) => caches.delete(n)))
+    }
+  } catch {
+    // Cache Storage is unavailable in some contexts; nothing to clean up then.
+  }
+
+  if (typeof indexedDB === 'undefined') return
+  try {
+    const db = await getDB()
+    if (!db) return
+    const existing = USER_DATA_STORES.filter((s) => db.objectStoreNames.contains(s))
+    if (existing.length === 0) return
+    const tx = db.transaction(existing, 'readwrite')
+    await Promise.all(existing.map((s) => tx.objectStore(s).clear()))
+    await tx.done
+  } catch (err) {
+    console.error('Failed to clear local user data:', err)
+  }
+}
+
 // The crypto_keys store is shared: identity/pre-key pairs live next to the
 // base64 sender keys and upload flags that e2ee.ts writes. Narrow on read so a
 // key written under the wrong shape surfaces as "absent" rather than as a

@@ -1,14 +1,17 @@
 package com.ripplechat.backend.outbox;
 
 import com.ripplechat.backend.media.MediaStorage;
+import com.ripplechat.backend.search.SearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -17,11 +20,42 @@ public class OutboxTaskProcessor {
 
     private final OutboxTaskRepository outboxTaskRepository;
     private final MediaStorage mediaStorage;
+    private final SearchService searchService;
 
+    /** Attempts before a task is abandoned. */
+    private static final int MAX_ATTEMPTS = 5;
+
+    /** How long a task may sit in PROCESSING before it is treated as abandoned. */
+    private static final Duration STUCK_AFTER = Duration.ofMinutes(5);
+
+    /** Ceiling on the exponential backoff, which would otherwise run away. */
+    private static final long MAX_BACKOFF_SECONDS = 3600;
+
+    /**
+     * The scheduled entry point.
+     *
+     * <p>The ShedLock annotation belongs here rather than on the work itself:
+     * it exists so that only one replica sweeps per tick, which is a property of
+     * the schedule. Putting it on the work meant a caller who wanted the queue
+     * drained — a test, most of all — was silently competing with the scheduler
+     * for the lock, and lost by doing nothing at all. That produced a test that
+     * failed only when the timing went against it.
+     */
     @Scheduled(fixedDelayString = "${ripplechat.outbox.sweep-ms:5000}")
     @SchedulerLock(name = "outboxTaskSweep", lockAtMostFor = "PT2M", lockAtLeastFor = "PT0S")
     public void processTasks() {
-        List<OutboxTask> pendingTasks = outboxTaskRepository.findPendingTasks(5, Instant.now());
+        drain();
+    }
+
+    /**
+     * Runs the queue to completion. Unlocked — the lock is the schedule's, not the
+     * work's — and package-private, because nothing outside the outbox has any
+     * business draining it.
+     */
+    void drain() {
+        Instant now = Instant.now();
+        List<OutboxTask> pendingTasks =
+                outboxTaskRepository.findPendingTasks(MAX_ATTEMPTS, now, now.minus(STUCK_AFTER));
         if (pendingTasks.isEmpty()) {
             return;
         }
@@ -43,20 +77,30 @@ public class OutboxTaskProcessor {
                 outboxTaskRepository.saveAndFlush(task);
             } catch (Exception e) {
                 log.error("Failed to execute outbox task: {}", task.getId(), e);
-                task.setStatus(OutboxTask.Status.FAILED);
                 task.setErrorMessage(e.getMessage());
-                long backoffSeconds = (long) Math.pow(2, task.getAttempts() - 1) * 10;
-                task.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
+                if (task.getAttempts() >= MAX_ATTEMPTS) {
+                    // Out of attempts. DEAD rather than FAILED so it is visibly
+                    // abandoned instead of looking like one still awaiting retry.
+                    task.setStatus(OutboxTask.Status.DEAD);
+                    task.setNextAttemptAt(null);
+                } else {
+                    task.setStatus(OutboxTask.Status.FAILED);
+                    long backoffSeconds = Math.min(
+                            (long) Math.pow(2, task.getAttempts() - 1) * 10, MAX_BACKOFF_SECONDS);
+                    task.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
+                }
                 outboxTaskRepository.saveAndFlush(task);
             }
         }
     }
 
     private void executeTask(OutboxTask task) throws Exception {
-        if ("DELETE_MEDIA".equals(task.getTaskType())) {
-            mediaStorage.delete(task.getPayload());
-        } else {
-            throw new IllegalArgumentException("Unknown task type: " + task.getTaskType());
+        switch (task.getTaskType()) {
+            case OutboxTaskTypes.DELETE_MEDIA -> mediaStorage.delete(task.getPayload());
+            case OutboxTaskTypes.INDEX_MESSAGE -> searchService.applyIndex(UUID.fromString(task.getPayload()));
+            case OutboxTaskTypes.REMOVE_FROM_SEARCH_INDEX ->
+                    searchService.applyDelete(UUID.fromString(task.getPayload()));
+            default -> throw new IllegalArgumentException("Unknown task type: " + task.getTaskType());
         }
     }
 }

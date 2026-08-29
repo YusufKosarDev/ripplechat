@@ -53,10 +53,21 @@ self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
   const url = new URL(request.url)
-  // Only handle our own origin — never the cross-origin API or media CDNs.
+  // Only handle our own origin — never a cross-origin API or media CDN.
   if (url.origin !== self.location.origin) return
   // Navigations are handled by workbox's precached index.html route.
   if (request.mode === 'navigate') return
+  // And never the API or the socket, whatever origin they are on.
+  //
+  // The origin check above was doing this job by accident: the deployed backend
+  // happens to sit on another host. Put the API behind the same origin — the
+  // ordinary single-domain deployment, and what the dev and preview proxies
+  // model — and every authenticated GET landed in the cache and was served
+  // stale-while-revalidate. That is wrong twice over: the app shows the previous
+  // load's channels and messages, and Cache Storage is keyed by URL alone and
+  // survives a sign-out, so the next person on this browser could be handed the
+  // previous one's /api/users/me, channel list and notifications.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) return
 
   event.respondWith(
     caches.match(request).then((cached) => {

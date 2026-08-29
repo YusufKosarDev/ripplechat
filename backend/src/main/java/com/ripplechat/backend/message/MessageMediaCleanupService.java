@@ -2,6 +2,7 @@ package com.ripplechat.backend.message;
 
 import com.ripplechat.backend.outbox.OutboxTask;
 import com.ripplechat.backend.outbox.OutboxTaskRepository;
+import com.ripplechat.backend.outbox.OutboxTaskTypes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +32,7 @@ public class MessageMediaCleanupService {
         }
         OutboxTask task = new OutboxTask();
         task.setId(UUID.randomUUID());
-        task.setTaskType("DELETE_MEDIA");
+        task.setTaskType(OutboxTaskTypes.DELETE_MEDIA);
         task.setPayload(url);
         task.setStatus(OutboxTask.Status.PENDING);
         task.setCreatedAt(Instant.now());

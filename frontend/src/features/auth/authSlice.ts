@@ -4,6 +4,8 @@ import axios from 'axios'
 import { config } from '../../config'
 import { client, withColdStartRetry } from '../../api/client'
 import { clearToken, getRefreshToken, getToken, setTokens } from '../../api/token'
+import { clearLocalUserData } from '../../db'
+import { clearAllPassphrases } from '../e2ee/e2eeSlice'
 import type { ApiError, AuthResponse, LoginRequest, RegisterRequest, User } from '../../api/types'
 
 function extractError(e: unknown): string {
@@ -80,9 +82,15 @@ export const register = createAsyncThunk(
 
 // Server-side logout: revoke the refresh token so it can't renew a session.
 // Best-effort — the local session is cleared regardless of the network result.
-export const logout = createAsyncThunk('auth/logout', async () => {
+//
+// Local state is wiped too: the cached history, the offline queue and the E2EE
+// key material are this account's data, and leaving them behind handed them to
+// whoever signed in next on the same machine.
+export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
   const refreshToken = getRefreshToken()
   clearToken()
+  dispatch(clearAllPassphrases())
+  await clearLocalUserData()
   if (refreshToken) {
     try {
       await axios.post(`${config.apiUrl}/api/auth/logout`, { refreshToken }, { timeout: 5000 })

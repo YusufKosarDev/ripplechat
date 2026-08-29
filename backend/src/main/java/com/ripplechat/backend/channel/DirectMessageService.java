@@ -70,6 +70,15 @@ public class DirectMessageService {
         if (others.size() != ids.size()) {
             throw new ResourceNotFoundException("one or more users not found");
         }
+        // Blocking already stops a one-to-one DM from being opened; a group was
+        // the way around it, putting the two of them in the same conversation
+        // anyway.
+        for (User other : others) {
+            if (blockRepository.existsByBlockerIdAndBlockedId(me.getId(), other.getId())
+                    || blockRepository.existsByBlockerIdAndBlockedId(other.getId(), me.getId())) {
+                throw new ForbiddenException("cannot add a blocked user to a group");
+            }
+        }
 
         Channel channel = new Channel();
         channel.setType(ChannelType.GROUP);

@@ -1,5 +1,6 @@
 package com.ripplechat.backend.auth;
 
+import tools.jackson.databind.ObjectMapper;
 import com.ripplechat.backend.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,23 +30,30 @@ import com.ripplechat.backend.auth.oauth2.OAuth2AuthenticationSuccessHandler;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    /** Writes the 401/403 problem bodies. Stateless and thread-safe, so one is enough. */
+    private static final ObjectMapper PROBLEM_MAPPER = new ObjectMapper();
+
     private final JwtService jwtService;
+    private final TokenRevocationService tokenRevocationService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     public SecurityConfig(JwtService jwtService,
+                          TokenRevocationService tokenRevocationService,
                           CustomOAuth2UserService customOAuth2UserService,
                           OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                           OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
                           HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository) {
         this.jwtService = jwtService;
+        this.tokenRevocationService = tokenRevocationService;
         this.customOAuth2UserService = customOAuth2UserService;
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
         this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
@@ -92,7 +100,7 @@ public class SecurityConfig {
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(unauthorizedEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService, tokenRevocationService),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -143,14 +151,24 @@ public class SecurityConfig {
                 writeProblem(response, HttpStatus.FORBIDDEN, "Access denied", request.getRequestURI());
     }
 
+    /**
+     * Writes the problem document.
+     *
+     * <p>Serialised rather than assembled by hand. The instance is the request
+     * URI, and the argument that it cannot break the JSON rested on Tomcat's
+     * default refusal of quotes and backslashes in a request target — a
+     * container setting, several layers away, that nothing here would notice
+     * changing. A serialiser makes the argument unnecessary.
+     */
     private static void writeProblem(HttpServletResponse response, HttpStatus status, String detail, String instance)
             throws IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        // The request URI is the (already-encoded) path, so it is JSON-safe here.
-        String body = String.format(
-                "{\"type\":\"about:blank\",\"title\":\"%s\",\"status\":%d,\"detail\":\"%s\",\"instance\":\"%s\"}",
-                status.getReasonPhrase(), status.value(), detail, instance);
-        response.getWriter().write(body);
+        PROBLEM_MAPPER.writeValue(response.getWriter(), Map.of(
+                "type", "about:blank",
+                "title", status.getReasonPhrase(),
+                "status", status.value(),
+                "detail", detail,
+                "instance", instance));
     }
 }

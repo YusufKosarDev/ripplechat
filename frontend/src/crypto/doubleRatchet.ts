@@ -85,24 +85,48 @@ async function exportPublicKey(key: CryptoKey): Promise<JsonWebKey> {
 }
 
 // ─── AES-GCM Encrypt / Decrypt ──────────────────────────────────────
-
-async function aesEncrypt(messageKey: ArrayBuffer, plaintext: string): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
+async function aesEncrypt(
+  messageKey: ArrayBuffer,
+  plaintext: string,
+  additionalData?: Uint8Array,
+): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
   const key = await crypto.subtle.importKey('raw', messageKey, 'AES-GCM', false, ['encrypt'])
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(plaintext))
+  const params: AesGcmParams = { name: 'AES-GCM', iv }
+  if (additionalData) params.additionalData = additionalData as BufferSource
+  const ct = await crypto.subtle.encrypt(params, key, encoder.encode(plaintext))
   return { iv, ciphertext: new Uint8Array(ct) }
 }
 
-async function aesDecrypt(messageKey: ArrayBuffer, iv: Uint8Array, ciphertext: Uint8Array): Promise<string> {
+async function aesDecrypt(
+  messageKey: ArrayBuffer,
+  iv: Uint8Array,
+  ciphertext: Uint8Array,
+  additionalData?: Uint8Array,
+): Promise<string> {
   const key = await crypto.subtle.importKey('raw', messageKey, 'AES-GCM', false, ['decrypt'])
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, ciphertext as BufferSource)
+  const params: AesGcmParams = { name: 'AES-GCM', iv: iv as BufferSource }
+  if (additionalData) params.additionalData = additionalData as BufferSource
+  const pt = await crypto.subtle.decrypt(params, key, ciphertext as BufferSource)
   return decoder.decode(pt)
 }
 
 // ─── Session State ───────────────────────────────────────────────────
 
-/** Maximum number of skipped message keys to store (prevents DoS). */
+/** Maximum number of message keys a single gap may skip over. */
 const MAX_SKIP = 256
+
+/**
+ * Ceiling on the whole skipped-key store, across every chain.
+ *
+ * MAX_SKIP bounds one gap; it does not bound the map, which is kept for as long
+ * as the session lives and written to IndexedDB after every message. A peer
+ * sending a gap of exactly MAX_SKIP each time added 256 entries per message with
+ * nothing to stop it, so the store grew until the browser's storage quota did
+ * the stopping. The oldest keys go first: they are the ones whose message is
+ * least likely to still be in flight.
+ */
+const MAX_SKIPPED_KEYS = 1024
 
 export interface SerializedSession {
   rootKey: string               // base64
@@ -203,10 +227,57 @@ export async function ratchetEncrypt(
   }
   session.sendN++
 
-  const { iv, ciphertext } = await aesEncrypt(messageKey, plaintext)
-  const payload = `${toBase64(iv)}.${toBase64(ciphertext)}`
+  // The header is bound into the tag, so it cannot be rewritten in flight.
+  const { iv, ciphertext } = await aesEncrypt(messageKey, plaintext, headerAad(header))
+  const payload = `${toBase64(iv)}.${toBase64(ciphertext)}.${HEADER_BOUND_MARKER}`
 
   return { header, ciphertext: payload }
+}
+
+/**
+ * Marks a payload whose header is bound into the AES-GCM tag.
+ *
+ * A message produced before this existed has two parts, `iv.ct`, and is
+ * decrypted with no associated data — the ciphertext is what it is, and there
+ * is no re-encrypting the history. A message produced now has three and is
+ * verified against its header. Reading the format off the payload rather than
+ * off a version flag means nothing has to agree in advance.
+ */
+const HEADER_BOUND_MARKER = 'h'
+
+/**
+ * The header, in a form both sides derive the same way.
+ *
+ * <p>Not `JSON.stringify(header)`: that would make the tag depend on key order
+ * and on the receiver's re-serialisation matching the sender's byte for byte.
+ * The fields are listed explicitly, so what is bound is exactly what matters —
+ * which ratchet key this message belongs to, and where it sits in the chain.
+ *
+ * <p>The header travels in the clear and used to be entirely unauthenticated,
+ * so anyone able to modify a message in flight could rewrite it. The message
+ * still would not decrypt, but only by accident: the receiver had already
+ * performed a DH ratchet step against the attacker's key by then.
+ */
+function headerAad(header: MessageHeader): Uint8Array {
+  const key = header.ratchetPublicKey
+  return encoder.encode([
+    key.kty ?? '',
+    key.crv ?? '',
+    key.x ?? '',
+    key.y ?? '',
+    String(header.prevChainLength),
+    String(header.messageNumber),
+  ].join('|'))
+}
+
+/** Splits a payload into its parts, and says whether the header is bound in. */
+function parsePayload(payload: string): { iv: Uint8Array; ciphertext: Uint8Array; bound: boolean } {
+  const parts = payload.split('.')
+  return {
+    iv: fromBase64(parts[0]),
+    ciphertext: fromBase64(parts[1]),
+    bound: parts[2] === HEADER_BOUND_MARKER,
+  }
 }
 
 // ─── Ratchet Decrypt ─────────────────────────────────────────────────
@@ -226,8 +297,22 @@ async function trySkippedKeys(session: RatchetSession, header: MessageHeader, ci
   if (!mk) return null
 
   session.skippedKeys.delete(lookupKey)
-  const [ivPart, ctPart] = ciphertext.split('.')
-  return aesDecrypt(mk, fromBase64(ivPart), fromBase64(ctPart))
+  const { iv, ciphertext: ct, bound } = parsePayload(ciphertext)
+  return aesDecrypt(mk, iv, ct, bound ? headerAad(header) : undefined)
+}
+
+/**
+ * Stores a skipped message key, evicting the oldest once the store is full.
+ *
+ * A Map iterates in insertion order, so the first key is the oldest.
+ */
+function rememberSkippedKey(session: RatchetSession, lookupKey: string, messageKey: ArrayBuffer): void {
+  session.skippedKeys.set(lookupKey, messageKey)
+  while (session.skippedKeys.size > MAX_SKIPPED_KEYS) {
+    const oldest = session.skippedKeys.keys().next()
+    if (oldest.done) break
+    session.skippedKeys.delete(oldest.value)
+  }
 }
 
 async function skipMessageKeys(session: RatchetSession, until: number): Promise<void> {
@@ -241,7 +326,7 @@ async function skipMessageKeys(session: RatchetSession, until: number): Promise<
   while (session.recvN < until) {
     const { chainKey, messageKey } = await kdfCK(session.recvChainKey)
     session.recvChainKey = chainKey
-    session.skippedKeys.set(`${recvPubId}:${session.recvN}`, messageKey)
+    rememberSkippedKey(session, `${recvPubId}:${session.recvN}`, messageKey)
     session.recvN++
   }
 }
@@ -301,8 +386,8 @@ export async function ratchetDecrypt(
   session.recvN++
 
   // 5. Decrypt
-  const [ivPart, ctPart] = ciphertext.split('.')
-  return aesDecrypt(messageKey, fromBase64(ivPart), fromBase64(ctPart))
+  const { iv, ciphertext: ct, bound } = parsePayload(ciphertext)
+  return aesDecrypt(messageKey, iv, ct, bound ? headerAad(header) : undefined)
 }
 
 // ─── Serialization ───────────────────────────────────────────────────

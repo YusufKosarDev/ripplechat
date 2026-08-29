@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -26,13 +27,20 @@ public class MailService {
     private final JavaMailSender mailSender;
     private final boolean enabled;
     private final String from;
+    private final boolean logLinks;
 
     public MailService(ObjectProvider<JavaMailSender> mailSenderProvider,
                        @Value("${app.mail.enabled:false}") boolean enabled,
-                       @Value("${app.mail.from:no-reply@ripplechat.app}") String from) {
+                       @Value("${app.mail.from:no-reply@ripplechat.app}") String from,
+                       @Value("${app.mail.log-links:true}") boolean logLinks) {
         this.mailSender = mailSenderProvider.getIfAvailable();
         this.enabled = enabled;
         this.from = from;
+        this.logLinks = logLinks;
+        if (!enabled || mailSenderProvider.getIfAvailable() == null) {
+            log.warn("Email is not configured — password-reset and verification links will not be sent."
+                    + (logLinks ? " They are written to this log instead." : ""));
+        }
     }
 
     /** True when email will actually be delivered (vs. logged). */
@@ -40,11 +48,29 @@ public class MailService {
         return enabled && mailSender != null;
     }
 
+    /**
+     * Sends a message, best-effort.
+     *
+     * <p>A delivery failure is logged, not thrown. Every caller sends from
+     * inside a transaction that has just done the thing the message is *about* —
+     * created the account, issued the reset token, changed the address — and an
+     * exception here rolled all of that back. A blip at the SMTP provider meant
+     * nobody could register, and the account the user thought they had made did
+     * not exist. The token is already persisted, so the useful recovery is to
+     * ask for the message again, which needs the row to have survived.
+     */
     public void send(String to, String subject, String body) {
         if (!isEnabled()) {
-            // Logged at INFO so a developer can copy the action link from the
-            // console. Never log this in a real deployment with mail disabled.
-            log.info("[mail disabled] to={} subject=\"{}\"\n{}", to, subject, body);
+            // The body carries the password-reset link, so writing it to the log
+            // hands account access to anyone who can read the log. That is a fine
+            // trade in development, where it is the only way to complete the flow
+            // without an SMTP server — and not one to make in production, where
+            // app.mail.log-links is off.
+            if (logLinks) {
+                log.info("[mail disabled] to={} subject=\"{}\"\n{}", to, subject, body);
+            } else {
+                log.warn("event=mail_dropped reason=not_configured to={} subject=\"{}\"", to, subject);
+            }
             return;
         }
         SimpleMailMessage message = new SimpleMailMessage();
@@ -52,7 +78,12 @@ public class MailService {
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error("event=mail_failed to={} subject=\"{}\" reason={}", to, subject, e.getMessage(), e);
+            return;
+        }
         log.info("event=mail_sent to={} subject=\"{}\"", to, subject);
     }
 }

@@ -4,12 +4,14 @@ import com.ripplechat.backend.channel.membership.ChannelMembership;
 import com.ripplechat.backend.channel.membership.ChannelMembershipGuard;
 import com.ripplechat.backend.channel.membership.ChannelMembershipRepository;
 import com.ripplechat.backend.channel.membership.MembershipRole;
+import com.ripplechat.backend.common.MessagePreview;
 import com.ripplechat.backend.common.exception.ForbiddenException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
 import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +33,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MessageModerationService {
 
+    /** Rows the disappearing-message sweep will retire in one pass. */
+    private static final int EXPIRY_SWEEP_BATCH = 500;
+
     private final MessageRepository messageRepository;
     private final MessageHideRepository messageHideRepository;
+    private final MessageEditHistoryRepository messageEditHistoryRepository;
     private final ChannelMembershipRepository membershipRepository;
     private final ChannelMembershipGuard membershipGuard;
     private final UserRepository userRepository;
@@ -92,19 +98,32 @@ public class MessageModerationService {
      */
     @Transactional
     public void purgeExpired() {
-        for (Message message : messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(Instant.now())) {
+        // Bounded per call: an unbounded fetch would load every message that came
+        // due at once, and a channel with a short timer and a busy hour can make
+        // that a lot of rows in one transaction. The scheduler runs every 30s, so
+        // a backlog drains over the next few ticks.
+        for (Message message : messageRepository.findByExpiresAtLessThanEqualAndDeletedFalse(
+                Instant.now(), PageRequest.of(0, EXPIRY_SWEEP_BATCH))) {
             softDelete(message);
         }
     }
 
     /**
      * The one soft-delete path. Clears the content and attachment, queues the
-     * media for removal, drops reactions, un-indexes it and tells open clients.
+     * media for removal, drops reactions and edit history, scrubs the quotes
+     * that copied it, un-indexes it and tells open clients.
      *
      * <p>This used to be written out separately in {@code deleteMessage} and
      * {@code purgeExpired}, and the two had already diverged: the expiry sweep
      * omitted {@code searchService.deleteMessage}, so an expired message stayed
      * findable in search after its content was gone.
+     *
+     * <p>Clearing the row was never enough on its own, because the words lived
+     * in two other places. Every prior version sat in {@code message_edit_history},
+     * readable through the history endpoint by any member — so deleting an
+     * edited message left its original text on display, and a disappearing
+     * message that had been edited never really disappeared. And each reply that
+     * quoted it holds a denormalised snapshot of the text. Both go here.
      */
     private void softDelete(Message message) {
         mediaCleanup.enqueueDelete(message.getAttachmentUrl());
@@ -114,13 +133,47 @@ public class MessageModerationService {
         message.setAttachmentName(null);
         message.setAttachmentType(null);
         messageRepository.saveAndFlush(message);
+        messageEditHistoryRepository.deleteByMessage_Id(message.getId());
+        scrubQuotesOf(message.getId());
         searchService.deleteMessage(message.getId());
         messageReactionService.deleteAllForMessage(message.getId());
         broadcastService.broadcastUpdate(message);
     }
 
+    /**
+     * Replaces the copied text in every reply quoting this message, and tells
+     * open clients so the snapshot does not linger on screen either.
+     */
+    private void scrubQuotesOf(UUID messageId) {
+        for (Message quoting : messageRepository.findByQuotedMessageId(messageId)) {
+            if (MessagePreview.DELETED.equals(quoting.getQuotedContent())) {
+                continue;
+            }
+            quoting.setQuotedContent(MessagePreview.DELETED);
+            messageRepository.saveAndFlush(quoting);
+            broadcastService.broadcastUpdate(quoting);
+        }
+    }
+
+    /**
+     * Pins or unpins a message.
+     *
+     * <p>Pinning is a channel-wide act — it changes what everyone sees at the top
+     * of the channel — so it takes the same authority as deleting someone else's
+     * message: your own message, or a moderator's say-so. Any member could do it
+     * to any message, which the class doc already described as not being the
+     * case.
+     */
     private void setPinned(UUID channelId, UUID messageId, String username, boolean pinned) {
         Message message = requireMessageInChannel(channelId, messageId, username);
+        if (!message.getSender().getUsername().equals(username)) {
+            MembershipRole role = membershipRepository.findByChannelIdAndUser_Username(channelId, username)
+                    .map(ChannelMembership::getRole)
+                    .orElse(null);
+            if (role == null || !role.canModerate()) {
+                throw new ForbiddenException("you can only pin your own messages");
+            }
+        }
         if (message.isPinned() == pinned) {
             return;
         }

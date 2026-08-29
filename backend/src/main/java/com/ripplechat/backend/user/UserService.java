@@ -1,5 +1,11 @@
 package com.ripplechat.backend.user;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import com.ripplechat.backend.auth.AccountService;
+import com.ripplechat.backend.auth.RefreshTokenService;
+import com.ripplechat.backend.auth.TokenRevocationService;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.DuplicateResourceException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -25,8 +31,15 @@ public class UserService {
     // Avatar URLs must be ones we issued (Cloudinary), never arbitrary client input.
     private static final String AVATAR_URL_PREFIX = "https://res.cloudinary.com/";
 
+    /** A P-256 public JWK is a couple of hundred bytes; leave room and no more. */
+    private static final int MAX_PUBLIC_KEY_LENGTH = 2048;
+    private static final ObjectMapper PUBLIC_KEY_MAPPER = new ObjectMapper();
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
+    private final TokenRevocationService tokenRevocationService;
+    private final AccountService accountService;
 
     @Transactional(readOnly = true)
     public UserResponse findByUsername(String username) {
@@ -58,12 +71,18 @@ public class UserService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
+        boolean emailChanged = false;
         if (request.email() != null && !request.email().isBlank()
                 && !request.email().equalsIgnoreCase(user.getEmail())) {
             if (userRepository.existsByEmailAndIdNot(request.email(), user.getId())) {
                 throw new DuplicateResourceException("email already registered: " + request.email());
             }
             user.setEmail(request.email().trim());
+            // The verified flag belongs to the address that was confirmed, not to
+            // the account: carrying it over to a new address meant anyone could
+            // become "verified" at an address they had never proven they own.
+            user.setEmailVerified(false);
+            emailChanged = true;
         }
         if (request.displayName() != null && !request.displayName().isBlank()) {
             user.setDisplayName(request.displayName().trim());
@@ -81,7 +100,11 @@ public class UserService {
                 throw new BadRequestException("invalid avatar url");
             }
         }
-        return UserResponse.from(userRepository.saveAndFlush(user));
+        User saved = userRepository.saveAndFlush(user);
+        if (emailChanged) {
+            accountService.sendVerificationEmail(saved);
+        }
+        return UserResponse.from(saved);
     }
 
     /** Set or clear the user's custom status. Empty emoji and text clears it. */
@@ -115,13 +138,28 @@ public class UserService {
         return s == null || s.isBlank() ? null : s.trim();
     }
 
+    /**
+     * Changes (or, for an OAuth-only account, first sets) the local password.
+     *
+     * <p>Changing a password is a security event, so every session ends —
+     * including the caller's. Previously nothing was revoked at all: someone who
+     * had got hold of a session kept it after the victim changed their password,
+     * which is the one thing changing it is supposed to fix. The client signs
+     * back in with the new password.
+     *
+     * <p>An account created through Google has no local password, and
+     * {@code matches(x, null)} is always false, so it could never set one. A
+     * blank current password is accepted in exactly that case.
+     */
     @Transactional
     public void changePassword(String username, ChangePasswordRequest request) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
 
-        if (request.currentPassword() == null
-                || !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+        boolean settingFirstPassword = user.getPassword() == null;
+        if (!settingFirstPassword
+                && (request.currentPassword() == null
+                    || !passwordEncoder.matches(request.currentPassword(), user.getPassword()))) {
             throw new BadRequestException("current password is incorrect");
         }
         if (request.newPassword() == null || request.newPassword().length() < 8) {
@@ -129,13 +167,45 @@ public class UserService {
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
+
+        refreshTokenService.revokeAll(user);
+        tokenRevocationService.revokeBefore(username);
     }
 
+    /**
+     * Records the caller's E2EE identity public key (a JWK document).
+     *
+     * <p>The body went straight into the column unchecked, so anything at all
+     * could be stored there and then handed to every peer as an identity key.
+     * It is validated as a JWK of the curve the client actually uses, and
+     * bounded — a real P-256 JWK is a couple of hundred bytes.
+     */
     @Transactional
     public void registerPublicKey(String username, String publicKey) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
-        user.setPublicKey(publicKey);
+        user.setPublicKey(validPublicKey(publicKey));
         userRepository.save(user);
+    }
+
+    private static String validPublicKey(String publicKey) {
+        String key = publicKey == null ? "" : publicKey.trim();
+        if (key.isEmpty() || key.length() > MAX_PUBLIC_KEY_LENGTH) {
+            throw new BadRequestException("public key must be 1–" + MAX_PUBLIC_KEY_LENGTH + " characters");
+        }
+        try {
+            JsonNode jwk = PUBLIC_KEY_MAPPER.readTree(key);
+            // An EC public key on P-256: the shape x3dh.ts imports on the far side.
+            if (!jwk.isObject()
+                    || !"EC".equals(jwk.path("kty").asText(null))
+                    || !"P-256".equals(jwk.path("crv").asText(null))
+                    || jwk.path("x").asText(null) == null
+                    || jwk.path("y").asText(null) == null) {
+                throw new BadRequestException("public key must be a P-256 EC JWK");
+            }
+        } catch (JacksonException e) {
+            throw new BadRequestException("public key must be valid JSON");
+        }
+        return key;
     }
 }

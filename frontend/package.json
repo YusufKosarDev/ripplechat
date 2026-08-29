@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/vitest-report.json",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:integration": "playwright test --config playwright.integration.config.ts",
     "demo:gif": "playwright test demo-recording && node scripts/encode-gif.mjs"
   },
   "dependencies": {

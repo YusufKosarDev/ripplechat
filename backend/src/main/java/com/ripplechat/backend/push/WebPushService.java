@@ -85,12 +85,20 @@ public class WebPushService {
         return keys.publicKey() == null ? "" : keys.publicKey();
     }
 
+    /**
+     * Registers this browser for push, or moves an existing registration to the
+     * signed-in user.
+     *
+     * <p>An endpoint identifies a browser, not an account, and it is stable
+     * across sign-ins. Treating an existing one as "already done" meant that
+     * after someone signed out and a second person signed in on the same
+     * browser, the endpoint stayed attached to the first account — and the
+     * second person's device buzzed with the first person's messages.
+     */
     @Transactional
     public void subscribe(UUID userId, String endpoint, String p256dh, String auth) {
-        if (subscriptionRepository.existsByEndpoint(endpoint)) {
-            return;
-        }
-        PushSubscription sub = new PushSubscription();
+        PushSubscription sub = subscriptionRepository.findByEndpoint(endpoint)
+                .orElseGet(PushSubscription::new);
         sub.setUserId(userId);
         sub.setEndpoint(endpoint);
         sub.setP256dh(p256dh);
@@ -98,13 +106,23 @@ public class WebPushService {
         subscriptionRepository.save(sub);
     }
 
-    public void unsubscribe(String endpoint) {
-        subscriptionRepository.deleteByEndpoint(endpoint);
+    /** Removes this browser's registration — only the account that owns it may. */
+    @Transactional
+    public void unsubscribe(UUID userId, String endpoint) {
+        subscriptionRepository.findByEndpoint(endpoint)
+                .filter(sub -> sub.getUserId().equals(userId))
+                .ifPresent(subscriptionRepository::delete);
     }
 
-    /** Notifies offline members of a channel about a new message (best-effort, async). */
+    /**
+     * Notifies offline members of a channel about a new message (best-effort, async).
+     *
+     * <p>Read-write, not read-only: {@link #send} prunes subscriptions the push
+     * service reports as gone, and that delete would fail to flush on a
+     * read-only connection.
+     */
     @Async
-    @Transactional(readOnly = true)
+    @Transactional
     public void notifyChannelMessage(UUID channelId, UUID messageId, String senderUsername) {
         if (pushService == null) {
             return;
@@ -144,7 +162,34 @@ public class WebPushService {
         send(recipients, new PushPayload(title, body, "/chat", isEncrypted, channel.getId(), senderId));
     }
 
+    /**
+     * Delivers one notification and reports the push service's status code.
+     *
+     * <p>A seam, not an abstraction: it exists so the delivery *outcome* can be
+     * exercised. Push is inert without VAPID keys — {@link #pushService} stays
+     * null and {@link #notifyChannelMessage} returns immediately — so the
+     * subscription pruning below could not otherwise be reached by any test.
+     */
+    @FunctionalInterface
+    interface PushTransport {
+        int deliver(PushSubscription sub, byte[] payload) throws Exception;
+    }
+
+    /** Production delivery: the real web-push client over VAPID. */
+    private PushTransport realTransport() {
+        return (sub, payload) -> pushService
+                .send(new Notification(sub.getEndpoint(), sub.getP256dh(), sub.getAuth(), payload))
+                .getStatusLine()
+                .getStatusCode();
+    }
+
     private void send(Set<UUID> userIds, PushPayload payload) {
+        send(userIds, payload, realTransport());
+    }
+
+    /** Package-private so a test can supply the delivery outcome directly. */
+    @Transactional
+    void send(Set<UUID> userIds, PushPayload payload, PushTransport transport) {
         String json;
         try {
             json = objectMapper.writeValueAsString(payload);
@@ -153,8 +198,15 @@ public class WebPushService {
         }
         for (PushSubscription sub : subscriptionRepository.findByUserIdIn(userIds)) {
             try {
-                pushService.send(new Notification(sub.getEndpoint(), sub.getP256dh(), sub.getAuth(),
-                        json.getBytes(StandardCharsets.UTF_8)));
+                int status = transport.deliver(sub, json.getBytes(StandardCharsets.UTF_8));
+                if (status == 404 || status == 410) {
+                    // The push service says this endpoint is gone for good. Nothing
+                    // pruned them before, so dead registrations accumulated for
+                    // every browser that ever uninstalled the app or cleared data,
+                    // and every send walked the whole list.
+                    log.debug("Dropping expired push subscription (status {})", status);
+                    subscriptionRepository.delete(sub);
+                }
             } catch (Exception e) {
                 log.warn("Web push send failed for an endpoint: {}", e.getMessage());
             }

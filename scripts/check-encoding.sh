@@ -18,13 +18,18 @@ while IFS= read -r -d '' f; do
   [ "$attr" = "set" ] && continue
 
   if grep -aqP '\x00' -- "$f" 2>/dev/null; then
-    echo "::error file=${f}::NUL byte found in tracked text file (encoding corruption — expected UTF-8)"
+    echo "::error file=${f}::NUL byte found in text file (encoding corruption — expected UTF-8)"
     echo "ERROR: NUL byte in text file: $f"
     bad=1
   fi
-done < <(git ls-files -z)
+# Tracked files, plus new ones that are not gitignored. `git ls-files` alone
+# lists only what is already tracked, so a brand-new file's corruption was
+# invisible here and first surfaced in CI — after the push, which is the one
+# place this guard exists to get ahead of. In CI's fresh checkout `--others`
+# finds nothing extra, so the check there is unchanged.
+done < <(git ls-files -z --cached --others --exclude-standard)
 
 if [ "$bad" -eq 0 ]; then
-  echo "OK: no NUL bytes in tracked text files."
+  echo "OK: no NUL bytes in text files."
 fi
 exit "$bad"

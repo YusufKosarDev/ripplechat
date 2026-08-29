@@ -42,10 +42,18 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
             return;
         }
 
-        addCookie(response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME, serialize(authorizationRequest), cookieExpireSeconds);
+        boolean secure = request.isSecure();
+        addCookie(response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME,
+                serialize(authorizationRequest), cookieExpireSeconds, secure);
         String redirectUriAfterLogin = request.getParameter(REDIRECT_URI_PARAM_COOKIE_NAME);
         if (redirectUriAfterLogin != null && !redirectUriAfterLogin.isBlank()) {
-            addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, cookieExpireSeconds);
+            addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, cookieExpireSeconds, secure);
+        } else {
+            // This flow asked for no particular redirect, so it must not inherit
+            // one from a flow that did. Harmless while nothing read the cookie;
+            // now that the success handler does, a stale value would quietly
+            // send this sign-in somewhere the caller never asked for.
+            removeCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
         }
     }
 
@@ -53,14 +61,50 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request, HttpServletResponse response) {
         OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
         removeCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
-        // We do not remove the redirect uri cookie here because we need it in the success handler
+        // The redirect-uri cookie deliberately survives this: it is read by the
+        // success handler, which runs after Spring has removed the request above,
+        // and cleared there.
         return authorizationRequest;
     }
 
-    private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
+    /**
+     * The redirect the client asked for when it started the flow.
+     *
+     * <p>It has to travel in a cookie: the provider's callback is a fresh request
+     * that carries only {@code code} and {@code state}, so the parameter the
+     * client sent to {@code /oauth2/authorization/...} is long gone by then. It
+     * was being saved and never read, which meant a client's requested redirect
+     * was silently ignored and everyone landed on the configured default —
+     * fine for a single-origin deployment, wrong for any other, and invisible
+     * either way. The caller still validates it against the allow-list.
+     */
+    public static Optional<String> savedRedirectUri(HttpServletRequest request) {
+        return getCookie(request, REDIRECT_URI_PARAM_COOKIE_NAME)
+                .map(Cookie::getValue)
+                .filter(value -> !value.isBlank());
+    }
+
+    /** Clears the redirect-uri cookie once the flow it belongs to is finished. */
+    public void removeRedirectUriCookie(HttpServletRequest request, HttpServletResponse response) {
+        removeCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
+    }
+
+    /**
+     * These cookies carry the in-flight authorization request, including the
+     * state value that binds the provider's callback to the browser that started
+     * it.
+     *
+     * <p>{@code Secure} over HTTPS keeps them off a plaintext connection;
+     * {@code SameSite=Lax} is the tightest setting that still works, because the
+     * callback arrives as a top-level GET redirect from the provider. Neither
+     * was set, so they travelled on any scheme and on any cross-site request.
+     */
+    private void addCookie(HttpServletResponse response, String name, String value, int maxAge, boolean secure) {
         Cookie cookie = new Cookie(name, value);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
+        cookie.setSecure(secure);
+        cookie.setAttribute("SameSite", "Lax");
         cookie.setMaxAge(maxAge);
         response.addCookie(cookie);
     }
@@ -79,7 +123,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
         }
     }
 
-    private Optional<Cookie> getCookie(HttpServletRequest request, String name) {
+    private static Optional<Cookie> getCookie(HttpServletRequest request, String name) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {

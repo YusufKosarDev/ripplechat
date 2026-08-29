@@ -4,20 +4,11 @@ import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import remarkMentions from './remarkMentions'
+import { isSafeUrl } from './safeUrl'
 
 // Lazy-loaded so the heavy syntax highlighter is fetched only when a message
 // actually contains a code block (keeps the initial bundle small).
 const CodeBlock = lazy(() => import('./CodeBlock'))
-
-function isSafeUrl(url: string | undefined): boolean {
-  if (!url) return false
-  const lower = url.trim().toLowerCase()
-  // Prevent DOM-based XSS via javascript:, data:, or vbscript: URIs
-  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
-    return false
-  }
-  return true
-}
 
 // No rehype-raw: raw HTML in messages is NOT rendered (escaped), so user content
 // cannot inject markup/scripts — safe by default.

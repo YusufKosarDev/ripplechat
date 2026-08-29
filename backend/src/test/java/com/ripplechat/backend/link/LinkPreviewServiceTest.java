@@ -28,6 +28,23 @@ class LinkPreviewServiceTest {
     }
 
     @Test
+    void rejectsRangesInetAddressHasNoPredicateFor() {
+        // Carrier-grade NAT. Not site-local, so none of the JDK predicates catch
+        // it — and on a cloud host it reaches the provider's own infrastructure.
+        assertThat(service.isAllowed(URI.create("http://100.64.0.1/"))).isFalse();
+        assertThat(service.isAllowed(URI.create("http://100.127.255.254/"))).isFalse();
+        // Either side of 100.64.0.0/10 is ordinary public space.
+        assertThat(service.isAllowed(URI.create("http://100.63.255.255/"))).isTrue();
+        assertThat(service.isAllowed(URI.create("http://100.128.0.1/"))).isTrue();
+
+        // 0.0.0.0/8 beyond the wildcard itself, which some stacks route to
+        // localhost; and the reserved 240.0.0.0/4 up to the broadcast address.
+        assertThat(service.isAllowed(URI.create("http://0.1.2.3/"))).isFalse();
+        assertThat(service.isAllowed(URI.create("http://240.0.0.1/"))).isFalse();
+        assertThat(service.isAllowed(URI.create("http://255.255.255.255/"))).isFalse();
+    }
+    @Test
+
     void rejectsBlankInput() {
         assertThat(service.preview("")).isNull();
         assertThat(service.preview(null)).isNull();

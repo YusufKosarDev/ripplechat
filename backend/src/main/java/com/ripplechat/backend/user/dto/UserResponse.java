@@ -23,7 +23,14 @@ public record UserResponse(
         Instant statusExpiresAt,
         Instant dndUntil,
         boolean emailVerified,
-        boolean admin
+        boolean admin,
+        /**
+         * Whether the account has a local password. False for a Google-only
+         * sign-in, which the client needs to know: those accounts are exempt
+         * from password re-confirmation (there is nothing to confirm) and are
+         * setting a first password rather than changing one.
+         */
+        boolean hasPassword
 ) {
     public static UserResponse from(User user) {
         boolean status = user.isStatusActive();
@@ -42,7 +49,8 @@ public record UserResponse(
                 status ? user.getStatusExpiresAt() : null,
                 user.isDndActive() ? user.getDndUntil() : null,
                 user.isEmailVerified(),
-                user.isAdmin()
+                user.isAdmin(),
+                user.getPassword() != null
         );
     }
 }

@@ -1,5 +1,7 @@
 package com.ripplechat.backend.e2ee;
 
+import com.ripplechat.backend.common.exception.BadRequestException;
+import com.ripplechat.backend.redis.RateLimiter;
 import com.ripplechat.backend.user.User;
 import com.ripplechat.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +18,22 @@ import java.util.UUID;
 @Slf4j
 public class PreKeyService {
 
+    /**
+     * One-time pre-keys are consumed by whoever asks for a bundle, so fetching
+     * is an act of consumption: ~30 burst, then ~1/s per caller. Without this a
+     * single user could drain everyone else's supply in a loop and force every
+     * new conversation with them down to the weaker, no-OTPK path.
+     */
+    private static final double BUNDLE_BURST = 30;
+    private static final double BUNDLE_REFILL_PER_SEC = 1;
+
+    /** Clients upload 20 at a time; cap the batch so the table cannot be flooded. */
+    private static final int MAX_ONE_TIME_PRE_KEYS = 100;
+
     private final SignedPreKeyRepository signedPreKeyRepository;
     private final OneTimePreKeyRepository oneTimePreKeyRepository;
     private final UserRepository userRepository;
+    private final RateLimiter rateLimiter;
 
     /**
      * Stores (or replaces) a user's signed pre-key and appends one-time pre-keys.
@@ -27,6 +42,9 @@ public class PreKeyService {
     public void uploadPreKeys(String username, PreKeyUploadRequest request) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (request.getOneTimePreKeys() != null && request.getOneTimePreKeys().size() > MAX_ONE_TIME_PRE_KEYS) {
+            throw new BadRequestException("at most " + MAX_ONE_TIME_PRE_KEYS + " one-time pre-keys per upload");
+        }
 
         // Replace signed pre-key
         signedPreKeyRepository.deleteAllByUserId(user.getId());
@@ -56,9 +74,16 @@ public class PreKeyService {
     /**
      * Returns a pre-key bundle for the given user ID. If a one-time pre-key is
      * available, it is consumed (deleted) atomically — this is the Signal model.
+     *
+     * <p>Throttled per caller, because "consumed" makes an unauthenticated-shaped
+     * read into a write on someone else's key supply.
      */
     @Transactional
-    public PreKeyBundleResponse getPreKeyBundle(UUID userId) {
+    public PreKeyBundleResponse getPreKeyBundle(String callerUsername, UUID userId) {
+        if (!rateLimiter.tryAcquire("prekey:" + callerUsername, BUNDLE_BURST, BUNDLE_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "too many pre-key requests, please wait a moment and try again");
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 

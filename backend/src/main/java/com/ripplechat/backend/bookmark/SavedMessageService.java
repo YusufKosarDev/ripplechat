@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +58,15 @@ public class SavedMessageService {
         repository.deleteByMessageIdAndUserId(messageId, resolve(username).getId());
     }
 
+    /**
+     * The caller's bookmarks.
+     *
+     * <p>Membership is re-checked per channel, not just at the moment of saving:
+     * otherwise leaving a channel — or being removed from one — left its
+     * messages readable here indefinitely, which is a way around the very check
+     * {@link #save} performs. Channels are looked up once each, so a long list
+     * of bookmarks in a handful of channels costs a handful of queries.
+     */
     @Transactional(readOnly = true)
     public List<SavedMessageResponse> list(String username) {
         UUID userId = resolve(username).getId();
@@ -68,10 +78,13 @@ public class SavedMessageService {
                 .collect(Collectors.toMap(SavedMessage::getMessageId, SavedMessage::getSavedAt, (a, b) -> a));
         Map<UUID, Message> byId = messageRepository.findForSearchByIds(savedAt.keySet()).stream()
                 .collect(Collectors.toMap(Message::getId, Function.identity()));
+        Map<UUID, Boolean> stillAMember = new HashMap<>();
         return saved.stream()
                 .map(s -> byId.get(s.getMessageId()))
                 .filter(Objects::nonNull)
                 .filter(m -> !m.isDeleted())
+                .filter(m -> stillAMember.computeIfAbsent(m.getChannel().getId(),
+                        channelId -> membershipService.isMember(channelId, username)))
                 .map(m -> SavedMessageResponse.from(m, savedAt.get(m.getId())))
                 .toList();
     }

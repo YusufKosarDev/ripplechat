@@ -131,6 +131,64 @@ describe('double ratchet', () => {
     expect(fromBase64(toBase64(bytes))).toEqual(bytes)
     expect(toBase64(new Uint8Array(0))).toBe('')
   })
+
+  it('caps the skipped-key store instead of letting it grow with the session', async () => {
+    // MAX_SKIP bounds a single gap. Nothing bounded the store itself, which is
+    // kept for the life of the session and written back to IndexedDB after
+    // every message — so a peer sending a near-maximum gap each time added
+    // hundreds of keys per message until the storage quota stopped it.
+    const { alice, bob } = await makeSessionPair()
+
+    for (let round = 0; round < 8; round++) {
+      // Alice sends a burst; only the last one is delivered, so Bob has to
+      // skip over the rest and keep their keys.
+      let last = await ratchetEncrypt(alice, `round ${round} msg 0`)
+      for (let i = 1; i < 200; i++) {
+        last = await ratchetEncrypt(alice, `round ${round} msg ${i}`)
+      }
+      expect(await ratchetDecrypt(bob, last.header, last.ciphertext))
+        .toBe(`round ${round} msg 199`)
+    }
+
+    // 8 rounds × 199 skipped would be 1592 without the ceiling.
+    expect(bob.skippedKeys.size).toBeLessThanOrEqual(1024)
+  })
+
+  it('binds the header into the tag, so a rewritten one is rejected', async () => {
+    // The header travels in the clear and was authenticated by nothing at all.
+    // Anyone able to modify a message in flight could rewrite which ratchet key
+    // and which chain position it claimed; the message would then fail to
+    // decrypt, but only after the receiver had already ratcheted against the
+    // attacker's key.
+    const { alice, bob } = await makeSessionPair()
+    const m = await ratchetEncrypt(alice, 'do not tamper')
+
+    const rewritten = { ...m.header, messageNumber: m.header.messageNumber + 3 }
+    await expect(ratchetDecrypt(bob, rewritten, m.ciphertext)).rejects.toThrow()
+  })
+
+  it('rejects a header pointing at a different ratchet key', async () => {
+    const { alice, bob } = await makeSessionPair()
+    const m = await ratchetEncrypt(alice, 'still do not tamper')
+    const other = await generateDHKeyPair()
+
+    const rewritten = {
+      ...m.header,
+      ratchetPublicKey: await crypto.subtle.exportKey('jwk', other.publicKey),
+    }
+    await expect(ratchetDecrypt(bob, rewritten, m.ciphertext)).rejects.toThrow()
+  })
+
+  it('marks the payload so a message written before the binding still reads', async () => {
+    // Stored ciphertext cannot be rewritten, so the format has to say which one
+    // it is rather than rely on a version agreed elsewhere. Three parts means
+    // the header is bound; the two-part form predates it and is decrypted
+    // without associated data.
+    const { alice } = await makeSessionPair()
+    const m = await ratchetEncrypt(alice, 'hello')
+
+    expect(m.ciphertext.split('.')).toHaveLength(3)
+  })
 })
 
 // ─── X3DH key agreement ─────────────────────────────────────────────
@@ -228,3 +286,4 @@ describe('x3dh', () => {
     await expect(x3dhSender(aliceIdentity, bundle)).rejects.toThrow(/signature verification failed/i)
   })
 })
+

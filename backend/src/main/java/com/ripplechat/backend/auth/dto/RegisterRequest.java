@@ -2,12 +2,23 @@ package com.ripplechat.backend.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
 
+        /**
+         * Letters, digits, underscore and dot — the same alphabet the @mention
+         * parser recognises, so every username is actually mentionable.
+         *
+         * <p>It was previously anything non-blank up to 30 characters, which
+         * allowed a username that looks like an email address. Sign-in accepts
+         * either, so registering one that matched someone else's address made
+         * their email sign-in ambiguous.
+         */
         @NotBlank(message = "username is required")
-        @Size(max = 30, message = "username must be at most 30 characters")
+        @Pattern(regexp = "^[A-Za-z0-9_.]{3,30}$",
+                message = "username must be 3-30 characters, using letters, digits, _ or .")
         String username,
 
         @NotBlank(message = "email is required")

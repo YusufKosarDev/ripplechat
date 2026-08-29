@@ -43,6 +43,17 @@ export const fetchMembers = createAsyncThunk('channels/members', async (channelI
   return { channelId, members: data }
 })
 
+// Adds someone to a channel (owner/moderator). This is how a private channel
+// gains members — joining is self-service and public-only.
+export const addMember = createAsyncThunk(
+  'channels/addMember',
+  async ({ channelId, userId }: { channelId: string; userId: string }) => {
+    await client.post(`/api/channels/${channelId}/members`, { userId })
+    const { data } = await client.get<MemberResponse[]>(`/api/channels/${channelId}/members`)
+    return { channelId, members: data }
+  },
+)
+
 export const kickMember = createAsyncThunk(
   'channels/kick',
   async ({ channelId, userId }: { channelId: string; userId: string }) => {
@@ -156,6 +167,7 @@ const channelsSlice = createSlice({
         state.selectedId = action.payload.id
       })
       .addCase(fetchMembers.fulfilled, applyMembers)
+      .addCase(addMember.fulfilled, applyMembers)
       .addCase(kickMember.fulfilled, applyMembers)
       .addCase(setMemberRole.fulfilled, applyMembers)
       .addCase(updateChannel.fulfilled, (state, action) => {

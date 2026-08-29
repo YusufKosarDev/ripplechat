@@ -261,15 +261,30 @@ public class MessageService {
 
         Message message = new Message();
         message.setContent(source.getContent() == null ? "" : source.getContent());
+        // Carry the attachment's name and kind across too. Copying only the URL
+        // left the forwarded copy with a null type, which the media gallery reads
+        // as an image and the download card renders without a filename — a
+        // forwarded PDF or voice note arrived broken.
         message.setAttachmentUrl(source.getAttachmentUrl());
+        message.setAttachmentName(source.getAttachmentName());
+        message.setAttachmentType(source.getAttachmentType());
         message.setForwarded(true);
         message.setChannel(target);
         message.setSender(sender);
+        // A forward is a new message in the target channel, so the target's
+        // disappearing-message timer applies to it. Without this, forwarding into
+        // a channel with a timer was a way to make a message permanent there.
+        Integer ttl = target.getMessageTtlSeconds();
+        if (ttl != null && ttl > 0) {
+            message.setExpiresAt(Instant.now().plusSeconds(ttl));
+        }
         Message saved = messageRepository.saveAndFlush(message);
         searchService.indexMessage(saved);
 
         MessageResponse response = MessageResponse.from(saved);
         redisBroadcastService.broadcast("/topic/channels/" + targetChannelId, response);
+        // Same as a normal send: offline members of the target channel get a push.
+        eventPublisher.publishEvent(new MessageSentEvent(targetChannelId, saved.getId(), username));
         return response;
     }
 

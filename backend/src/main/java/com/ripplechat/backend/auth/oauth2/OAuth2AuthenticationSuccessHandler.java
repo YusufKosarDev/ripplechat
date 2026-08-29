@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
@@ -26,6 +25,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
+    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     private final String redirectUri;
     private final String allowedOrigins;
@@ -34,11 +34,13 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
             UserRepository userRepository,
+            HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository,
             @Value("${APP_OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/redirect}") String redirectUri,
             @Value("${app.allowed-origins:}") String allowedOrigins) {
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
+        this.authorizationRequestRepository = authorizationRequestRepository;
         this.redirectUri = redirectUri;
         this.allowedOrigins = allowedOrigins;
     }
@@ -56,10 +58,14 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     }
 
     protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        Optional<String> redirectUriParam = Optional.ofNullable(request.getParameter("redirect_uri"));
-        String targetUrl = redirectUriParam
+        // The client says where it wants to come back to when it starts the flow;
+        // that request is long over by the time the provider calls back, so the
+        // value travels in a cookie. Validated against the allow-list all the
+        // same — a cookie is no more trustworthy than a parameter.
+        String targetUrl = HttpCookieOAuth2AuthorizationRequestRepository.savedRedirectUri(request)
                 .filter(this::isAuthorizedRedirectUri)
                 .orElse(redirectUri);
+        authorizationRequestRepository.removeRedirectUriCookie(request, response);
 
         String username = authentication.getName();
         User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
@@ -75,11 +81,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         String accessToken = jwtService.generateToken(username);
 
+        // As resolved by the container: the prod profile puts Tomcat's
+        // RemoteIpValve in front, which reads X-Forwarded-For correctly. Parsing
+        // it here took the first entry, which is the forgeable one.
         String ipAddress = request.getRemoteAddr();
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            ipAddress = xForwardedFor.split(",")[0].trim();
-        }
         String userAgent = request.getHeader("User-Agent");
         String rawRefreshToken = refreshTokenService.issue(user, ipAddress, userAgent);
 

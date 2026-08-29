@@ -2,6 +2,7 @@ package com.ripplechat.backend.message;
 
 import com.ripplechat.backend.common.dto.PageResponse;
 import com.ripplechat.backend.message.dto.CreateMessageRequest;
+import com.ripplechat.backend.message.dto.EditMessageRequest;
 import com.ripplechat.backend.message.dto.ForwardRequest;
 import com.ripplechat.backend.message.dto.MediaItem;
 import com.ripplechat.backend.message.dto.MessageEditHistoryEntry;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -91,6 +93,32 @@ public class MessageController {
     public void hide(@PathVariable UUID channelId, @PathVariable UUID messageId,
                      @AuthenticationPrincipal String username) {
         moderationService.hideForMe(channelId, messageId, username);
+    }
+
+    /**
+     * Edits a message over HTTP.
+     *
+     * <p>Editing and deleting were WebSocket-only, so with the socket down the
+     * composer worked (the offline queue replays sends) but a typo could not be
+     * corrected and a message sent by mistake could not be taken back — the two
+     * cases where waiting is worst. Same service, same rules; the STOMP mappings
+     * stay for the live path.
+     */
+    @PutMapping("/{messageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void edit(@PathVariable UUID channelId,
+                     @PathVariable UUID messageId,
+                     @Valid @RequestBody EditMessageRequest request,
+                     @AuthenticationPrincipal String username) {
+        messageService.editMessage(channelId, messageId, username, request.content());
+    }
+
+    @DeleteMapping("/{messageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID channelId,
+                       @PathVariable UUID messageId,
+                       @AuthenticationPrincipal String username) {
+        moderationService.deleteMessage(channelId, messageId, username);
     }
 
     @GetMapping

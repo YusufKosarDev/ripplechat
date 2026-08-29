@@ -1,6 +1,7 @@
 package com.ripplechat.backend.auth;
 
 import com.ripplechat.backend.auth.dto.CodeRequest;
+import com.ripplechat.backend.auth.dto.PasswordConfirmRequest;
 import com.ripplechat.backend.auth.dto.RecoveryCodesResponse;
 import com.ripplechat.backend.common.exception.BadRequestException;
 import com.ripplechat.backend.common.exception.ResourceNotFoundException;
@@ -9,6 +10,7 @@ import com.ripplechat.backend.user.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,11 +34,15 @@ public class TwoFactorController {
     private final RecoveryCodeService recoveryCodeService;
     private final UserRepository userRepository;
     private final RateLimiter rateLimiter;
+    private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/setup")
-    public Map<String, String> setup2Fa(@AuthenticationPrincipal String username) {
+    public Map<String, String> setup2Fa(@AuthenticationPrincipal String username,
+                                        @RequestBody(required = false) PasswordConfirmRequest request) {
+        throttle(username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        requirePassword(user, request == null ? null : request.password());
 
         if (user.isTwoFactorEnabled()) {
             throw new BadRequestException("2FA is already enabled");
@@ -52,11 +58,10 @@ public class TwoFactorController {
 
     @PostMapping("/enable")
     public RecoveryCodesResponse enable2Fa(@AuthenticationPrincipal String username, @Valid @RequestBody CodeRequest request) {
-        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many 2FA attempts, please wait a moment and try again");
-        }
+        throttle(username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        requirePassword(user, request.password());
 
         if (user.isTwoFactorEnabled()) {
             throw new BadRequestException("2FA is already enabled");
@@ -79,11 +84,10 @@ public class TwoFactorController {
 
     @PostMapping("/disable")
     public Map<String, Boolean> disable2Fa(@AuthenticationPrincipal String username, @Valid @RequestBody CodeRequest request) {
-        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many 2FA attempts, please wait a moment and try again");
-        }
+        throttle(username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        requirePassword(user, request.password());
 
         if (!user.isTwoFactorEnabled()) {
             throw new BadRequestException("2FA is not enabled");
@@ -112,11 +116,10 @@ public class TwoFactorController {
     @PostMapping("/recovery-codes/regenerate")
     public RecoveryCodesResponse regenerateRecoveryCodes(@AuthenticationPrincipal String username,
                                                          @Valid @RequestBody CodeRequest request) {
-        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "too many 2FA attempts, please wait a moment and try again");
-        }
+        throttle(username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        requirePassword(user, request.password());
 
         if (!user.isTwoFactorEnabled()) {
             throw new BadRequestException("2FA is not enabled");
@@ -125,5 +128,31 @@ public class TwoFactorController {
             throw new BadRequestException("Invalid 2FA code");
         }
         return new RecoveryCodesResponse(recoveryCodeService.generate(user));
+    }
+
+    /**
+     * Re-confirms the account password before a change to two-factor auth.
+     *
+     * <p>Without this, an access token was the only thing needed to disable 2FA —
+     * so anyone who had stolen a session could strip the second factor off the
+     * account, which defeats the point of having it. An account created through
+     * Google has no local password, and for those the session is the only
+     * credential in existence, so the check does not apply.
+     */
+    private void requirePassword(User user, String password) {
+        if (user.getPassword() == null) {
+            return;
+        }
+        if (password == null || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadRequestException("password is incorrect");
+        }
+    }
+
+    /** Shared throttle for every 2FA management action. */
+    private void throttle(String username) {
+        if (!rateLimiter.tryAcquire("2fa-manage:" + username, TWO_FACTOR_BURST, TWO_FACTOR_REFILL_PER_SEC)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "too many 2FA attempts, please wait a moment and try again");
+        }
     }
 }

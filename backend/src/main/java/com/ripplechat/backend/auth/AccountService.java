@@ -42,6 +42,7 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final RefreshTokenService refreshTokenService;
+    private final TokenRevocationService tokenRevocationService;
     private final RateLimiter rateLimiter;
     private final SecurityAuditLogger audit;
 
@@ -54,6 +55,7 @@ public class AccountService {
                           PasswordEncoder passwordEncoder,
                           MailService mailService,
                           RefreshTokenService refreshTokenService,
+                          TokenRevocationService tokenRevocationService,
                           RateLimiter rateLimiter,
                           SecurityAuditLogger audit,
                           @Value("${app.frontend-base-url:http://localhost:5173}") String frontendBaseUrl) {
@@ -62,6 +64,7 @@ public class AccountService {
         this.passwordEncoder = passwordEncoder;
         this.mailService = mailService;
         this.refreshTokenService = refreshTokenService;
+        this.tokenRevocationService = tokenRevocationService;
         this.rateLimiter = rateLimiter;
         this.audit = audit;
         this.frontendBaseUrl = frontendBaseUrl;
@@ -135,8 +138,11 @@ public class AccountService {
         User user = token.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
         // A reset is a security event: drop every existing refresh token so any
-        // session opened before the reset (incl. an attacker's) is invalidated.
+        // session opened before the reset (incl. an attacker's) is invalidated,
+        // and void the access tokens already issued so the window is not an hour
+        // wide.
         refreshTokenService.revokeAll(user);
+        tokenRevocationService.revokeBefore(user.getUsername());
         audit.passwordReset(user.getUsername());
     }
 

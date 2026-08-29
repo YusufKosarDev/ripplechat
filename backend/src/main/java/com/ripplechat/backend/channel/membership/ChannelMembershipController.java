@@ -1,7 +1,9 @@
 package com.ripplechat.backend.channel.membership;
 
+import com.ripplechat.backend.channel.membership.dto.AddMemberRequest;
 import com.ripplechat.backend.channel.membership.dto.MemberResponse;
 import com.ripplechat.backend.channel.membership.dto.SetRoleRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,8 +41,18 @@ public class ChannelMembershipController {
     }
 
     @GetMapping("/members")
-    public List<MemberResponse> members(@PathVariable UUID channelId) {
-        return membershipService.listMembers(channelId);
+    public List<MemberResponse> members(@PathVariable UUID channelId,
+                                        @AuthenticationPrincipal String username) {
+        return membershipService.listMembers(channelId, username);
+    }
+
+    /** Adds a user to the channel (owner/moderator only) — how private channels grow. */
+    @PostMapping("/members")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MemberResponse addMember(@PathVariable UUID channelId,
+                                    @Valid @RequestBody AddMemberRequest request,
+                                    @AuthenticationPrincipal String username) {
+        return membershipService.addMember(channelId, username, request.userId());
     }
 
     @DeleteMapping("/members/{userId}")

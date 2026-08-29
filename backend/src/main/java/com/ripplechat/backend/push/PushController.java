@@ -41,9 +41,13 @@ public class PushController {
         webPushService.subscribe(user.getId(), request.endpoint(), request.p256dh(), request.auth());
     }
 
+    /** Unregisters this browser. Only the account that registered it may. */
     @DeleteMapping("/subscribe")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unsubscribe(@RequestParam("endpoint") String endpoint) {
-        webPushService.unsubscribe(endpoint);
+    public void unsubscribe(@RequestParam("endpoint") String endpoint,
+                            @AuthenticationPrincipal String username) {
+        var user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("user not found: " + username));
+        webPushService.unsubscribe(user.getId(), endpoint);
     }
 }

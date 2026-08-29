@@ -5,7 +5,7 @@ import { client } from '../api/client'
 import type { ActiveSession } from '../api/types'
 import { disablePush, enablePush, isPushSubscribed, pushSupported } from '../push'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { changePassword, fetchCurrentUser, logout, updateMe } from '../features/auth/authSlice'
+import { changePassword, fetchCurrentUser, login, logout, updateMe } from '../features/auth/authSlice'
 import { AVATAR_COLORS } from './Avatar'
 import Avatar from './Avatar'
 import StatusSettings from './StatusSettings'
@@ -44,6 +44,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const [qrCodeUri, setQrCodeUri] = useState<string | null>(null)
   const [twoFaCode, setTwoFaCode] = useState('')
+  // The backend re-confirms the account password before any 2FA change, so a
+  // stolen session cannot strip the second factor. OAuth-only accounts have no
+  // local password and are exempt, so the field is hidden for them.
+  const [twoFaPassword, setTwoFaPassword] = useState('')
   const [twoFaMsg, setTwoFaMsg] = useState<string | null>(null)
   const [twoFaError, setTwoFaError] = useState(false)
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
@@ -96,6 +100,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   if (!user) return null
 
+  // A Google-only account has no local password to re-confirm.
+  const needs2FaPassword = user.hasPassword !== false
+
   const onSaveProfile = async () => {
     setProfileMsg(null)
     const result = await dispatch(
@@ -131,14 +138,26 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       return
     }
     const result = await dispatch(changePassword({ currentPassword, newPassword }))
-    if (changePassword.fulfilled.match(result)) {
-      setPwMsg(t('settings.pwChanged'))
-      setCurrentPassword('')
-      setNewPassword('')
-    } else {
+    if (!changePassword.fulfilled.match(result)) {
       setPwError(true)
       setPwMsg((result.payload as string) ?? t('settings.pwChangeFailed'))
+      return
     }
+
+    // Changing the password now ends every session, including this one — that is
+    // the point, since a session an attacker had held on to must not survive.
+    // Re-authenticate straight away with the new password so this tab keeps
+    // working; if the account has 2FA the second factor has to be entered, so
+    // send the user to the login page instead.
+    const relogin = await dispatch(login({ login: user.username, password: newPassword }))
+    setCurrentPassword('')
+    setNewPassword('')
+    if (login.fulfilled.match(relogin) && !relogin.payload.requires2Fa) {
+      setPwMsg(t('settings.pwChanged'))
+      return
+    }
+    dispatch(logout())
+    navigate('/login')
   }
 
   const onLogout = () => {
@@ -160,7 +179,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const onSetup2Fa = async () => {
     try {
-      const { data } = await client.post<{ qrCodeUri: string }>('/api/2fa/setup')
+      const { data } = await client.post<{ qrCodeUri: string }>('/api/2fa/setup', { password: twoFaPassword })
       setQrCodeUri(data.qrCodeUri)
       setTwoFaMsg(t('settings.twoFaScanQr'))
       setTwoFaError(false)
@@ -173,10 +192,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const onEnable2Fa = async () => {
     try {
-      const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/enable', { code: twoFaCode })
+      const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/enable', { code: twoFaCode, password: twoFaPassword })
       dispatch(fetchCurrentUser())
       setQrCodeUri(null)
       setTwoFaCode('')
+      setTwoFaPassword('')
       setRecoveryCodes(data.recoveryCodes)
       setTwoFaMsg(t('settings.twoFaEnabled'))
       setTwoFaError(false)
@@ -189,8 +209,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const onRegenerateRecoveryCodes = async () => {
     try {
-      const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/recovery-codes/regenerate', { code: twoFaCode })
+      const { data } = await client.post<{ recoveryCodes: string[] }>('/api/2fa/recovery-codes/regenerate', { code: twoFaCode, password: twoFaPassword })
       setTwoFaCode('')
+      setTwoFaPassword('')
       setRecoveryCodes(data.recoveryCodes)
       setTwoFaMsg(t('settings.recoveryRegenerated'))
       setTwoFaError(false)
@@ -229,9 +250,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const onDisable2Fa = async () => {
     try {
-      await client.post('/api/2fa/disable', { code: twoFaCode })
+      await client.post('/api/2fa/disable', { code: twoFaCode, password: twoFaPassword })
       dispatch(fetchCurrentUser())
       setTwoFaCode('')
+      setTwoFaPassword('')
       setTwoFaMsg(t('settings.twoFaDisabled'))
       setTwoFaError(false)
     } catch (e: unknown) {
@@ -341,15 +363,21 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         {/* Password */}
         <div className="mt-6 border-t border-border pt-4">
-          <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('settings.changePw')}</h4>
-          <Input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder={t('settings.currentPw')}
-            autoComplete="current-password"
-            className="mb-2"
-          />
+          <h4 className="mb-2 text-sm font-medium text-fg-secondary">
+            {needs2FaPassword ? t('settings.changePw') : t('settings.setPw')}
+          </h4>
+          {/* A Google-only account is setting its first password; there is no
+              current one to confirm. */}
+          {needs2FaPassword && (
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder={t('settings.currentPw')}
+              autoComplete="current-password"
+              className="mb-2"
+            />
+          )}
           <Input
             type="password"
             value={newPassword}
@@ -371,10 +399,23 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         {/* 2FA */}
         <div className="mt-6 border-t border-border pt-4">
           <h4 className="mb-2 text-sm font-medium text-fg-secondary">{t('settings.twoFaTitle')}</h4>
+          {needs2FaPassword && (
+            <Input
+              type="password"
+              autoComplete="current-password"
+              className="mb-3"
+              placeholder={t('settings.twoFaPasswordPlaceholder')}
+              aria-label={t('settings.twoFaPasswordPlaceholder')}
+              value={twoFaPassword}
+              onChange={(e) => setTwoFaPassword(e.target.value)}
+            />
+          )}
           {!user.isTwoFactorEnabled ? (
             <div>
               {!qrCodeUri ? (
-                <Button onClick={onSetup2Fa} variant="secondary">{t('settings.twoFaStart')}</Button>
+                <Button onClick={onSetup2Fa} variant="secondary" disabled={needs2FaPassword && !twoFaPassword}>
+                  {t('settings.twoFaStart')}
+                </Button>
               ) : (
                 <div className="space-y-3">
                   <div className="flex justify-center rounded-xl bg-white p-4">
@@ -388,7 +429,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                     onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
                     maxLength={6}
                   />
-                  <Button onClick={onEnable2Fa} disabled={twoFaCode.length !== 6}>
+                  <Button onClick={onEnable2Fa} disabled={twoFaCode.length !== 6 || (needs2FaPassword && !twoFaPassword)}>
                     {t('settings.twoFaConfirm')}
                   </Button>
                 </div>
@@ -406,10 +447,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 maxLength={6}
               />
               <div className="flex gap-2">
-                <Button onClick={onDisable2Fa} variant="danger" disabled={twoFaCode.length !== 6}>
+                <Button onClick={onDisable2Fa} variant="danger" disabled={twoFaCode.length !== 6 || (needs2FaPassword && !twoFaPassword)}>
                   {t('settings.off')}
                 </Button>
-                <Button onClick={onRegenerateRecoveryCodes} variant="secondary" disabled={twoFaCode.length !== 6}>
+                <Button onClick={onRegenerateRecoveryCodes} variant="secondary" disabled={twoFaCode.length !== 6 || (needs2FaPassword && !twoFaPassword)}>
                   {t('settings.regenRecovery')}
                 </Button>
               </div>

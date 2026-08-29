@@ -30,6 +30,12 @@ public class ScheduledMessageService {
 
     private static final int MAX_MESSAGE_LENGTH = 4000;
 
+    /** Deliveries to try before a scheduled message is abandoned. */
+    private static final int MAX_DELIVERY_ATTEMPTS = 5;
+
+    /** Pending messages one user may have queued at a time. */
+    private static final int MAX_PENDING_PER_USER = 50;
+
     private final ScheduledMessageRepository repository;
     private final ChannelRepository channelRepository;
     private final UserRepository userRepository;
@@ -50,6 +56,13 @@ public class ScheduledMessageService {
         }
         if (request.scheduledAt() == null || !request.scheduledAt().isAfter(Instant.now())) {
             throw new BadRequestException("scheduledAt must be in the future");
+        }
+        // The queue is otherwise unbounded per user, and every pending row is
+        // work the dispatcher picks up on each sweep.
+        if (repository.findBySender_UsernameAndSentFalseOrderByScheduledAtAsc(username).size()
+                >= MAX_PENDING_PER_USER) {
+            throw new BadRequestException(
+                    "you can have at most " + MAX_PENDING_PER_USER + " scheduled messages pending");
         }
 
         Channel channel = channelRepository.findById(channelId)
@@ -85,7 +98,10 @@ public class ScheduledMessageService {
     /** Ids of rows due for delivery (read-only; the dispatcher delivers each separately). */
     @Transactional(readOnly = true)
     public List<UUID> findDueIds() {
-        return repository.findBySentFalseAndScheduledAtLessThanEqual(Instant.now()).stream()
+        return repository
+                .findBySentFalseAndAttemptsLessThanAndScheduledAtLessThanEqual(
+                        MAX_DELIVERY_ATTEMPTS, Instant.now())
+                .stream()
                 .map(ScheduledMessage::getId)
                 .toList();
     }
@@ -105,5 +121,31 @@ public class ScheduledMessageService {
                 new CreateMessageRequest(sm.getContent(), null),
                 sm.getSender().getUsername());
         sm.setSent(true);
+    }
+
+    /**
+     * Records a failed delivery, and gives up after {@link #MAX_DELIVERY_ATTEMPTS}.
+     *
+     * <p>A message that can never be delivered — its author left the channel
+     * after scheduling it, the channel was archived — came back due every 30
+     * seconds for ever, throwing and logging each time. The attempt count is what
+     * the due query stops at, so the row simply stops being retried; {@code sent}
+     * is deliberately left alone, because it was not. The author keeps seeing it
+     * in their pending list, now carrying the reason, and can cancel it.
+     *
+     * <p>Separate from {@link #deliver} and called by the dispatcher rather than
+     * from inside it: {@code deliver}'s transaction is already marked
+     * rollback-only by the failure, so bookkeeping written there would be
+     * discarded along with it.
+     */
+    @Transactional
+    public void recordFailedDelivery(UUID id, String error) {
+        repository.findById(id).ifPresent(sm -> {
+            if (sm.isSent()) {
+                return;
+            }
+            sm.setAttempts(sm.getAttempts() + 1);
+            sm.setLastError(error);
+        });
     }
 }

@@ -130,13 +130,18 @@ public class AuthController {
         authService.revokeSession(username, id);
     }
 
+    /**
+     * The caller's address, as the container resolved it.
+     *
+     * <p>This used to parse X-Forwarded-For and take the first entry, which is
+     * the one a caller writes for themselves — a proxy appends its view of the
+     * peer, it does not replace what was sent. Registration and password-reset
+     * throttles are keyed on this, so anyone could sidestep them with a header.
+     * Behind a proxy the prod profile enables Tomcat's RemoteIpValve, which
+     * resolves the header safely before the request gets here.
+     */
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getRemoteAddr();
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isEmpty()) {
-            ip = xff.split(",")[0].trim();
-        }
-        return ip;
+        return request.getRemoteAddr();
     }
 
     private String getUserAgent(HttpServletRequest request) {

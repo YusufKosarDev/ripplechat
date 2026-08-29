@@ -135,7 +135,13 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     List<Message> findByParent_IdInOrderByCreatedAtAsc(Collection<UUID> parentIds);
 
     /** Disappearing messages whose expiry has passed and aren't soft-deleted yet. */
-    List<Message> findByExpiresAtLessThanEqualAndDeletedFalse(Instant cutoff);
+    List<Message> findByExpiresAtLessThanEqualAndDeletedFalse(Instant cutoff, Pageable pageable);
+
+    /**
+     * Messages carrying a denormalised quote of the given message, so the
+     * snapshot can be scrubbed when the original is deleted.
+     */
+    List<Message> findByQuotedMessageId(UUID quotedMessageId);
 
     /** A user's authored messages, for the GDPR data export. */
     List<Message> findBySender_IdOrderByCreatedAtAsc(UUID senderId);
