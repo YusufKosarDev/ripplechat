@@ -38,7 +38,7 @@ Five things worth a look if you are skimming:
 |---|---|
 | **Signal protocol, from scratch** | Double Ratchet + X3DH over the Web Crypto API for 1:1 DMs — forward secrecy and break-in recovery, with prekeys published to the server and plaintexts cached only in the browser ([`crypto/`](frontend/src/crypto)) |
 | **Horizontally scalable WebSockets** | a Redis Pub/Sub bridge fans a message published on one replica out to subscribers connected to any other; rate limits are an atomic Redis token bucket rather than per-instance counters |
-| **Correct under concurrency** | `@Scheduled` sweeps are wrapped in ShedLock so exactly one replica runs each tick, and media cleanup goes through a transactional outbox instead of a best-effort delete |
+| **Correct under concurrency** | `@Scheduled` sweeps are wrapped in ShedLock so exactly one replica runs each tick, and work that must not be lost if a call fails — media cleanup, search reindexing — goes through a transactional outbox with backoff rather than a best-effort call |
 | **A JVM that starts fast** | the image unpacks the fat jar, does a CDS training run and maps the class archive back in at boot — a measured **28% off startup** (10.8s vs 15.1s, three runs each with and without the archive), which matters on a free-tier host |
 | **Tested where it counts** | 251 backend tests against real PostgreSQL, Redis and Elasticsearch (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 21 Playwright end-to-end scenarios |
 
@@ -76,7 +76,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 
 - **Live messaging** over WebSocket / STOMP — messages fan out instantly to every subscriber of a channel
 - **Distributed Pub/Sub (Redis)** — horizontally scalable WebSockets; messages published on any node are reliably broadcasted to users connected to other nodes via Redis Pub/Sub
-- **Voice & Video Calls (WebRTC)** — peer-to-peer secure WebRTC calls with **screen sharing** (swapped in via `replaceTrack`, no renegotiation), local/remote stream rendering, mute/video toggles, and signaling via STOMP
+- **Voice & Video Calls (WebRTC)** — peer-to-peer secure WebRTC calls with **screen sharing** (swapped in via `replaceTrack`, no renegotiation), local/remote stream rendering, mute/video toggles, and signalling over STOMP — an offer, answer or ICE candidate addressed to one peer goes to that person's own topic, not the channel's, so a call between two people is not delivered to everyone else in the room
 - **Optimistic UI** — instant UI updates for messages and channels before server confirmation, with seamless fallback/error handling
 - **Presence** — see who's online at a glance
 - **Typing indicators** — know when someone in the channel is composing a message
@@ -87,7 +87,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 <details>
 <summary><b>💬 Messaging</b></summary>
 
-- **Channels** with membership management, plus a **discover view** to browse and join the public channels you're not in yet (instead of only joining by id)
+- **Channels** with membership management, plus a **discover view** to browse and join the public channels you're not in yet. Private channels are invite-only: an owner or moderator adds people through a member picker, so knowing the id is never enough to get in
 - **Direct messages** — private 1:1 conversations, plus **group DMs** (multi-party), reusing the same real-time pipeline
 - **Threads** — keep focused reply chains off the main timeline
 - **Edit & delete** messages — **delete for everyone** (soft delete) or **delete for me** (hide from your own view). Edited messages carry an **"(edited)"** badge that opens the full **edit history** — every superseded version is snapshotted and timestamped
@@ -97,7 +97,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 - **@mentions** with autocomplete, in-message highlighting, and a per-channel mention badge
 - **AI channel summarization (Claude)** — a "✨ Summarize" button digests a channel's recent messages into a short catch-up summary via the official Anthropic SDK (Sonnet by default, `AI_MODEL`-overridable). Gracefully disabled when `ANTHROPIC_API_KEY` is unset, per-user rate-limited, and membership-checked. (True embeddings-based *semantic* search would need a separate embeddings provider — Anthropic has no embeddings endpoint — so it's out of scope here.)
 - **Full-text search** — searches message content with sender, channel and date filters. Runs on **PostgreSQL full-text** (`to_tsvector`, GIN-backed) by default, so search works on a fresh clone with nothing extra to install. Set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` against a real Elasticsearch to swap in the n-gram analyzer and BM25 ranking instead — both backends apply the same filters and return the same rows, only the ranking differs
-- **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. `/remind` schedules one as a quick reminder
+- **Scheduled messages** — queue a message to a channel for a future time; a background dispatcher delivers due messages through the normal pipeline. One that cannot be delivered — you left the channel after scheduling it, say — is retried a bounded number of times and then stays in your pending list marked as failed, rather than disappearing as though it had gone out. `/remind` schedules one as a quick reminder
 - **Infinite scroll** — older history loads as you scroll up
 
 </details>
@@ -119,7 +119,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 - **Image, file, and voice-message attachments** (recorded in-browser), stored on Cloudinary
 - **Automatic Storage Cleanup** — media files hosted on Cloudinary are reliably and automatically purged when the owning message is deleted
 - **Per-channel media gallery** of shared images
-- **Link previews** — URLs unfurl into title/description/image cards (server-side, SSRF-guarded)
+- **Link previews** — URLs unfurl into title/description/image cards, fetched server-side behind an SSRF guard that re-checks every redirect hop and refuses loopback, private, link-local, carrier-grade-NAT and reserved addresses
 
 </details>
 
@@ -158,7 +158,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 - **Two-factor auth** — TOTP with single-use recovery codes; enabling, disabling and regenerating codes all re-confirm the account password, so a stolen session cannot strip the second factor off the account it protects
 - **User blocking** — hide messages from blocked users
 - **GDPR self-service** — download all of your own data as JSON, and erase your account: personal data is scrubbed and sign-in/session/notification artifacts are purged, while your past messages are retained under an anonymised "Deleted User" so other people's conversation history stays intact
-- **End-to-end encryption (E2EE) (V2)** (opt-in) for 1-to-1 direct messages — implements **Signal's Double Ratchet Protocol** and **X3DH (Extended Triple Diffie-Hellman)** key agreement using Web Crypto API. Features **Forward Secrecy** (past keys are deleted) and **Break-in Recovery** (new DH ratchet steps heal the session), with automatic prekey generation and replenishment. Also supports legacy manual passphrase-derived (PBKDF2, 600k iterations, with a fallback to the original count so older messages stay readable) symmetric encryption. Plaintexts are cached locally in the browser's IndexedDB decrypted cache, keeping the server blind to the content. Key material and passphrases live in this browser only — passphrases in `sessionStorage`, so they do not outlive the browsing session — and signing out wipes all of it, along with the cached history.
+- **End-to-end encryption (E2EE) (V2)** (opt-in) for 1-to-1 direct messages — implements **Signal's Double Ratchet Protocol** and **X3DH (Extended Triple Diffie-Hellman)** key agreement using Web Crypto API. Features **Forward Secrecy** (past keys are deleted) and **Break-in Recovery** (new DH ratchet steps heal the session), with automatic prekey generation and replenishment. The per-message header is bound into the AES-GCM tag, so the ratchet key and chain position a message claims cannot be rewritten in flight, and the skipped-key store is bounded rather than growing for the life of the session. Also supports legacy manual passphrase-derived (PBKDF2, 600k iterations, with a fallback to the original count so older messages stay readable) symmetric encryption. Plaintexts are cached locally in the browser's IndexedDB decrypted cache, keeping the server blind to the content. Key material and passphrases live in this browser only — passphrases in `sessionStorage`, so they do not outlive the browsing session — and signing out wipes all of it, along with the cached history. Signing back in provisions a fresh identity and republishes it, so the account never advertises a public key whose private half no longer exists anywhere.
 - **Safety numbers** — because prekey bundles and identity keys are served by *this* backend, a compromised server could hand each side a key it controls and sit in the middle; the ratchet secures the channel, not the identity at the far end of it. Each DM therefore exposes a **safety number** (iterated SHA-256 over both identity keys, rendered as twelve five-digit groups, ordered so both people see the same value) to compare out of band. Trust is otherwise **TOFU** — first key seen is trusted — which is the honest description of any system that distributes keys through its own server
 - **Abuse protection** — input size limits plus distributed (Redis) rate limiting on every endpoint that costs something: login, **2FA verification and management**, **registration**, message sends, reactions, polls, webhook ingestion, uploads, GIF search, link unfurling, and pre-key bundle fetches (each one consumes a one-time pre-key, so fetching is a write against someone else's key supply). Rate-limited responses carry a `Retry-After` hint. IP-keyed limits read the address the container resolved — parsing `X-Forwarded-For` by hand takes the entry the caller writes for themselves
 - **Account lockout** — after repeated failed password attempts an account is *temporarily* locked (auto-unlocks after a short cooldown, kept short to bound the DoS surface of a targeted lockout; the demo account is exempt). Counters live in Redis and lock events are audit-logged
@@ -174,7 +174,7 @@ Every *third-party* service below is optional — the app boots and degrades gra
 
 - **Quick switcher** — `Ctrl`/`Cmd`+`K` opens a Slack-style palette to jump between channels and DMs with full keyboard navigation
 - **Light / dark theme** toggle and a **responsive** layout that adapts to mobile
-- **Offline-First PWA** — progressive web app with a service worker (`vite-plugin-pwa`) that caches UI assets and uses **IndexedDB** (`idb`) to store messages locally. Users can read history and send "pending" messages while offline, which automatically sync to the backend when the network recovers.
+- **Offline-First PWA** — progressive web app with a service worker (`vite-plugin-pwa`) that caches UI assets and uses **IndexedDB** (`idb`) to store messages locally. Users can read history and send "pending" messages while offline, which sync when the network recovers. The replay waits for a socket that has actually completed a CONNECT rather than for `navigator.onLine`: STOMP caches its connected flag, so a socket killed while offline keeps claiming to be open, and publishing into it looks like a success while the message goes nowhere. Nothing leaves the queue until the frame is on the wire. The service worker never caches API responses — they are authenticated, and Cache Storage outlives a sign-out.
 - **Internationalization** — English / Turkish with a language toggle
 - **Accessibility** — accessible dialogs (focus trap, Escape, focus restore), ARIA labels, a skip link, and **automated axe checks** in CI
 - **Resilient UI** — an error boundary keeps a component crash from blanking the app, and a toast layer surfaces transient successes/errors
@@ -279,8 +279,8 @@ flowchart TB
 
     subgraph Data["🗄️ Stateful infrastructure"]
         direction LR
-        PG[("PostgreSQL 16<br/>Flyway V1–V39")]
-        RD[("Redis<br/>pub/sub · rate limit<br/>lockout · ShedLock")]
+        PG[("PostgreSQL 16<br/>Flyway V1–V41<br/>ShedLock leases")]
+        RD[("Redis<br/>pub/sub · rate limit<br/>lockout<br/>token revocation")]
         ES[("Elasticsearch<br/>opt-in; PG is default")]
     end
 
@@ -308,7 +308,7 @@ flowchart TB
 auth · user · channel (+ membership · direct messages · categories) · message (+ threads · pins · forwards · scheduled · edit history)
 presence · typing · reaction · poll · search (full-text) · read receipts · push · notification · bookmark · link previews · media · gif
 webhook · mail · scheduling (ShedLock) · ai (Claude summarization) · admin (moderation + audit log) · websocket
-e2ee (X3DH prekeys · group sender keys) · outbox (transactional async cleanup) · redis (rate limiting · pub/sub fan-out) · demo (seeded demo workspace)
+e2ee (X3DH prekeys · group sender keys) · outbox (transactional async work: media cleanup · search reindex retries) · redis (rate limiting · pub/sub fan-out) · demo (seeded demo workspace)
 ```
 
 **WebSocket layer.** Clients open a single STOMP connection authenticated with a JWT on `CONNECT`. The server broadcasts to `/topic/...` destinations (e.g. `/topic/channels/{id}`); clients publish via `/app/...`. Messages, reactions, presence, typing, and polls all travel over this channel for instant fan-out.
@@ -350,7 +350,8 @@ docker compose up -d
 ```
 
 Redis is **required**, not one of the optional services: the rate limiter,
-login lockout, presence and the cross-replica WebSocket fan-out all use it.
+login lockout, presence, access-token revocation and the cross-replica
+WebSocket fan-out all use it.
 
 ### 3. Run the backend
 
@@ -393,7 +394,7 @@ The `prod` profile swaps auto-schema for validated, Flyway-managed migrations an
 | `APP_ALLOWED_ORIGINS` | comma-separated allowed origins, e.g. `https://chat.example.com` |
 | `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_HOST_PORT` · `SERVER_PORT` | point at the production database / port |
 
-On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V39__demo_workspace_parity`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
+On first boot against an empty database, Flyway applies the migrations in order (`V1__initial_schema` … `V41__scheduled_message_attempts`) and Hibernate validates the schema against the entities. The full environment list lives in `.env.example`.
 
 Several features are **optional and gracefully disabled when their credentials are absent**, so the app always boots: `CLOUDINARY_URL` (image/file/voice uploads), `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (web push), `GIPHY_API_KEY` (GIF search), and SMTP (`MAIL_ENABLED` + `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`) for password-reset / verification email — without it those links are written to the console instead of sent, which is how the flows stay usable in development and why the prod profile turns that off (`app.mail.log-links=false`): a reset link in a log is account access for whoever can read the log. Search runs on PostgreSQL full-text by default and never contacts Elasticsearch; set `APP_SEARCH_ELASTICSEARCH_ENABLED=true` (with an ES instance reachable at `spring.elasticsearch.uris`) to use it instead. End-to-end encryption is entirely client-side and needs no server configuration.
 
@@ -431,14 +432,14 @@ ripplechat/
 │   │   ├── push/                # Web push (VAPID) subscriptions & sending
 │   │   ├── mail/                # Transactional email (reset / verification; logs when no SMTP)
 │   │   ├── scheduling/          # ShedLock single-runner locking for @Scheduled tasks
-│   │   ├── outbox/              # Transactional outbox for reliable async work (media cleanup)
+│   │   ├── outbox/              # Transactional outbox: media cleanup, search reindex retries
 │   │   ├── link/                # Link-preview unfurling (jsoup, SSRF-guarded)
 │   │   ├── media/ · gif/        # Cloudinary uploads · Giphy GIF search
 │   │   ├── redis/               # Redis rate limiter + cross-replica STOMP pub/sub bridge
 │   │   ├── websocket/           # STOMP config & subscription auth
 │   │   └── common/              # Shared errors, exceptions, request-id filter
 │   └── src/main/resources/
-│       └── db/migration/        # Flyway migrations V1–V39 (prod schema)
+│       └── db/migration/        # Flyway migrations V1–V41 (prod schema)
 ├── frontend/                    # React + TypeScript app
 │   ├── public/                  # PWA manifest, icons, OG image
 │   └── src/
@@ -509,10 +510,10 @@ and by end-to-end scenarios everywhere else.
 
 | Suite | What it covers | Size |
 |---|---|---|
-| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, channel authorisation, messaging, search, webhooks, admin, the outbox, and a live STOMP round-trip | **251 tests · 75% line coverage** (JaCoCo) |
+| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, token revocation, channel authorisation, messaging, search and its retry path, webhooks, admin, the outbox, and a live STOMP round-trip | **251 tests · 75% line coverage** (JaCoCo) |
 | **Architecture** (ArchUnit) | naming, one-directional layer dependencies, an independent `common` package, constructor injection | enforced on every build |
 | **Mutation** (PITest) | the security-critical classes: rate limiter, JWT service, SSRF guard, upload validation, request-id filter, poll tallying | **70% killed · 86% test strength** (`./mvnw -Ppitest test org.pitest:pitest-maven:mutationCoverage`) |
-| **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips, the STOMP client, the channel hook, the send path, reducers, slash commands | **242 tests · 34% line coverage** (v8) |
+| **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips and header binding, identity provisioning, the STOMP client, the channel hook, the send path, markdown link safety, reducers, slash commands | **242 tests · 34% line coverage** (v8) |
 | **Integration e2e** (Playwright + real stack) | the production build against a real PostgreSQL + Redis + backend, nothing stubbed: the frontend↔backend contract, private-channel authorisation, sign-out revoking the access token, delete clearing edit history, the offline queue surviving a network blip | **9 scenarios** (`npm run test:e2e:integration`) |
 | **End-to-end** (Playwright) | the real production build against a stubbed backend: landing, login, 2FA, chat, search, scheduled messages, blocking, pinning, theme and language toggles | **21 scenarios** (+9 screenshot and demo-reel generators) |
 | **Accessibility** (axe) | the landing, login and register pages plus the chat workspace itself, failing on critical/serious violations | part of the e2e run |
