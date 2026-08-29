@@ -84,8 +84,13 @@ test.describe('Frontend and backend agree', () => {
     const composer = page.locator('.ProseMirror').last()
     await composer.waitFor({ state: 'visible' })
 
-    await context.setOffline(true)
+    // Focus while still online: going offline re-renders the composer, and
+    // clicking into an element that is being replaced is how this test failed in
+    // CI — "element is not stable", then detached mid-click. focus() only waits
+    // for attachment, so it survives the re-render that follows.
     await composer.click()
+    await context.setOffline(true)
+    await composer.focus()
     const text = `kuyruk-${Date.now().toString(36)}`
     await page.keyboard.type(text)
     await page.keyboard.press('Enter')
