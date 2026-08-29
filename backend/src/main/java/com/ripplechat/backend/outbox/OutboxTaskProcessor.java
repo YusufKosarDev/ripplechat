@@ -31,9 +31,28 @@ public class OutboxTaskProcessor {
     /** Ceiling on the exponential backoff, which would otherwise run away. */
     private static final long MAX_BACKOFF_SECONDS = 3600;
 
+    /**
+     * The scheduled entry point.
+     *
+     * <p>The ShedLock annotation belongs here rather than on the work itself:
+     * it exists so that only one replica sweeps per tick, which is a property of
+     * the schedule. Putting it on the work meant a caller who wanted the queue
+     * drained — a test, most of all — was silently competing with the scheduler
+     * for the lock, and lost by doing nothing at all. That produced a test that
+     * failed only when the timing went against it.
+     */
     @Scheduled(fixedDelayString = "${ripplechat.outbox.sweep-ms:5000}")
     @SchedulerLock(name = "outboxTaskSweep", lockAtMostFor = "PT2M", lockAtLeastFor = "PT0S")
     public void processTasks() {
+        drain();
+    }
+
+    /**
+     * Runs the queue to completion. Unlocked — the lock is the schedule's, not the
+     * work's — and package-private, because nothing outside the outbox has any
+     * business draining it.
+     */
+    void drain() {
         Instant now = Instant.now();
         List<OutboxTask> pendingTasks =
                 outboxTaskRepository.findPendingTasks(MAX_ATTEMPTS, now, now.minus(STUCK_AFTER));

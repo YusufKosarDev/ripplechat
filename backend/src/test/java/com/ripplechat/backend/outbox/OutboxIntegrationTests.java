@@ -4,6 +4,7 @@ import com.ripplechat.backend.media.MediaStorage;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
@@ -13,6 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
+/**
+ * The sweep is driven explicitly here, and the scheduled one is turned off for
+ * the class: with it running every five seconds it could pick a task up between
+ * the setup and the assertion, so the test passed or failed on timing.
+ */
+@TestPropertySource(properties = "ripplechat.outbox.sweep-ms=3600000")
 class OutboxIntegrationTests extends AbstractIntegrationTest {
 
     @Autowired
@@ -34,7 +41,7 @@ class OutboxIntegrationTests extends AbstractIntegrationTest {
         task.setCreatedAt(Instant.now());
         outboxTaskRepository.saveAndFlush(task);
 
-        outboxTaskProcessor.processTasks();
+        outboxTaskProcessor.drain();
 
         OutboxTask processedTask = outboxTaskRepository.findById(task.getId()).orElseThrow();
         assertThat(processedTask.getStatus()).isEqualTo(OutboxTask.Status.COMPLETED);
@@ -56,7 +63,7 @@ class OutboxIntegrationTests extends AbstractIntegrationTest {
 
         doThrow(new RuntimeException("Cloudinary API failure")).when(mediaStorage).delete("https://res.cloudinary.com/fail-image.jpg");
 
-        outboxTaskProcessor.processTasks();
+        outboxTaskProcessor.drain();
 
         OutboxTask processedTask = outboxTaskRepository.findById(task.getId()).orElseThrow();
         assertThat(processedTask.getStatus()).isEqualTo(OutboxTask.Status.FAILED);
@@ -79,7 +86,7 @@ class OutboxIntegrationTests extends AbstractIntegrationTest {
         outboxTaskRepository.saveAndFlush(task);
 
         // Execute processor
-        outboxTaskProcessor.processTasks();
+        outboxTaskProcessor.drain();
 
         // The task should NOT be processed again because nextAttemptAt is in the future.
         // So attempts count should remain 1.
