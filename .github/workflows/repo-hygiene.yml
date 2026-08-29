@@ -14,8 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The commit-message check walks a revision range, which needs more
-          # than the default single-commit checkout.
+          # The commit-message check reads every commit message, which the
+          # default single-commit checkout does not provide.
           fetch-depth: 0
 
       - name: Check text files have no NUL bytes (encoding corruption guard)
@@ -34,27 +34,10 @@ jobs:
       # checkout, or with --no-verify would otherwise go unchecked. Same script,
       # same rules, so the two cannot drift apart.
       #
-      # Scope: the commits this push or pull request adds. To scan the whole
-      # history instead, replace the command below with:
-      #     bash scripts/check-commit-messages.sh --all
+      # Scope is the whole history, not just what a push adds. Scanning a range
+      # meant deriving a base commit, which is absent on a new branch and stale
+      # after a force push — exactly the cases where something could slip in
+      # unseen. Walking every message removes the question, and the full walk
+      # costs seconds at this repository's size.
       - name: Check commit messages for automatically added attribution lines
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -u
-          # A new branch reports an all-zero base, and a force push can name a
-          # base that no longer exists; fall back to the tip commit alone.
-          if [ -n "$BASE_SHA" ] \
-            && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ] \
-            && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-            range="${BASE_SHA}..${HEAD_SHA}"
-          elif git cat-file -e "${HEAD_SHA}~1^{commit}" 2>/dev/null; then
-            echo "No usable base commit; checking the tip commit only."
-            range="${HEAD_SHA}~1..${HEAD_SHA}"
-          else
-            echo "No parent commit; checking the tip commit only."
-            range="${HEAD_SHA}"
-          fi
-          echo "Range: ${range}"
-          bash scripts/check-commit-messages.sh --range "${range}"
+        run: bash scripts/check-commit-messages.sh --all
