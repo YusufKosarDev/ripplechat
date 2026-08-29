@@ -40,7 +40,7 @@ Five things worth a look if you are skimming:
 | **Horizontally scalable WebSockets** | a Redis Pub/Sub bridge fans a message published on one replica out to subscribers connected to any other; rate limits are an atomic Redis token bucket rather than per-instance counters |
 | **Correct under concurrency** | `@Scheduled` sweeps are wrapped in ShedLock so exactly one replica runs each tick, and work that must not be lost if a call fails — media cleanup, search reindexing — goes through a transactional outbox with backoff rather than a best-effort call |
 | **A JVM that starts fast** | the image unpacks the fat jar, does a CDS training run and maps the class archive back in at boot — a measured **28% off startup** (10.8s vs 15.1s, three runs each with and without the archive), which matters on a free-tier host |
-| **Tested where it counts** | 251 backend tests against real PostgreSQL, Redis and Elasticsearch (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 21 Playwright end-to-end scenarios |
+| **Tested where it counts** | 253 backend tests against real PostgreSQL, Redis and Elasticsearch (Testcontainers), ArchUnit boundary rules, PITest mutation testing on the security-critical classes, and 21 Playwright end-to-end scenarios |
 
 Built solo over ~5 weeks of active development, 290+ commits.
 
@@ -510,7 +510,7 @@ and by end-to-end scenarios everywhere else.
 
 | Suite | What it covers | Size |
 |---|---|---|
-| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, token revocation, channel authorisation, messaging, search and its retry path, webhooks, admin, the outbox, and a live STOMP round-trip | **251 tests · 75% line coverage** (JaCoCo) |
+| **Backend integration** (JUnit 5 + Testcontainers) | real PostgreSQL, Redis and Elasticsearch containers — auth, 2FA, token revocation, channel authorisation, messaging, search and its retry path, webhooks, admin, the outbox, and a live STOMP round-trip | **253 tests · 75% line coverage** (JaCoCo) |
 | **Architecture** (ArchUnit) | naming, one-directional layer dependencies, an independent `common` package, constructor injection | enforced on every build |
 | **Mutation** (PITest) | the security-critical classes: rate limiter, JWT service, SSRF guard, upload validation, request-id filter, poll tallying | **70% killed · 86% test strength** (`./mvnw -Ppitest test org.pitest:pitest-maven:mutationCoverage`) |
 | **Frontend unit** (Vitest + RTL) | Double Ratchet / X3DH round-trips and header binding, identity provisioning, the STOMP client, the channel hook, the send path, markdown link safety, reducers, slash commands | **242 tests · 34% line coverage** (v8) |

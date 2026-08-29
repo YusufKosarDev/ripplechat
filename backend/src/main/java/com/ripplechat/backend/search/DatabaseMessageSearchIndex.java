@@ -15,18 +15,27 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * PostgreSQL full-text fallback, active when {@code app.search.elasticsearch.enabled=false}.
+ * PostgreSQL full-text fallback, and the default backend.
  *
- * <p>This is the default: {@code docker-compose.yml} ships no Elasticsearch, so
- * search works out of the box on a fresh clone and on a single-instance
- * free-tier deployment. It reuses the existing {@code messages} full-text index
+ * <p>Default in the sense that matters: {@code matchIfMissing} lives here, so an
+ * absent property selects PostgreSQL. It used to live on the Elasticsearch
+ * implementation, which meant "no property" quietly meant Elasticsearch while
+ * {@code application.properties} and the README both said PostgreSQL. Nothing in
+ * production noticed, because the property is always set there — but the tests
+ * run without it, so they had been exercising a backend the documentation calls
+ * opt-in, and a deployment that trimmed its config would have reached for a
+ * cluster it never configured.
+ *
+ * <p>{@code docker-compose.yml} ships no Elasticsearch, so search works out of
+ * the box on a fresh clone and on a single-instance free-tier deployment. It
+ * reuses the existing {@code messages} full-text index
  * ({@code to_tsvector('simple', content)}, GIN-backed) and applies the same
  * sender, date and blocked-author filters as the Elasticsearch path, so the two
  * return the same rows. Ranking differs ({@code ts_rank} rather than BM25), and
  * indexing is a no-op: PostgreSQL rows are themselves the searchable source.
  */
 @Component
-@ConditionalOnProperty(name = "app.search.elasticsearch.enabled", havingValue = "false")
+@ConditionalOnProperty(name = "app.search.elasticsearch.enabled", havingValue = "false", matchIfMissing = true)
 @RequiredArgsConstructor
 @Slf4j
 public class DatabaseMessageSearchIndex implements MessageSearchIndex {

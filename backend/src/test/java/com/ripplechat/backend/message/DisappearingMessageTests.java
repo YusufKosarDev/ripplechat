@@ -9,11 +9,20 @@ import com.ripplechat.backend.search.SearchService;
 import com.ripplechat.backend.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Pinned to Elasticsearch: the de-indexing assertion below only means anything
+ * against a backend that holds its own copy of the message. On the PostgreSQL
+ * backend the rows are the index, so clearing the content passes the assertion
+ * without proving the sweep de-indexed anything. Tests inherit the default,
+ * which is PostgreSQL, so this has to be explicit.
+ */
+@TestPropertySource(properties = "app.search.elasticsearch.enabled=true")
 class DisappearingMessageTests extends AbstractIntegrationTest {
 
     @Autowired
