@@ -22,7 +22,7 @@ import java.util.UUID;
  * {@link DatabaseMessageSearchIndex} instead).
  */
 @Component
-@ConditionalOnProperty(name = "app.search.elasticsearch.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.search.elasticsearch.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class ElasticsearchMessageSearchIndex implements MessageSearchIndex {
