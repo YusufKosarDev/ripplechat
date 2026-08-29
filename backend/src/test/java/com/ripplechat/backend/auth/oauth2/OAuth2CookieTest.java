@@ -160,4 +160,26 @@ class OAuth2CookieTest {
         assertThat(HttpCookieOAuth2AuthorizationRequestRepository
                 .savedRedirectUri(new MockHttpServletRequest())).isEmpty();
     }
+
+    @Test
+    void aFlowThatAsksForNoRedirectDoesNotInheritTheLastOne() {
+        // Sign in once asking for a particular redirect...
+        MockHttpServletRequest first = new MockHttpServletRequest();
+        first.setParameter(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME,
+                "https://app.example.com/oauth2/redirect");
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), first, firstResponse);
+
+        // ...then start a plain one in the same browser. The cookie from the
+        // first flow must not decide where this one lands.
+        MockHttpServletRequest second = new MockHttpServletRequest();
+        second.setCookies(firstResponse.getCookies());
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        repository.saveAuthorizationRequest(anAuthorizationRequest(), second, secondResponse);
+
+        assertThat(secondResponse.getCookie(
+                HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME)
+                .getMaxAge()).isZero();
+    }
 }

@@ -48,6 +48,12 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
         String redirectUriAfterLogin = request.getParameter(REDIRECT_URI_PARAM_COOKIE_NAME);
         if (redirectUriAfterLogin != null && !redirectUriAfterLogin.isBlank()) {
             addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, cookieExpireSeconds, secure);
+        } else {
+            // This flow asked for no particular redirect, so it must not inherit
+            // one from a flow that did. Harmless while nothing read the cookie;
+            // now that the success handler does, a stale value would quietly
+            // send this sign-in somewhere the caller never asked for.
+            removeCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
         }
     }
 
