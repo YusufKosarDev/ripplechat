@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Page } from '@playwright/test'
 
 /**
@@ -15,8 +16,15 @@ const API = 'http://localhost:4173'
 
 export const PASSWORD = 'password123'
 
-/** Unique per process, so parallel workers and repeat runs never collide. */
-const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+/**
+ * Unique per process, so parallel workers and repeat runs never collide.
+ *
+ * randomUUID rather than Math.random: the suffix ends up in a username that is
+ * registered with a password, which is enough for a scanner to call this a
+ * security context — and arguing with it costs more than just using the right
+ * generator.
+ */
+const RUN = `${Date.now().toString(36)}${randomUUID().replace(/-/g, '').slice(0, 6)}`
 let seq = 0
 
 /** A username that satisfies the server's charset rule and is unique to this run. */
