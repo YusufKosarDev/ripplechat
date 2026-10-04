@@ -90,7 +90,7 @@
 		<dependency>
 			<groupId>com.anthropic</groupId>
 			<artifactId>anthropic-java</artifactId>
-			<version>2.65.0</version>
+			<version>2.68.0</version>
 		</dependency>
 
 		<!-- Operational health endpoint (/actuator/health). -->
@@ -140,7 +140,7 @@
 		<dependency>
 			<groupId>com.cloudinary</groupId>
 			<artifactId>cloudinary-http5</artifactId>
-			<version>2.4.0</version>
+			<version>2.5.0</version>
 		</dependency>
 
 		<!-- Web Push (VAPID) — inactive unless VAPID keys are set. -->
@@ -295,7 +295,7 @@
 		<dependency>
 			<groupId>com.tngtech.archunit</groupId>
 			<artifactId>archunit-junit5</artifactId>
-			<version>1.5.0</version>
+			<version>1.5.1</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
