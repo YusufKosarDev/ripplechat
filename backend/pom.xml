@@ -159,7 +159,7 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk18on</artifactId>
-			<version>1.86</version>
+			<version>1.87</version>
 		</dependency>
 		<!-- web-push's PushService.send returns an Apache HttpClient 4 response type. -->
 		<dependency>
@@ -197,12 +197,12 @@
 		<dependency>
 			<groupId>net.javacrumbs.shedlock</groupId>
 			<artifactId>shedlock-spring</artifactId>
-			<version>7.10.1</version>
+			<version>7.11.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.javacrumbs.shedlock</groupId>
 			<artifactId>shedlock-provider-jdbc-template</artifactId>
-			<version>7.10.1</version>
+			<version>7.11.0</version>
 		</dependency>
 
 		<dependency>
@@ -404,7 +404,7 @@
 					<plugin>
 						<groupId>org.pitest</groupId>
 						<artifactId>pitest-maven</artifactId>
-						<version>1.30.1</version>
+						<version>1.30.2</version>
 						<dependencies>
 							<dependency>
 								<groupId>org.pitest</groupId>
